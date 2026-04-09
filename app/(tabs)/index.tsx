@@ -26,6 +26,7 @@ import { useMatches } from "../../hooks/useMatches";
 import { useInventory } from "../../hooks/useInventory";
 import { useFriends } from "../../hooks/useFriends";
 import { useAppStore } from "../../stores/appStore";
+import LocationPrompt from "../../components/LocationPrompt";
 import {
   getCurrentSeasonalPrompt,
   getNextMilestone,
@@ -167,6 +168,11 @@ export default function HomeScreen() {
   const userInitials = useAppStore((s) => s.userInitials) || "\u{1F331}";
   const children = useAppStore((s) => s.children);
 
+  // Location prompt
+  const locationLat = useAppStore((s) => s.locationLat);
+  const [locationDismissed, setLocationDismissed] = useState(false);
+  const showLocationPrompt = !locationLat && !locationDismissed;
+
   // Seasonal / milestone prompt
   const [promptDismissed, setPromptDismissed] = useState(false);
   const seasonalPrompt = getCurrentSeasonalPrompt();
@@ -293,6 +299,16 @@ export default function HomeScreen() {
                 </>
               ) : null}
             </Card>
+          </View>
+        )}
+
+        {/* ---- Location prompt (shows once, contextually) ---- */}
+        {showLocationPrompt && (
+          <View style={styles.section}>
+            <LocationPrompt
+              onComplete={() => setLocationDismissed(true)}
+              onDismiss={() => setLocationDismissed(true)}
+            />
           </View>
         )}
 

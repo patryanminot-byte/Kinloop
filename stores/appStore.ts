@@ -37,6 +37,15 @@ interface AppState {
   matches: Match[];
   setMatches: (matches: Match[]) => void;
 
+  // Location
+  locationLat: number | null;
+  locationLng: number | null;
+  setLocation: (lat: number, lng: number) => void;
+
+  // Item visibility: who can see your listings
+  itemVisibility: "circle" | "nearby" | "friends-only";
+  setItemVisibility: (v: "circle" | "nearby" | "friends-only") => void;
+
   // Onboarding
   hasCompletedOnboarding: boolean;
   setOnboardingComplete: () => void;
@@ -75,6 +84,13 @@ export const useAppStore = create<AppState>((set) => ({
 
   matches: [],
   setMatches: (matches) => set({ matches }),
+
+  locationLat: null,
+  locationLng: null,
+  setLocation: (lat, lng) => set({ locationLat: lat, locationLng: lng }),
+
+  itemVisibility: "circle", // default: friends + friends-of-friends
+  setItemVisibility: (v) => set({ itemVisibility: v }),
 
   hasCompletedOnboarding: false,
   setOnboardingComplete: () => set({ hasCompletedOnboarding: true }),

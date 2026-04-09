@@ -49,9 +49,11 @@ export default function WelcomeScreen() {
     const newUser = await isNewUser(userId);
     if (newUser) {
       await createProfile(userId, identifier, name);
-      router.push("/onboarding/add-child");
+      router.push("/onboarding/your-name");
+    } else {
+      // Returning user — go straight to tabs
+      router.replace("/(tabs)");
     }
-    // Existing users: root layout handles routing to tabs
   };
 
   // ── Apple Sign In ───────────────────────────────────────────────────
@@ -313,10 +315,10 @@ export default function WelcomeScreen() {
           <View style={styles.center}>
             <Text style={styles.emoji}>🔄</Text>
             <GradientText style={styles.title}>Watasu</GradientText>
-            <Text style={styles.tagline}>Love it, then leave it.</Text>
+            <Text style={styles.tagline}>Love it, then pass it on.</Text>
             <Text style={styles.subtitle}>
-              Your kids outgrow things. Your friends' kids grow into them. We
-              handle the rest.
+              Your kids outgrow things. Your friends' kids grow into them.{"\n"}
+              Sign in or create an account to get started.
             </Text>
           </View>
 

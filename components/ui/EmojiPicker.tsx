@@ -1,55 +1,90 @@
 import React from "react";
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet, ScrollView } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { gradientColors } from "../../lib/colors";
+import { gradientColors, colors } from "../../lib/colors";
 
 interface EmojiPickerProps {
   selected?: string;
   onSelect?: (emoji: string) => void;
 }
 
-const EMOJI_ROWS = [
-  ["\u{1F476}\u{1F3FB}", "\u{1F476}\u{1F3FC}", "\u{1F476}\u{1F3FD}", "\u{1F476}\u{1F3FE}", "\u{1F476}\u{1F3FF}"],
-  ["\u{1F467}\u{1F3FB}", "\u{1F467}\u{1F3FC}", "\u{1F467}\u{1F3FD}", "\u{1F467}\u{1F3FE}", "\u{1F467}\u{1F3FF}"],
-  ["\u{1F466}\u{1F3FB}", "\u{1F466}\u{1F3FC}", "\u{1F466}\u{1F3FD}", "\u{1F466}\u{1F3FE}", "\u{1F466}\u{1F3FF}"],
+const EMOJI_SECTIONS = [
+  {
+    label: "Faces",
+    emojis: [
+      "\u{1F476}", "\u{1F476}\u{1F3FB}", "\u{1F476}\u{1F3FC}",
+      "\u{1F476}\u{1F3FD}", "\u{1F476}\u{1F3FE}", "\u{1F476}\u{1F3FF}",
+      "\u{1F9D2}", "\u{1F9D2}\u{1F3FB}", "\u{1F9D2}\u{1F3FC}",
+      "\u{1F9D2}\u{1F3FD}", "\u{1F9D2}\u{1F3FE}", "\u{1F9D2}\u{1F3FF}",
+      "\u{1F466}", "\u{1F466}\u{1F3FC}", "\u{1F466}\u{1F3FE}",
+      "\u{1F467}", "\u{1F467}\u{1F3FC}", "\u{1F467}\u{1F3FE}",
+      "\u{1F9D1}", "\u{1F9D1}\u{1F3FB}", "\u{1F9D1}\u{1F3FC}",
+      "\u{1F9D1}\u{1F3FD}", "\u{1F9D1}\u{1F3FE}", "\u{1F9D1}\u{1F3FF}",
+      "\u{1F60A}", "\u{1F604}", "\u{1F970}", "\u{1F60E}",
+      "\u{1F929}", "\u{1F607}", "\u{1F973}", "\u{1F60B}",
+      "\u{1F917}", "\u{1F61C}", "\u{1F643}",
+    ],
+  },
+  {
+    label: "Animals",
+    emojis: [
+      "\u{1F43B}", "\u{1F98A}", "\u{1F430}", "\u{1F431}",
+      "\u{1F981}", "\u{1F43C}", "\u{1F428}", "\u{1F984}",
+      "\u{1F42C}", "\u{1F98B}", "\u{1F422}", "\u{1F41D}",
+    ],
+  },
+  {
+    label: "Fun",
+    emojis: [
+      "\u{1F31F}", "\u{1F308}", "\u{1F33B}", "\u{1F338}",
+      "\u{1F340}", "\u{1F331}", "\u{1F30A}", "\u{2728}",
+      "\u{1F680}", "\u{1F388}", "\u{1F3A8}", "\u{1F996}",
+    ],
+  },
 ];
 
-const RING_SIZE = 56;
-const EMOJI_SIZE = 44;
+const RING_SIZE = 48;
 const RING_BORDER = 3;
 
 export default function EmojiPicker({ selected, onSelect }: EmojiPickerProps) {
   return (
-    <View style={styles.grid}>
-      {EMOJI_ROWS.map((row, rowIndex) => (
-        <View key={rowIndex} style={styles.row}>
-          {row.map((emoji) => {
-            const isSelected = selected === emoji;
-            return (
-              <Pressable
-                key={emoji}
-                onPress={() => onSelect?.(emoji)}
-                style={styles.cell}
-              >
-                {isSelected ? (
-                  <LinearGradient
-                    colors={gradientColors.rainbow}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.ring}
-                  >
-                    <View style={styles.ringInner}>
+    <View style={styles.container}>
+      {EMOJI_SECTIONS.map((section) => (
+        <View key={section.label}>
+          <Text style={styles.sectionLabel}>{section.label}</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+          >
+            {section.emojis.map((emoji) => {
+              const isSelected = selected === emoji;
+              return (
+                <Pressable
+                  key={emoji}
+                  onPress={() => onSelect?.(emoji)}
+                  style={styles.cell}
+                >
+                  {isSelected ? (
+                    <LinearGradient
+                      colors={gradientColors.rainbow}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.ring}
+                    >
+                      <View style={styles.ringInner}>
+                        <Text style={styles.emoji}>{emoji}</Text>
+                      </View>
+                    </LinearGradient>
+                  ) : (
+                    <View style={styles.ringPlaceholder}>
                       <Text style={styles.emoji}>{emoji}</Text>
                     </View>
-                  </LinearGradient>
-                ) : (
-                  <View style={styles.ringPlaceholder}>
-                    <Text style={styles.emoji}>{emoji}</Text>
-                  </View>
-                )}
-              </Pressable>
-            );
-          })}
+                  )}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
         </View>
       ))}
     </View>
@@ -57,13 +92,20 @@ export default function EmojiPicker({ selected, onSelect }: EmojiPickerProps) {
 }
 
 const styles = StyleSheet.create({
-  grid: {
-    gap: 8,
+  container: {
+    gap: 12,
   },
-  row: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 8,
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.textMuted,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 6,
+  },
+  scrollContent: {
+    gap: 6,
+    paddingVertical: 4,
   },
   cell: {
     alignItems: "center",
@@ -92,6 +134,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   emoji: {
-    fontSize: EMOJI_SIZE * 0.6,
+    fontSize: 24,
   },
 });

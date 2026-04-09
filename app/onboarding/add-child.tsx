@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
   Platform,
+  Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -29,6 +30,7 @@ function generateId(): string {
 export default function AddChildScreen() {
   const router = useRouter();
   const addChild = useAppStore((s) => s.addChild);
+  const setOnboardingComplete = useAppStore((s) => s.setOnboardingComplete);
   const { session } = useAuth();
 
   const [name, setName] = useState("");
@@ -70,6 +72,11 @@ export default function AddChildScreen() {
     if (!canProceed) return;
     await saveChild();
     router.push("/onboarding/contacts");
+  };
+
+  const handleSkip = () => {
+    setOnboardingComplete();
+    router.replace("/(tabs)");
   };
 
   const handleAddAnother = async () => {
@@ -184,6 +191,9 @@ export default function AddChildScreen() {
           onPress={handleAddAnother}
           disabled={!canProceed}
         />
+        <Pressable onPress={handleSkip} style={styles.skipButton}>
+          <Text style={styles.skipText}>Skip</Text>
+        </Pressable>
       </View>
     </SafeAreaView>
   );
@@ -260,5 +270,13 @@ const styles = StyleSheet.create({
   },
   button: {
     width: "100%",
+  },
+  skipButton: {
+    paddingVertical: 8,
+  },
+  skipText: {
+    fontSize: 15,
+    color: colors.textMuted,
+    fontWeight: "500",
   },
 });

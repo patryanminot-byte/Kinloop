@@ -14,6 +14,8 @@ import ShopItemCard from "../../components/ShopItemCard";
 import GradientText from "../../components/ui/GradientText";
 import { useAuth } from "../../hooks/useAuth";
 import { useShop } from "../../hooks/useShop";
+import { useAppStore } from "../../stores/appStore";
+import LocationPrompt from "../../components/LocationPrompt";
 
 // --------------- Mock Data ---------------
 
@@ -274,6 +276,9 @@ export default function ShopScreen() {
       : MOCK_NEARBY_ITEMS;
 
   const [activeCategory, setActiveCategory] = useState("All");
+  const locationLat = useAppStore((s) => s.locationLat);
+  const [locationDismissed, setLocationDismissed] = useState(false);
+  const showLocationPrompt = !locationLat && !locationDismissed;
 
   const filteredFriendItems = useMemo(() => {
     if (activeCategory === "All") return friendItems;
@@ -365,6 +370,16 @@ export default function ShopScreen() {
             </View>
           )}
         </View>
+
+        {/* ---- Location prompt before nearby ---- */}
+        {showLocationPrompt && (
+          <View style={styles.section}>
+            <LocationPrompt
+              onComplete={() => setLocationDismissed(true)}
+              onDismiss={() => setLocationDismissed(true)}
+            />
+          </View>
+        )}
 
         {/* ---- Nearby section with distance groups ---- */}
         <View style={styles.section}>

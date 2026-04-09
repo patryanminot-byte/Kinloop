@@ -56,14 +56,14 @@ export default function RootLayout() {
             });
           }
         });
-      // Check if they have children (proxy for onboarding complete)
+      // Check if they have a profile with a name (onboarding complete)
       supabase
-        .from("children")
-        .select("id")
-        .eq("user_id", session.user.id)
-        .limit(1)
+        .from("profiles")
+        .select("name")
+        .eq("id", session.user.id)
+        .single()
         .then(({ data }) => {
-          if (data && data.length > 0) {
+          if (data?.name && data.name.length > 0) {
             setOnboardingComplete();
           }
         });
@@ -132,6 +132,7 @@ export default function RootLayout() {
           name="onboarding/welcome"
           options={{ animation: "fade" }}
         />
+        <Stack.Screen name="onboarding/your-name" />
         <Stack.Screen name="onboarding/add-child" />
         <Stack.Screen name="onboarding/contacts" />
         <Stack.Screen name="onboarding/inventory-suggest" />
