@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import { colors } from "../../lib/colors";
 import type { Item } from "../../lib/types";
 import ShopItemCard from "../../components/ShopItemCard";
@@ -258,6 +259,7 @@ function ItemGrid({ items }: { items: Item[] }) {
 }
 
 export default function ShopScreen() {
+  const router = useRouter();
   const { session } = useAuth();
   const userId = session?.user?.id;
   const {
@@ -408,6 +410,18 @@ export default function ShopScreen() {
           )}
         </View>
 
+        {/* Safety explainer link */}
+        <Pressable
+          onPress={() =>
+            router.push("/legal/safety-and-privacy" as `/${string}`)
+          }
+          style={styles.safetyLink}
+        >
+          <Text style={styles.safetyLinkText}>
+            {"\u{1F6E1}\uFE0F"} Learn how we keep you safe {"\u203A"}
+          </Text>
+        </Pressable>
+
         <View style={styles.bottomSpacer} />
       </ScrollView>
     </SafeAreaView>
@@ -526,6 +540,17 @@ const styles = StyleSheet.create({
   emptySectionText: {
     fontSize: 14,
     color: colors.textLight,
+  },
+
+  safetyLink: {
+    alignItems: "center",
+    paddingVertical: 16,
+    marginTop: 4,
+  },
+  safetyLinkText: {
+    fontSize: 13,
+    color: colors.neonPurple,
+    fontWeight: "500",
   },
 
   bottomSpacer: {

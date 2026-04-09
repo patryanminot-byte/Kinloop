@@ -168,6 +168,16 @@ export default function ContactsScreen() {
               🔒 Your contacts stay on your device. We only match phone numbers
               — nothing is uploaded or stored.
             </Text>
+            <Pressable
+              onPress={() =>
+                router.push("/legal/safety-and-privacy" as `/${string}`)
+              }
+              style={styles.learnMoreBtn}
+            >
+              <Text style={styles.learnMoreText}>
+                Learn how we protect your data {"\u203A"}
+              </Text>
+            </Pressable>
           </View>
 
           {loading ? (
@@ -292,6 +302,14 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: 8,
     marginBottom: 20,
+  },
+  learnMoreBtn: {
+    marginTop: 8,
+  },
+  learnMoreText: {
+    fontSize: 13,
+    color: colors.neonPurple,
+    fontWeight: "600",
   },
   privacyBox: {
     backgroundColor: "rgba(0,0,0,0.03)",

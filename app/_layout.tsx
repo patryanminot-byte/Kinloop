@@ -143,6 +143,7 @@ export default function RootLayout() {
         <Stack.Screen name="shop/[id]" />
         <Stack.Screen name="legal/privacy" />
         <Stack.Screen name="legal/terms" />
+        <Stack.Screen name="legal/safety-and-privacy" />
         <Stack.Screen name="onboarding/consent" />
       </Stack>
     </>

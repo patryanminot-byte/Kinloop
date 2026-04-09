@@ -57,6 +57,7 @@ function childAge(dob: string): string {
 }
 
 const SETTINGS_ROWS = [
+  { label: "How we keep you safe", icon: "\u{1F6E1}\uFE0F", route: "/legal/safety-and-privacy" },
   { label: "Notifications", icon: "\u{1F514}", route: null },
   { label: "Privacy", icon: "\u{1F512}", route: null },
   { label: "Privacy Policy", icon: "\u{1F4DC}", route: "/legal/privacy" },
