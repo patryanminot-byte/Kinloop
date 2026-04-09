@@ -16,8 +16,8 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
 );
 
-/** Kinloop fee tier (mirrors lib/utils.ts) */
-function kinloopFee(price: number): number {
+/** Watasu fee tier (mirrors lib/utils.ts) */
+function watasuFee(price: number): number {
   if (price < 50) return 2;
   if (price <= 150) return 5;
   return 8;
@@ -52,7 +52,7 @@ serve(async (req: Request) => {
       );
     }
 
-    const fee = kinloopFee(amount);
+    const fee = watasuFee(amount);
     const totalCents = Math.round((amount + fee) * 100);
     const feeCents = Math.round(fee * 100);
 
@@ -64,9 +64,9 @@ serve(async (req: Request) => {
         destination: seller.stripe_account_id,
       },
       metadata: {
-        kinloop_item_id: itemId,
-        kinloop_buyer_id: buyerId,
-        kinloop_seller_id: sellerId,
+        watasu_item_id: itemId,
+        watasu_buyer_id: buyerId,
+        watasu_seller_id: sellerId,
       },
     });
 

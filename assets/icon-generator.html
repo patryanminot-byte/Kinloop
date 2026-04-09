@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    background: #1a1a1a;
+  }
+  canvas {
+    border-radius: 0;
+  }
+</style>
+</head>
+<body>
+<canvas id="icon" width="1024" height="1024"></canvas>
+<script>
+const canvas = document.getElementById('icon');
+const ctx = canvas.getContext('2d');
+const W = 1024;
+const C = W / 2; // center
+
+// Background: soft warm white
+ctx.fillStyle = '#FEFCFA';
+ctx.fillRect(0, 0, W, W);
+
+// Rainbow gradient for the circular arrows
+function rainbowGradient(x0, y0, x1, y1) {
+  const g = ctx.createLinearGradient(x0, y0, x1, y1);
+  g.addColorStop(0, '#A78BFA');    // purple
+  g.addColorStop(0.25, '#60A5FA'); // blue
+  g.addColorStop(0.5, '#34D399');  // green
+  g.addColorStop(0.75, '#FBBF24'); // yellow
+  g.addColorStop(1, '#F472B6');    // pink
+  return g;
+}
+
+// Draw a thick circular arc with rounded ends
+function drawArc(startAngle, endAngle, radius, lineWidth, color) {
+  ctx.beginPath();
+  ctx.arc(C, C, radius, startAngle, endAngle);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+}
+
+// Draw arrowhead at end of arc
+function drawArrowhead(angle, radius, size, color) {
+  const x = C + Math.cos(angle) * radius;
+  const y = C + Math.sin(angle) * radius;
+
+  // Arrow points in the direction tangent to the circle
+  const tangentAngle = angle + Math.PI / 2;
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(tangentAngle);
+
+  ctx.beginPath();
+  ctx.moveTo(0, -size * 0.6);
+  ctx.lineTo(size, 0);
+  ctx.lineTo(0, size * 0.6);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  ctx.restore();
+}
+
+// Outer subtle glow
+const glowGrad = ctx.createRadialGradient(C, C, 200, C, C, 500);
+glowGrad.addColorStop(0, 'rgba(167, 139, 250, 0.03)');
+glowGrad.addColorStop(0.5, 'rgba(96, 165, 250, 0.05)');
+glowGrad.addColorStop(1, 'rgba(244, 114, 182, 0.03)');
+ctx.fillStyle = glowGrad;
+ctx.fillRect(0, 0, W, W);
+
+// Draw 3 flowing arcs forming a circle (like a recycling symbol)
+const radius = 260;
+const arcWidth = 52;
+const gap = 0.35; // gap between arcs in radians
+const arrowSize = 40;
+
+const arcs = [
+  { start: -Math.PI / 2 + gap/2, end: -Math.PI / 2 + (2 * Math.PI / 3) - gap/2, colors: ['#A78BFA', '#60A5FA'] },
+  { start: -Math.PI / 2 + (2 * Math.PI / 3) + gap/2, end: -Math.PI / 2 + (4 * Math.PI / 3) - gap/2, colors: ['#34D399', '#FBBF24'] },
+  { start: -Math.PI / 2 + (4 * Math.PI / 3) + gap/2, end: -Math.PI / 2 + (6 * Math.PI / 3) - gap/2, colors: ['#F472B6', '#A78BFA'] },
+];
+
+arcs.forEach(arc => {
+  // Create gradient along the arc
+  const sx = C + Math.cos(arc.start) * radius;
+  const sy = C + Math.sin(arc.start) * radius;
+  const ex = C + Math.cos(arc.end) * radius;
+  const ey = C + Math.sin(arc.end) * radius;
+
+  const grad = ctx.createLinearGradient(sx, sy, ex, ey);
+  grad.addColorStop(0, arc.colors[0]);
+  grad.addColorStop(1, arc.colors[1]);
+
+  // Draw arc
+  ctx.beginPath();
+  ctx.arc(C, C, radius, arc.start, arc.end);
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = arcWidth;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Draw arrowhead
+  drawArrowhead(arc.end, radius, arrowSize, arc.colors[1]);
+});
+
+// Center: bean sprout emoji area with soft circle bg
+const innerR = 145;
+const innerGrad = ctx.createRadialGradient(C, C, 0, C, C, innerR);
+innerGrad.addColorStop(0, 'rgba(167, 139, 250, 0.08)');
+innerGrad.addColorStop(1, 'rgba(167, 139, 250, 0.02)');
+ctx.beginPath();
+ctx.arc(C, C, innerR, 0, Math.PI * 2);
+ctx.fillStyle = innerGrad;
+ctx.fill();
+
+// Draw the sprout emoji in center
+ctx.font = '180px serif';
+ctx.textAlign = 'center';
+ctx.textBaseline = 'middle';
+ctx.fillText('🌱', C, C + 8);
+
+// Small sparkles around the circle
+function drawSparkle(x, y, size, color) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = color;
+
+  // 4-point star
+  ctx.beginPath();
+  ctx.moveTo(0, -size);
+  ctx.quadraticCurveTo(size * 0.15, -size * 0.15, size, 0);
+  ctx.quadraticCurveTo(size * 0.15, size * 0.15, 0, size);
+  ctx.quadraticCurveTo(-size * 0.15, size * 0.15, -size, 0);
+  ctx.quadraticCurveTo(-size * 0.15, -size * 0.15, 0, -size);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+// Sparkles positioned around the circle
+const sparkles = [
+  { x: 180, y: 180, size: 14, color: '#A78BFA' },
+  { x: 830, y: 220, size: 10, color: '#60A5FA' },
+  { x: 860, y: 750, size: 12, color: '#34D399' },
+  { x: 200, y: 800, size: 11, color: '#FBBF24' },
+  { x: 520, y: 150, size: 8, color: '#F472B6' },
+  { x: 870, y: 500, size: 9, color: '#A78BFA' },
+  { x: 160, y: 520, size: 10, color: '#34D399' },
+  { x: 550, y: 870, size: 8, color: '#60A5FA' },
+];
+
+sparkles.forEach(s => drawSparkle(s.x, s.y, s.size, s.color));
+</script>
+</body>
+</html>

@@ -26,6 +26,10 @@ import { useMatches } from "../../hooks/useMatches";
 import { useInventory } from "../../hooks/useInventory";
 import { useFriends } from "../../hooks/useFriends";
 import { useAppStore } from "../../stores/appStore";
+import {
+  getCurrentSeasonalPrompt,
+  getNextMilestone,
+} from "../../lib/milestones";
 
 // --------------- Mock data ---------------
 
@@ -63,6 +67,7 @@ const MOCK_MATCHES: Match[] = [
     personalLine: "Miss you guys! Park date soon? \u{1F49B}",
     pricing: { type: "free" },
     daysAgo: 2,
+    sentAt: new Date(Date.now() - 3 * 86400000).toISOString(),
   },
 ];
 
@@ -159,7 +164,16 @@ export default function HomeScreen() {
   const { matches, loading: matchesLoading } = useMatches(userId);
   const { items, loading: itemsLoading } = useInventory(userId);
   const { friends, loading: friendsLoading } = useFriends(userId);
-  const userInitials = useAppStore((s) => s.userInitials) || "??";
+  const userInitials = useAppStore((s) => s.userInitials) || "\u{1F331}";
+  const children = useAppStore((s) => s.children);
+
+  // Seasonal / milestone prompt
+  const [promptDismissed, setPromptDismissed] = useState(false);
+  const seasonalPrompt = getCurrentSeasonalPrompt();
+  const firstChild = children[0];
+  const nextMilestone = firstChild?.dob
+    ? getNextMilestone(firstChild.dob)
+    : null;
 
   const isLoading = (matchesLoading || itemsLoading || friendsLoading) && !timedOut;
 
@@ -207,7 +221,7 @@ export default function HomeScreen() {
   };
 
   const readyMatches = displayMatches.filter(
-    (m) => m.status === "ready" || m.status === "offered"
+    (m) => m.status === "ready" || m.status === "offered" || m.status === "accepted" || m.status === "scheduled"
   );
 
   if (isLoading) {
@@ -229,9 +243,58 @@ export default function HomeScreen() {
       >
         {/* ---- Header ---- */}
         <View style={styles.headerRow}>
-          <GradientText style={styles.logo}>kinloop</GradientText>
-          <Avatar initials={userInitials} size={40} gradient />
+          <GradientText style={styles.logo}>Watasu</GradientText>
+          <Pressable onPress={() => router.push("/profile")}>
+            <Avatar initials={userInitials} size={40} gradient />
+          </Pressable>
         </View>
+
+        {/* ---- Seasonal / Milestone prompt ---- */}
+        {!promptDismissed && (seasonalPrompt || nextMilestone) && (
+          <View style={styles.section}>
+            <Card style={styles.promptCard}>
+              <Pressable
+                style={styles.promptDismiss}
+                onPress={() => setPromptDismissed(true)}
+                hitSlop={12}
+              >
+                <Text style={styles.promptDismissText}>{"\u2715"}</Text>
+              </Pressable>
+              {nextMilestone ? (
+                <>
+                  <Text style={styles.promptEmoji}>{"\u{1F382}"}</Text>
+                  <Text style={styles.promptTitle}>
+                    {firstChild?.name ?? "Your kiddo"} {nextMilestone.prompt}
+                  </Text>
+                  <Pressable
+                    style={styles.promptAction}
+                    onPress={() => router.push("/(tabs)/stuff" as `/${string}`)}
+                  >
+                    <Text style={styles.promptActionText}>
+                      Review items {"\u2192"}
+                    </Text>
+                  </Pressable>
+                </>
+              ) : seasonalPrompt ? (
+                <>
+                  <Text style={styles.promptEmoji}>{seasonalPrompt.emoji}</Text>
+                  <Text style={styles.promptTitle}>{seasonalPrompt.title}</Text>
+                  <Text style={styles.promptMessage}>
+                    {seasonalPrompt.message}
+                  </Text>
+                  <Pressable
+                    style={styles.promptAction}
+                    onPress={() => router.push("/(tabs)/stuff" as `/${string}`)}
+                  >
+                    <Text style={styles.promptActionText}>
+                      Check your stuff {"\u2192"}
+                    </Text>
+                  </Pressable>
+                </>
+              ) : null}
+            </Card>
+          </View>
+        )}
 
         {/* ---- Ready to pass on ---- */}
         {readyMatches.length > 0 && (
@@ -267,10 +330,24 @@ export default function HomeScreen() {
 
                 {/* Badge */}
                 <View style={styles.badgeRow}>
-                  {match.status === "ready" ? (
+                  {match.status === "ready" && (
                     <Badge color="#34D399">Match found!</Badge>
-                  ) : (
-                    <Badge color="#60A5FA">Sent</Badge>
+                  )}
+                  {match.status === "offered" && (
+                    <>
+                      <Badge color="#60A5FA">Offer out! 🎉</Badge>
+                      {match.sentAt && (Date.now() - new Date(match.sentAt).getTime()) > 48 * 3600000 && (
+                        <Pressable onPress={() => router.push(`/match/${match.id}?nudge=true` as `/${string}`)}>
+                          <Badge color="#FB923C">👋 Nudge {firstName(match.to)}</Badge>
+                        </Pressable>
+                      )}
+                    </>
+                  )}
+                  {match.status === "accepted" && (
+                    <Badge color="#C084FC">Offer accepted! 🙌</Badge>
+                  )}
+                  {match.status === "scheduled" && (
+                    <Badge color="#FB923C">Handoff planned</Badge>
                   )}
                 </View>
 
@@ -282,7 +359,9 @@ export default function HomeScreen() {
                     end={{ x: 1, y: 1 }}
                     style={styles.messagePreview}
                   >
+                    <Text style={styles.messageLabel}>FROM WATASU, WITH LOVE</Text>
                     <Text style={styles.messageText}>{match.message}</Text>
+                    <Text style={styles.messageTapHint}>Tap to send or edit ✏️</Text>
                   </LinearGradient>
                 )}
 
@@ -335,20 +414,24 @@ export default function HomeScreen() {
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.agingList}
             renderItem={({ item }) => (
-              <Card style={styles.agingCard}>
-                <Text style={styles.agingEmoji}>{item.emoji}</Text>
-                <Text style={styles.agingName} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                <Text style={styles.agingAge}>{item.ageRange}</Text>
-                <View style={styles.agingBadge}>
-                  {item.daysLeft === 0 ? (
-                    <Badge color="#FF6B9D">Ready now</Badge>
-                  ) : (
-                    <Badge color="#FB923C">{item.daysLeft} days</Badge>
-                  )}
-                </View>
-              </Card>
+              <Pressable
+                onPress={() => router.push(`/item/${item.id}` as `/${string}`)}
+              >
+                <Card style={styles.agingCard}>
+                  <Text style={styles.agingEmoji}>{item.emoji}</Text>
+                  <Text style={styles.agingName} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <Text style={styles.agingAge}>{item.ageRange}</Text>
+                  <View style={styles.agingBadge}>
+                    {item.daysLeft === 0 ? (
+                      <Badge color="#FF6B9D">Ready now</Badge>
+                    ) : (
+                      <Badge color="#FB923C">{item.daysLeft} days</Badge>
+                    )}
+                  </View>
+                </Card>
+              </Pressable>
             )}
           />
         </View>
@@ -361,7 +444,7 @@ export default function HomeScreen() {
             onAction={() => {}}
           />
           <View style={styles.sectionGap} />
-          <Card>
+          <Card onPress={() => router.push("/(tabs)/friends" as `/${string}`)}>
             <View style={styles.networkRow}>
               <View style={styles.avatarStack}>
                 {displayFriends.slice(0, 4).map((friend, idx) => (
@@ -386,7 +469,7 @@ export default function HomeScreen() {
 
         {/* ---- Impact card ---- */}
         <View style={styles.section}>
-          <Card style={styles.impactCardOuter}>
+          <Card style={styles.impactCardOuter} onPress={() => router.push("/(tabs)/impact" as `/${string}`)}>
             <LinearGradient
               colors={gradientColors.subtle}
               start={{ x: 0, y: 0 }}
@@ -457,6 +540,48 @@ const styles = StyleSheet.create({
     height: 12,
   },
 
+  // Prompt card
+  promptCard: {
+    alignItems: "center",
+    paddingVertical: 20,
+    position: "relative",
+  },
+  promptDismiss: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+  },
+  promptDismissText: {
+    fontSize: 16,
+    color: colors.textMuted,
+  },
+  promptEmoji: {
+    fontSize: 36,
+    marginBottom: 8,
+  },
+  promptTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.text,
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  promptMessage: {
+    fontSize: 14,
+    color: colors.textMuted,
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  promptAction: {
+    marginTop: 8,
+  },
+  promptActionText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.neonPurple,
+  },
+
   // Match cards
   matchCard: {
     marginBottom: 12,
@@ -491,6 +616,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   badgeRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
     marginBottom: 8,
   },
   messagePreview: {
@@ -498,11 +626,24 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 8,
   },
+  messageLabel: {
+    fontSize: 10,
+    color: colors.textMuted,
+    fontWeight: "600",
+    letterSpacing: 1.2,
+    marginBottom: 6,
+  },
   messageText: {
     fontSize: 14,
     color: colors.text,
     fontStyle: "italic",
     lineHeight: 20,
+  },
+  messageTapHint: {
+    fontSize: 12,
+    color: colors.neonPurple,
+    fontWeight: "600",
+    marginTop: 8,
   },
   personalLine: {
     fontSize: 14,

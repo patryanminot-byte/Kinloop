@@ -29,7 +29,7 @@ serve(async (req: Request) => {
     const account = await stripe.accounts.create({
       type: "express",
       email,
-      metadata: { kinloop_user_id: userId },
+      metadata: { watasu_user_id: userId },
       business_profile: { name: name ?? undefined },
       capabilities: {
         transfers: { requested: true },

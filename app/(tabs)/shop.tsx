@@ -5,19 +5,13 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
-  FlatList,
-  useWindowDimensions,
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-} from "react-native-reanimated";
 import { colors } from "../../lib/colors";
 import type { Item } from "../../lib/types";
 import ShopItemCard from "../../components/ShopItemCard";
+import GradientText from "../../components/ui/GradientText";
 import { useAuth } from "../../hooks/useAuth";
 import { useShop } from "../../hooks/useShop";
 
@@ -71,6 +65,7 @@ const MOCK_FRIEND_ITEMS: Item[] = [
 ];
 
 const MOCK_NEARBY_ITEMS: Item[] = [
+  // Under 10 min
   {
     id: "s4",
     name: "Crib",
@@ -84,6 +79,7 @@ const MOCK_NEARBY_ITEMS: Item[] = [
     fromAvatar: "JR",
     ring: "nearby",
     distance: "About 5 min away",
+    distanceMinutes: 5,
     condition: "Good",
     postedAgo: "1d ago",
   },
@@ -101,9 +97,11 @@ const MOCK_NEARBY_ITEMS: Item[] = [
     from: "Alex M.",
     fromAvatar: "AM",
     ring: "nearby",
-    distance: "About 10 min away",
+    distance: "About 8 min away",
+    distanceMinutes: 8,
     postedAgo: "3h ago",
   },
+  // 10-25 min
   {
     id: "s6",
     name: "Balance bike",
@@ -117,57 +115,189 @@ const MOCK_NEARBY_ITEMS: Item[] = [
     fromAvatar: "PK",
     ring: "nearby",
     distance: "About 15 min away",
+    distanceMinutes: 15,
     condition: "Great",
     postedAgo: "5d ago",
   },
+  {
+    id: "s7",
+    name: "Baby carrier",
+    category: "Gear",
+    ageRange: "0-18mo",
+    status: "available",
+    matchedTo: null,
+    emoji: "\uD83D\uDC76",
+    pricing: { type: "free" },
+    from: "Megan T.",
+    fromAvatar: "MT",
+    ring: "nearby",
+    distance: "About 20 min away",
+    distanceMinutes: 20,
+    condition: "Like new",
+    postedAgo: "2d ago",
+  },
+  // 25-40 min
+  {
+    id: "s8",
+    name: "Toddler bed frame",
+    category: "Furniture",
+    ageRange: "2-5y",
+    status: "available",
+    matchedTo: null,
+    emoji: "\uD83D\uDECF\uFE0F",
+    pricing: { type: "set-price", amount: 50 },
+    from: "Chris L.",
+    fromAvatar: "CL",
+    ring: "nearby",
+    distance: "About 30 min away",
+    distanceMinutes: 30,
+    condition: "Good",
+    postedAgo: "4d ago",
+  },
+  {
+    id: "s9",
+    name: "Play kitchen",
+    category: "Toys",
+    ageRange: "2-6y",
+    status: "available",
+    matchedTo: null,
+    emoji: "\uD83C\uDF73",
+    pricing: { type: "give-what-you-can" },
+    from: "Dana W.",
+    fromAvatar: "DW",
+    ring: "nearby",
+    distance: "About 35 min away",
+    distanceMinutes: 35,
+    postedAgo: "1d ago",
+  },
+  // 40-55 min
+  {
+    id: "s10",
+    name: "Jogging stroller",
+    category: "Stroller",
+    ageRange: "6mo-4y",
+    status: "available",
+    matchedTo: null,
+    emoji: "\uD83D\uDEBC",
+    pricing: { type: "set-price", amount: 85 },
+    from: "Sam N.",
+    fromAvatar: "SN",
+    ring: "nearby",
+    distance: "About 45 min away",
+    distanceMinutes: 45,
+    condition: "Great",
+    postedAgo: "6d ago",
+  },
 ];
 
-const CATEGORIES = ["All", "Clothing", "Gear", "Stroller", "Toys", "Household", "Outdoor", "Furniture", "Electronics"];
+const CATEGORIES = [
+  "All",
+  "Clothing",
+  "Gear",
+  "Stroller",
+  "Toys",
+  "Household",
+  "Outdoor",
+  "Furniture",
+  "Electronics",
+];
 
-type RingTab = "friend" | "nearby";
+// Distance brackets
+interface DistanceBracket {
+  label: string;
+  min: number;
+  max: number;
+}
+
+const DISTANCE_BRACKETS: DistanceBracket[] = [
+  { label: "Under 10 min", min: 0, max: 10 },
+  { label: "10\u201325 min away", min: 10, max: 25 },
+  { label: "25\u201340 min away", min: 25, max: 40 },
+  { label: "40\u201355 min away", min: 40, max: 55 },
+  { label: "55+ min away", min: 55, max: Infinity },
+];
+
+function groupByDistance(items: Item[]): { label: string; items: Item[] }[] {
+  const sorted = [...items].sort(
+    (a, b) => (a.distanceMinutes ?? 999) - (b.distanceMinutes ?? 999),
+  );
+
+  const groups: { label: string; items: Item[] }[] = [];
+  for (const bracket of DISTANCE_BRACKETS) {
+    const bracketItems = sorted.filter((item) => {
+      const d = item.distanceMinutes ?? 999;
+      return d >= bracket.min && d < bracket.max;
+    });
+    if (bracketItems.length > 0) {
+      groups.push({ label: bracket.label, items: bracketItems });
+    }
+  }
+  return groups;
+}
+
+// Render items in a 2-column grid
+function ItemGrid({ items }: { items: Item[] }) {
+  const rows: Item[][] = [];
+  for (let i = 0; i < items.length; i += 2) {
+    rows.push(items.slice(i, i + 2));
+  }
+  return (
+    <View style={styles.grid}>
+      {rows.map((row, idx) => (
+        <View key={idx} style={styles.gridRow}>
+          {row.map((item) => (
+            <ShopItemCard key={item.id} item={item} />
+          ))}
+          {row.length === 1 && <View style={styles.gridSpacer} />}
+        </View>
+      ))}
+    </View>
+  );
+}
 
 export default function ShopScreen() {
   const { session } = useAuth();
   const userId = session?.user?.id;
-  const { friendItems: realFriendItems, nearbyItems: realNearbyItems, loading } = useShop(userId);
+  const {
+    friendItems: realFriendItems,
+    nearbyItems: realNearbyItems,
+    loading,
+  } = useShop(userId);
 
-  const friendItems = realFriendItems.length > 0 || loading ? realFriendItems : MOCK_FRIEND_ITEMS;
-  const nearbyItems = realNearbyItems.length > 0 || loading ? realNearbyItems : MOCK_NEARBY_ITEMS;
+  const friendItems =
+    realFriendItems.length > 0 || loading
+      ? realFriendItems
+      : MOCK_FRIEND_ITEMS;
+  const nearbyItems =
+    realNearbyItems.length > 0 || loading
+      ? realNearbyItems
+      : MOCK_NEARBY_ITEMS;
 
-  const [activeRing, setActiveRing] = useState<RingTab>("friend");
   const [activeCategory, setActiveCategory] = useState("All");
-  const { width } = useWindowDimensions();
 
-  // Animated toggle indicator
-  const toggleX = useSharedValue(0);
-  const halfWidth = (width - 40 - 8) / 2; // container padding 20*2, inner padding 4*2
+  const filteredFriendItems = useMemo(() => {
+    if (activeCategory === "All") return friendItems;
+    return friendItems.filter((i) => i.category === activeCategory);
+  }, [friendItems, activeCategory]);
 
-  const indicatorStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: toggleX.value }],
-    width: halfWidth,
-  }));
+  const filteredNearbyItems = useMemo(() => {
+    if (activeCategory === "All") return nearbyItems;
+    return nearbyItems.filter((i) => i.category === activeCategory);
+  }, [nearbyItems, activeCategory]);
 
-  const switchRing = (ring: RingTab) => {
-    setActiveRing(ring);
-    toggleX.value = withTiming(ring === "friend" ? 0 : halfWidth, {
-      duration: 250,
-    });
-  };
+  const nearbyGroups = useMemo(
+    () => groupByDistance(filteredNearbyItems),
+    [filteredNearbyItems],
+  );
 
-  const sourceItems = activeRing === "friend" ? friendItems : nearbyItems;
-
-  const filteredItems = useMemo(() => {
-    if (activeCategory === "All") return sourceItems;
-    return sourceItems.filter((i) => i.category === activeCategory);
-  }, [sourceItems, activeCategory]);
-
-  const friendCount = friendItems.length;
-  const nearbyCount = nearbyItems.length;
-
-  if (loading && realFriendItems.length === 0 && realNearbyItems.length === 0) {
+  if (
+    loading &&
+    realFriendItems.length === 0 &&
+    realNearbyItems.length === 0
+  ) {
     return (
       <SafeAreaView style={styles.safe} edges={["top"]}>
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.text} />
         </View>
       </SafeAreaView>
@@ -176,93 +306,95 @@ export default function ShopScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <FlatList
-        data={filteredItems}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        contentContainerStyle={styles.listContent}
-        columnWrapperStyle={styles.columnWrapper}
-        ListHeaderComponent={
-          <>
-            {/* Header */}
-            <Text style={styles.title}>Shop</Text>
-            <Text style={styles.subtitle}>Browse what's available near you</Text>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        stickyHeaderIndices={[1]}
+      >
+        {/* Header */}
+        <View>
+          <GradientText style={styles.title}>Shop</GradientText>
+          <Text style={styles.subtitle}>
+            Browse what's available near you
+          </Text>
+        </View>
 
-            {/* Ring toggle */}
-            <View style={styles.toggleContainer}>
-              <Animated.View style={[styles.toggleIndicator, indicatorStyle]} />
-              <Pressable style={styles.toggleButton} onPress={() => switchRing("friend")}>
+        {/* Sticky category filter pills */}
+        <View style={styles.pillBar}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.pillContainer}
+          >
+            {CATEGORIES.map((cat) => (
+              <Pressable
+                key={cat}
+                style={[
+                  styles.pill,
+                  activeCategory === cat && styles.pillActive,
+                ]}
+                onPress={() => setActiveCategory(cat)}
+              >
                 <Text
                   style={[
-                    styles.toggleText,
-                    activeRing === "friend" && styles.toggleTextActive,
+                    styles.pillText,
+                    activeCategory === cat && styles.pillTextActive,
                   ]}
                 >
-                  {"\u2661"} Friends ({friendCount})
+                  {cat}
                 </Text>
               </Pressable>
-              <Pressable style={styles.toggleButton} onPress={() => switchRing("nearby")}>
-                <Text
-                  style={[
-                    styles.toggleText,
-                    activeRing === "nearby" && styles.toggleTextActive,
-                  ]}
-                >
-                  {"\u25C9"} Nearby ({nearbyCount})
-                </Text>
-              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* ---- Friends section ---- */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {"\u2661"} From friends ({filteredFriendItems.length})
+          </Text>
+          {filteredFriendItems.length > 0 ? (
+            <ItemGrid items={filteredFriendItems} />
+          ) : (
+            <View style={styles.emptySection}>
+              <Text style={styles.emptySectionText}>
+                No friend items
+                {activeCategory !== "All" ? ` in ${activeCategory}` : ""}
+              </Text>
             </View>
+          )}
+        </View>
 
-            {/* Category filter pills */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.pillScroll}
-              contentContainerStyle={styles.pillContainer}
-            >
-              {CATEGORIES.map((cat) => (
-                <Pressable
-                  key={cat}
-                  style={[
-                    styles.pill,
-                    activeCategory === cat && styles.pillActive,
-                  ]}
-                  onPress={() => setActiveCategory(cat)}
-                >
-                  <Text
-                    style={[
-                      styles.pillText,
-                      activeCategory === cat && styles.pillTextActive,
-                    ]}
-                  >
-                    {cat}
-                  </Text>
-                </Pressable>
-              ))}
-            </ScrollView>
+        {/* ---- Nearby section with distance groups ---- */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {"\u25C9"} Nearby ({filteredNearbyItems.length})
+          </Text>
 
-            {/* Nearby explainer */}
-            {activeRing === "nearby" && (
-              <View style={styles.explainer}>
-                <Text style={styles.explainerText}>
-                  Community items — from Kinloop parents near Madison. Your items
-                  go here too when you opt in.
-                </Text>
+          {nearbyGroups.length > 0 ? (
+            nearbyGroups.map((group) => (
+              <View key={group.label} style={styles.distanceGroup}>
+                <View style={styles.distanceHeaderRow}>
+                  <View style={styles.distanceLine} />
+                  <Text style={styles.distanceLabel}>{group.label}</Text>
+                  <View style={styles.distanceLine} />
+                </View>
+                <ItemGrid items={group.items} />
               </View>
-            )}
-          </>
-        }
-        renderItem={({ item }) => <ShopItemCard item={item} />}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}>{"\uD83D\uDD0D"}</Text>
-            <Text style={styles.emptyTitle}>Nothing here yet</Text>
-            <Text style={styles.emptyHint}>
-              Check back soon — new items drop daily
-            </Text>
-          </View>
-        }
-      />
+            ))
+          ) : (
+            <View style={styles.emptySection}>
+              <Text style={styles.emptySectionText}>
+                No nearby items
+                {activeCategory !== "All" ? ` in ${activeCategory}` : ""}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -272,65 +404,34 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  listContent: {
-    padding: 20,
-    paddingBottom: 40,
+  container: {
+    flex: 1,
   },
-  columnWrapper: {
-    marginHorizontal: -6,
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   title: {
     fontSize: 24,
     fontWeight: "700",
-    color: colors.text,
   },
   subtitle: {
     fontSize: 14,
     color: colors.textMuted,
     marginTop: 4,
-    marginBottom: 16,
+    marginBottom: 12,
   },
 
-  // Ring toggle
-  toggleContainer: {
-    flexDirection: "row",
-    backgroundColor: colors.border,
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 16,
-    position: "relative",
-  },
-  toggleIndicator: {
-    position: "absolute",
-    top: 4,
-    left: 4,
-    height: "100%",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  toggleButton: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: "center",
-    zIndex: 1,
-  },
-  toggleText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.textMuted,
-  },
-  toggleTextActive: {
-    color: colors.text,
-  },
-
-  // Category pills
-  pillScroll: {
-    marginBottom: 16,
+  // Sticky pill bar
+  pillBar: {
+    backgroundColor: colors.bg,
+    paddingBottom: 12,
+    paddingTop: 4,
   },
   pillContainer: {
     gap: 8,
@@ -356,37 +457,63 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
 
-  // Nearby explainer
-  explainer: {
-    backgroundColor: "#EFF6FF",
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 16,
+  // Sections
+  section: {
+    marginBottom: 24,
   },
-  explainerText: {
-    fontSize: 13,
-    color: "#3B82F6",
-    lineHeight: 18,
-  },
-
-  // Empty state
-  empty: {
-    alignItems: "center",
-    paddingTop: 60,
-  },
-  emptyEmoji: {
-    fontSize: 48,
-    marginBottom: 12,
-  },
-  emptyTitle: {
-    fontSize: 16,
+  sectionTitle: {
+    fontSize: 18,
     fontWeight: "700",
     color: colors.text,
-    marginBottom: 4,
+    marginBottom: 12,
   },
-  emptyHint: {
+
+  // Grid
+  grid: {
+    gap: 0,
+  },
+  gridRow: {
+    flexDirection: "row",
+    marginHorizontal: -6,
+  },
+  gridSpacer: {
+    flex: 1,
+    margin: 6,
+  },
+
+  // Distance groups
+  distanceGroup: {
+    marginBottom: 8,
+  },
+  distanceHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+    marginTop: 4,
+    gap: 10,
+  },
+  distanceLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  distanceLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.textMuted,
+  },
+
+  // Empty states
+  emptySection: {
+    alignItems: "center",
+    paddingVertical: 24,
+  },
+  emptySectionText: {
     fontSize: 14,
     color: colors.textLight,
-    textAlign: "center",
+  },
+
+  bottomSpacer: {
+    height: 100,
   },
 });

@@ -28,9 +28,9 @@ export function distanceLabel(miles: number): string {
 }
 
 /**
- * Calculate the Kinloop flat fee for a given price.
+ * Calculate the Watasu flat fee for a given price.
  */
-export function kinloopFee(price: number): number {
+export function watasuFee(price: number): number {
   if (price < 50) return 2;
   if (price <= 150) return 5;
   return 8;

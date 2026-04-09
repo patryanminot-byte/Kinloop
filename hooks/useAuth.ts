@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
+import { Platform } from "react-native";
 import { supabase } from "../lib/supabase";
 import type { Session } from "@supabase/supabase-js";
+import * as AppleAuthentication from "expo-apple-authentication";
+import * as Crypto from "expo-crypto";
+import { makeRedirectUri } from "expo-auth-session";
+import * as WebBrowser from "expo-web-browser";
+
+WebBrowser.maybeCompleteAuthSession();
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null);
@@ -21,13 +28,112 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const sendOtp = async (phone: string) => {
+  // ── Email OTP ───────────────────────────────────────────────────────
+  const sendEmailOtp = async (email: string) => {
+    const { data, error } = await supabase.auth.signInWithOtp({ email });
+    if (error) throw error;
+    return data;
+  };
+
+  const verifyEmailOtp = async (email: string, token: string) => {
+    const { data, error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: "email",
+    });
+    if (error) throw error;
+    return data;
+  };
+
+  // ── Magic Link ──────────────────────────────────────────────────────
+  const sendMagicLink = async (email: string) => {
+    const redirectTo = makeRedirectUri({ scheme: "watasu" });
+    const { data, error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: redirectTo,
+      },
+    });
+    if (error) throw error;
+    return data;
+  };
+
+  // ── Apple Sign In ───────────────────────────────────────────────────
+  const signInWithApple = async () => {
+    const nonce = Math.random().toString(36).substring(2, 18);
+    const hashedNonce = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      nonce,
+    );
+
+    const credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+    });
+
+    if (!credential.identityToken) {
+      throw new Error("No identity token from Apple");
+    }
+
+    const { data, error } = await supabase.auth.signInWithIdToken({
+      provider: "apple",
+      token: credential.identityToken,
+      nonce,
+    });
+    if (error) throw error;
+    return data;
+  };
+
+  // ── Google Sign In ──────────────────────────────────────────────────
+  const signInWithGoogle = async () => {
+    // Use the Expo auth proxy for Expo Go, custom scheme for standalone
+    const redirectTo = makeRedirectUri({
+      native: "watasu://google-auth",
+    });
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo,
+        skipBrowserRedirect: true,
+      },
+    });
+    if (error) throw error;
+    if (data?.url) {
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.url,
+        redirectTo,
+      );
+      if (result.type === "success" && result.url) {
+        // Extract tokens from the redirect URL
+        const url = result.url;
+        // Supabase puts tokens in the fragment
+        const hashIndex = url.indexOf("#");
+        if (hashIndex !== -1) {
+          const fragment = url.substring(hashIndex + 1);
+          const params = new URLSearchParams(fragment);
+          const accessToken = params.get("access_token");
+          const refreshToken = params.get("refresh_token");
+          if (accessToken && refreshToken) {
+            await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+          }
+        }
+      }
+    }
+  };
+
+  // ── Phone OTP (requires Twilio) ─────────────────────────────────────
+  const sendPhoneOtp = async (phone: string) => {
     const { data, error } = await supabase.auth.signInWithOtp({ phone });
     if (error) throw error;
     return data;
   };
 
-  const verifyOtp = async (phone: string, token: string) => {
+  const verifyPhoneOtp = async (phone: string, token: string) => {
     const { data, error } = await supabase.auth.verifyOtp({
       phone,
       token,
@@ -37,6 +143,7 @@ export function useAuth() {
     return data;
   };
 
+  // ── Profile helpers ─────────────────────────────────────────────────
   const isNewUser = async (userId: string): Promise<boolean> => {
     const { data, error } = await supabase
       .from("profiles")
@@ -47,14 +154,25 @@ export function useAuth() {
     return false;
   };
 
-  const createProfile = async (userId: string, phone: string) => {
-    const digits = phone.replace(/\D/g, "").slice(-4);
-    const initials = digits.slice(0, 2);
+  const createProfile = async (
+    userId: string,
+    identifier: string,
+    name?: string,
+  ) => {
+    const initials = name
+      ? name
+          .split(" ")
+          .map((w) => w[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2)
+      : identifier.slice(0, 2).toUpperCase();
+
     const { error } = await supabase.from("profiles").insert({
       id: userId,
-      name: phone,
+      name: name || identifier,
       avatar_initials: initials,
-      phone,
+      phone: identifier.includes("@") ? null : identifier,
     });
     if (error) throw error;
   };
@@ -63,5 +181,24 @@ export function useAuth() {
     await supabase.auth.signOut();
   };
 
-  return { session, loading, sendOtp, verifyOtp, isNewUser, createProfile, signOut };
+  return {
+    session,
+    loading,
+    // Email
+    sendEmailOtp,
+    verifyEmailOtp,
+    // Magic link
+    sendMagicLink,
+    // Apple
+    signInWithApple,
+    // Google
+    signInWithGoogle,
+    // Phone (future)
+    sendPhoneOtp,
+    verifyPhoneOtp,
+    // Profile
+    isNewUser,
+    createProfile,
+    signOut,
+  };
 }

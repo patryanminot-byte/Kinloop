@@ -1,13 +1,13 @@
-import { kinloopFee } from "./utils";
+import { watasuFee } from "./utils";
 
 export const STRIPE_PUBLISHABLE_KEY =
   process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
 
 /**
- * Calculate item price, Kinloop fee, and total.
+ * Calculate item price, Watasu fee, and total.
  */
 export function calculateTotal(price: number) {
-  const fee = kinloopFee(price);
+  const fee = watasuFee(price);
   return { itemPrice: price, fee, total: price + fee };
 }
 
@@ -15,6 +15,6 @@ export function calculateTotal(price: number) {
  * Human-readable fee label for the current tier.
  */
 export function feeLabel(price: number): string {
-  const fee = kinloopFee(price);
+  const fee = watasuFee(price);
   return `Flat $${fee} fee included`;
 }

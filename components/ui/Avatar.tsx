@@ -14,7 +14,9 @@ export default function Avatar({
   size = 40,
   gradient = false,
 }: AvatarProps) {
-  const fontSize = size * 0.4;
+  // Detect if initials is an emoji (non-ASCII)
+  const isEmoji = /\p{Emoji}/u.test(initials) && !/^[A-Za-z]+$/.test(initials);
+  const fontSize = isEmoji ? size * 0.55 : size * 0.4;
   const containerStyle = {
     width: size,
     height: size,
@@ -29,7 +31,13 @@ export default function Avatar({
         end={{ x: 1, y: 1 }}
         style={[styles.center, containerStyle]}
       >
-        <Text style={[styles.initials, { fontSize }]}>{initials}</Text>
+        {isEmoji ? (
+          <View style={[styles.emojiBg, { width: size * 0.7, height: size * 0.7, borderRadius: size * 0.35 }]}>
+            <Text style={{ fontSize }}>{initials}</Text>
+          </View>
+        ) : (
+          <Text style={[styles.initials, { fontSize }]}>{initials}</Text>
+        )}
       </LinearGradient>
     );
   }
@@ -58,5 +66,10 @@ const styles = StyleSheet.create({
   },
   defaultText: {
     color: "#C084FC",
+  },
+  emojiBg: {
+    backgroundColor: "rgba(255,255,255,0.85)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

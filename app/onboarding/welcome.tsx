@@ -1,5 +1,16 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, StyleSheet } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -10,173 +21,317 @@ import { colors, gradientColors } from "../../lib/colors";
 
 const SEGMENTS = 3;
 
+type AuthMode = "main" | "email-otp" | "magic-link";
+
 export default function WelcomeScreen() {
   const router = useRouter();
-  const { sendOtp, verifyOtp, isNewUser, createProfile } = useAuth();
+  const {
+    sendEmailOtp,
+    verifyEmailOtp,
+    sendMagicLink,
+    signInWithApple,
+    signInWithGoogle,
+    isNewUser,
+    createProfile,
+  } = useAuth();
 
-  const [phone, setPhone] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthMode>("main");
+  const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const formatPhone = (raw: string): string => {
-    // Ensure +1 prefix for US numbers
-    const digits = raw.replace(/\D/g, "");
-    if (digits.startsWith("1") && digits.length === 11) return `+${digits}`;
-    if (digits.length === 10) return `+1${digits}`;
-    if (raw.startsWith("+")) return raw;
-    return `+1${digits}`;
+  const handleNewUser = async (
+    userId: string,
+    identifier: string,
+    name?: string,
+  ) => {
+    const newUser = await isNewUser(userId);
+    if (newUser) {
+      await createProfile(userId, identifier, name);
+      router.push("/onboarding/add-child");
+    }
+    // Existing users: root layout handles routing to tabs
   };
 
-  const handleSendOtp = async () => {
-    const trimmed = phone.trim();
-    if (!trimmed) return;
+  // ── Apple Sign In ───────────────────────────────────────────────────
+  const handleApple = async () => {
     setError("");
     setLoading(true);
     try {
-      await sendOtp(formatPhone(trimmed));
-      setOtpSent(true);
+      const data = await signInWithApple();
+      const userId = data.user?.id ?? data.session?.user?.id;
+      if (userId) {
+        const appleName = data.user?.user_metadata?.full_name;
+        const appleEmail = data.user?.email ?? "";
+        await handleNewUser(userId, appleEmail, appleName);
+      }
     } catch (e: any) {
-      setError(e.message ?? "Failed to send code");
+      if (e.code !== "ERR_REQUEST_CANCELED" && e.code !== "ERR_CANCELED") {
+        setError(e.message ?? "Apple sign in failed");
+        Alert.alert("Apple Sign In", e.message ?? "Failed");
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVerify = async () => {
-    if (code.length !== 6) return;
+  // ── Google Sign In ──────────────────────────────────────────────────
+  const handleGoogle = async () => {
     setError("");
     setLoading(true);
     try {
-      const data = await verifyOtp(formatPhone(phone.trim()), code);
+      await signInWithGoogle();
+    } catch (e: any) {
+      setError(e.message ?? "Google sign in failed");
+      Alert.alert("Google Sign In", e.message ?? "Failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Email OTP ───────────────────────────────────────────────────────
+  const handleSendEmailOtp = async () => {
+    if (!email.trim()) return;
+    setError("");
+    setLoading(true);
+    try {
+      await sendEmailOtp(email.trim());
+      setAuthMode("email-otp");
+      Alert.alert("Code Sent", `Check your inbox at ${email.trim()}`);
+    } catch (e: any) {
+      setError(e.message ?? "Failed to send code");
+      Alert.alert("Error", e.message ?? "Failed to send code");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyEmailOtp = async () => {
+    if (code.length !== 8) return;
+    setError("");
+    setLoading(true);
+    try {
+      const data = await verifyEmailOtp(email.trim(), code);
       const userId = data.user?.id ?? data.session?.user?.id;
       if (userId) {
-        const newUser = await isNewUser(userId);
-        if (newUser) {
-          await createProfile(userId, formatPhone(phone.trim()));
-          router.push("/onboarding/add-child");
-        }
-        // Existing users: root layout handles routing
+        await handleNewUser(userId, email.trim());
       }
     } catch (e: any) {
       setError(e.message ?? "Verification failed");
+      Alert.alert("Error", e.message ?? "Verification failed");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleResend = async () => {
+  // ── Magic Link ──────────────────────────────────────────────────────
+  const handleSendMagicLink = async () => {
+    if (!email.trim()) return;
     setError("");
-    setCode("");
     setLoading(true);
     try {
-      await sendOtp(formatPhone(phone.trim()));
+      await sendMagicLink(email.trim());
+      setAuthMode("magic-link");
     } catch (e: any) {
-      setError(e.message ?? "Failed to resend code");
+      setError(e.message ?? "Failed to send link");
+      Alert.alert("Error", e.message ?? "Failed to send link");
     } finally {
       setLoading(false);
     }
   };
+
+  // ── Render ──────────────────────────────────────────────────────────
+  const renderMainAuth = () => (
+    <>
+      {/* Apple */}
+      <TouchableOpacity
+        style={styles.socialButton}
+        onPress={handleApple}
+        disabled={loading}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.appleIcon}>{"\uF8FF"}</Text>
+        <Text style={styles.socialText}>Continue with Apple</Text>
+      </TouchableOpacity>
+
+      {/* Google */}
+      <TouchableOpacity
+        style={styles.socialButton}
+        onPress={handleGoogle}
+        disabled={loading}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.googleIcon}>G</Text>
+        <Text style={styles.socialText}>Continue with Google</Text>
+      </TouchableOpacity>
+
+      {/* Divider */}
+      <View style={styles.dividerRow}>
+        <View style={styles.dividerLine} />
+        <Text style={styles.dividerText}>or</Text>
+        <View style={styles.dividerLine} />
+      </View>
+
+      {/* Email input */}
+      <TextInput
+        style={styles.input}
+        placeholder="Email address"
+        placeholderTextColor={colors.textLight}
+        value={email}
+        onChangeText={setEmail}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        textContentType="emailAddress"
+        editable={!loading}
+      />
+
+      {/* Email OTP button */}
+      <Button
+        variant="primary"
+        size="lg"
+        title={loading ? "Sending..." : "Continue with Email Code"}
+        onPress={handleSendEmailOtp}
+        disabled={loading || !email.trim()}
+        style={styles.button}
+      />
+
+      {/* Magic link option */}
+      <TouchableOpacity
+        onPress={handleSendMagicLink}
+        disabled={loading || !email.trim()}
+        activeOpacity={0.7}
+      >
+        <Text
+          style={[
+            styles.linkText,
+            (!email.trim() || loading) && { opacity: 0.4 },
+          ]}
+        >
+          Or send me a magic link instead
+        </Text>
+      </TouchableOpacity>
+
+      {loading && (
+        <ActivityIndicator
+          size="small"
+          color={colors.neonPurple}
+          style={{ marginTop: 12 }}
+        />
+      )}
+    </>
+  );
+
+  const renderEmailOtp = () => (
+    <>
+      <Text style={styles.otpLabel}>
+        Enter the code sent to {email}
+      </Text>
+      <TextInput
+        style={styles.codeInput}
+        placeholder="00000000"
+        placeholderTextColor={colors.textLight}
+        value={code}
+        onChangeText={(t) => setCode(t.replace(/\D/g, "").slice(0, 8))}
+        keyboardType="number-pad"
+        textContentType="oneTimeCode"
+        autoFocus
+        editable={!loading}
+      />
+      <Button
+        variant="primary"
+        size="lg"
+        title={loading ? "Verifying..." : "Verify"}
+        onPress={handleVerifyEmailOtp}
+        disabled={loading || code.length !== 8}
+        style={styles.button}
+      />
+      <TouchableOpacity
+        onPress={() => {
+          setAuthMode("main");
+          setCode("");
+          setError("");
+        }}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.linkText}>← Back</Text>
+      </TouchableOpacity>
+    </>
+  );
+
+  const renderMagicLink = () => (
+    <>
+      <View style={styles.magicLinkSent}>
+        <Text style={styles.magicEmoji}>✉️</Text>
+        <Text style={styles.magicTitle}>Check your email</Text>
+        <Text style={styles.magicSubtitle}>
+          We sent a sign-in link to {email}. Tap the link to continue.
+        </Text>
+      </View>
+      <TouchableOpacity
+        onPress={() => {
+          setAuthMode("main");
+          setError("");
+        }}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.linkText}>← Back</Text>
+      </TouchableOpacity>
+    </>
+  );
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Progress bar */}
-      <View style={styles.progressRow}>
-        {Array.from({ length: SEGMENTS }).map((_, i) => (
-          <View key={i} style={styles.segmentWrapper}>
-            {i === 0 ? (
-              <LinearGradient
-                colors={gradientColors.button}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.segment}
-              />
-            ) : (
-              <View style={[styles.segment, styles.segmentEmpty]} />
-            )}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1 }}
+          bounces={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Progress bar */}
+          <View style={styles.progressRow}>
+            {Array.from({ length: SEGMENTS }).map((_, i) => (
+              <View key={i} style={styles.segmentWrapper}>
+                {i === 0 ? (
+                  <LinearGradient
+                    colors={gradientColors.button}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.segment}
+                  />
+                ) : (
+                  <View style={[styles.segment, styles.segmentEmpty]} />
+                )}
+              </View>
+            ))}
           </View>
-        ))}
-      </View>
 
-      {/* Center content */}
-      <View style={styles.center}>
-        <Text style={styles.emoji}>🔄</Text>
-        <GradientText style={styles.title}>kinloop</GradientText>
-        <Text style={styles.tagline}>Love it, then leave it.</Text>
-        <Text style={styles.subtitle}>
-          Your kids outgrow things. Your friends' kids grow into them. We handle
-          the rest.
-        </Text>
-      </View>
-
-      {/* Auth form */}
-      <View style={styles.bottom}>
-        {!otpSent ? (
-          <>
-            <TextInput
-              style={styles.input}
-              placeholder="+1 (555) 123-4567"
-              placeholderTextColor={colors.textLight}
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-              textContentType="telephoneNumber"
-              editable={!loading}
-            />
-
-            <Button
-              variant="primary"
-              size="lg"
-              title={loading ? "Sending..." : "Get Started"}
-              onPress={handleSendOtp}
-              disabled={loading || !phone.trim()}
-              style={styles.button}
-            />
-
-            <Text style={styles.accountHint}>
-              Already have an account? Enter your number above.
+          {/* Center content */}
+          <View style={styles.center}>
+            <Text style={styles.emoji}>🔄</Text>
+            <GradientText style={styles.title}>Watasu</GradientText>
+            <Text style={styles.tagline}>Love it, then leave it.</Text>
+            <Text style={styles.subtitle}>
+              Your kids outgrow things. Your friends' kids grow into them. We
+              handle the rest.
             </Text>
-          </>
-        ) : (
-          <>
-            <Text style={styles.otpLabel}>
-              Enter the 6-digit code sent to {phone}
-            </Text>
-            <TextInput
-              style={styles.codeInput}
-              placeholder="000000"
-              placeholderTextColor={colors.textLight}
-              value={code}
-              onChangeText={(t) => setCode(t.replace(/\D/g, "").slice(0, 6))}
-              keyboardType="number-pad"
-              textContentType="oneTimeCode"
-              autoFocus
-              editable={!loading}
-            />
+          </View>
 
-            <Button
-              variant="primary"
-              size="lg"
-              title={loading ? "Verifying..." : "Verify"}
-              onPress={handleVerify}
-              disabled={loading || code.length !== 6}
-              style={styles.button}
-            />
-            <Button
-              variant="ghost"
-              size="md"
-              title="Resend code"
-              onPress={handleResend}
-              disabled={loading}
-            />
-          </>
-        )}
+          {/* Auth form */}
+          <View style={styles.bottom}>
+            {authMode === "main" && renderMainAuth()}
+            {authMode === "email-otp" && renderEmailOtp()}
+            {authMode === "magic-link" && renderMagicLink()}
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+            {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <Text style={styles.hint}>Takes 90 seconds</Text>
-      </View>
+            <Text style={styles.hint}>Takes 90 seconds</Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -207,6 +362,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 32,
+    paddingVertical: 32,
   },
   emoji: {
     fontSize: 56,
@@ -234,6 +390,56 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     alignItems: "center",
   },
+
+  // Social buttons
+  socialButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+    paddingVertical: 16,
+    borderRadius: 12,
+    backgroundColor: "#000",
+    marginBottom: 10,
+  },
+  appleIcon: {
+    fontSize: 20,
+    fontWeight: "700",
+    marginRight: 10,
+    color: "#FFF",
+  },
+  googleIcon: {
+    fontSize: 20,
+    fontWeight: "700",
+    marginRight: 10,
+    color: "#FFF",
+    fontFamily: Platform.OS === "ios" ? "System" : "sans-serif",
+  },
+  socialText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFF",
+  },
+
+  // Divider
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+    marginVertical: 16,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  dividerText: {
+    marginHorizontal: 12,
+    fontSize: 13,
+    color: colors.textMuted,
+  },
+
+  // Inputs
   input: {
     width: "100%",
     borderWidth: 1,
@@ -268,12 +474,36 @@ const styles = StyleSheet.create({
   button: {
     width: "100%",
   },
-  accountHint: {
+  linkText: {
     fontSize: 14,
-    color: "#8E8E93",
-    marginTop: 12,
+    color: colors.neonPurple,
+    fontWeight: "600",
+    marginTop: 14,
     textAlign: "center",
   },
+
+  // Magic link sent
+  magicLinkSent: {
+    alignItems: "center",
+    paddingVertical: 20,
+  },
+  magicEmoji: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  magicTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: colors.text,
+    marginBottom: 8,
+  },
+  magicSubtitle: {
+    fontSize: 14,
+    color: colors.textMuted,
+    textAlign: "center",
+    lineHeight: 20,
+  },
+
   error: {
     color: "#FF3B30",
     fontSize: 14,

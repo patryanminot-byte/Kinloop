@@ -1,4 +1,4 @@
-/** Notification content helpers for Kinloop push notifications. */
+/** Notification content helpers for Watasu push notifications. */
 
 interface NotificationContent {
   title: string;

@@ -10,6 +10,7 @@ import {
 import { useLocalSearchParams, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
 import { colors, gradientColors } from "../../lib/colors";
 import type { Item } from "../../lib/types";
 import Card from "../../components/ui/Card";
@@ -19,6 +20,8 @@ import Button from "../../components/ui/Button";
 import PaymentSheet from "../../components/PaymentSheet";
 import { useAuth } from "../../hooks/useAuth";
 import { useShop } from "../../hooks/useShop";
+import { useAppStore } from "../../stores/appStore";
+import { supabase } from "../../lib/supabase";
 
 // --------------- Mock Data (duplicated for lookup) ---------------
 
@@ -150,14 +153,20 @@ function getActionLabel(item: Item): string {
   }
 }
 
+function generateId(): string {
+  return Math.random().toString(36).substring(2, 15);
+}
+
 export default function ShopItemDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [showPayment, setShowPayment] = useState(false);
+  const [addedToMine, setAddedToMine] = useState(false);
 
   const { session } = useAuth();
   const userId = session?.user?.id;
   const { friendItems, nearbyItems } = useShop(userId);
+  const addItem = useAppStore((s) => s.addItem);
 
   const item = useMemo(() => {
     const realItems = [...friendItems, ...nearbyItems];
@@ -240,6 +249,53 @@ export default function ShopItemDetailScreen() {
             </>
           ) : null}
         </Card>
+
+        {/* "I have this too" — add to own inventory */}
+        {!addedToMine ? (
+          <Pressable
+            style={styles.haveThisRow}
+            onPress={async () => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              const newItem: Item = {
+                id: generateId(),
+                name: item.name,
+                category: item.category,
+                ageRange: item.ageRange,
+                status: "available",
+                matchedTo: null,
+                emoji: item.emoji,
+                isBundle: item.isBundle,
+                count: item.count,
+              };
+              addItem(newItem);
+              if (userId) {
+                await supabase.from("items").insert({
+                  user_id: userId,
+                  name: item.name,
+                  category: item.category,
+                  age_range: item.ageRange,
+                  emoji: item.emoji,
+                  status: "available",
+                });
+              }
+              setAddedToMine(true);
+            }}
+          >
+            <Text style={styles.haveThisEmoji}>{"\u270B"}</Text>
+            <View style={styles.haveThisTextWrap}>
+              <Text style={styles.haveThisTitle}>I have this too</Text>
+              <Text style={styles.haveThisSubtitle}>
+                Add to your stuff to pass along
+              </Text>
+            </View>
+            <Text style={styles.haveThisPlus}>+</Text>
+          </Pressable>
+        ) : (
+          <View style={[styles.haveThisRow, styles.haveThisAdded]}>
+            <Text style={styles.haveThisEmoji}>{"\u2705"}</Text>
+            <Text style={styles.haveThisTitle}>Added to your stuff!</Text>
+          </View>
+        )}
 
         {/* Give What You Can UI */}
         {isGWYC && (
@@ -456,6 +512,44 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: colors.border,
+  },
+
+  // "I have this too"
+  haveThisRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 12,
+  },
+  haveThisAdded: {
+    borderColor: colors.neonGreen,
+    backgroundColor: "#F0FDF4",
+  },
+  haveThisEmoji: {
+    fontSize: 20,
+  },
+  haveThisTextWrap: {
+    flex: 1,
+  },
+  haveThisTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.text,
+  },
+  haveThisSubtitle: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  haveThisPlus: {
+    fontSize: 22,
+    fontWeight: "600",
+    color: colors.neonPurple,
   },
 
   // GWYC

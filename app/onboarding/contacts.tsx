@@ -69,13 +69,13 @@ export default function ContactsScreen() {
     return contacts.filter((c) => c.name.toLowerCase().includes(q));
   }, [contacts, search]);
 
-  // For now, "Already on Kinloop" is always empty
-  const onKinloop: ContactEntry[] = [];
+  // For now, "Already on Watasu" is always empty
+  const onWatasu: ContactEntry[] = [];
   const inviteList = filteredContacts;
 
   const sections = [
-    { title: "Already on Kinloop", data: onKinloop },
-    { title: "Invite to Kinloop", data: inviteList },
+    { title: "Already on Watasu", data: onWatasu },
+    { title: "Invite to Watasu", data: inviteList },
   ];
 
   const toggleContact = (id: string) => {
@@ -124,7 +124,7 @@ export default function ContactsScreen() {
   }: {
     section: { title: string; data: ContactEntry[] };
   }) => {
-    if (section.data.length === 0 && section.title === "Already on Kinloop") {
+    if (section.data.length === 0 && section.title === "Already on Watasu") {
       return null;
     }
     return (
@@ -159,7 +159,7 @@ export default function ContactsScreen() {
         <View style={styles.content}>
           <Text style={styles.title}>Find your people</Text>
           <Text style={styles.subtitle}>
-            We check which of your contacts are already on Kinloop. We never
+            We check which of your contacts are already on Watasu. We never
             store, share, or contact anyone without your permission.
           </Text>
 
@@ -190,7 +190,7 @@ export default function ContactsScreen() {
         <View style={styles.listContainer}>
           <Text style={styles.title}>Find your people</Text>
           <Text style={styles.subtitle}>
-            We check which of your contacts are already on Kinloop. We never
+            We check which of your contacts are already on Watasu. We never
             store, share, or contact anyone without your permission.
           </Text>
 

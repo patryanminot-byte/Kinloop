@@ -2,117 +2,27 @@ import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
-  TextInput,
   Pressable,
   StyleSheet,
   ScrollView,
+  TouchableOpacity,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import * as Haptics from "expo-haptics";
 import Button from "../../components/ui/Button";
 import { useAppStore } from "../../stores/appStore";
 import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
 import { colors, gradientColors } from "../../lib/colors";
-import { searchProducts, Product } from "../../lib/productDatabase";
+import {
+  getSuggestedItems,
+  getRelevantMilestone,
+  type MilestoneItem,
+} from "../../lib/milestones";
 
 const SEGMENTS = 3;
-
-const AGE_SUGGESTIONS: Record<string, string[]> = {
-  "0-3": [
-    "Newborn clothes",
-    "Swaddles",
-    "Bassinet",
-    "Infant car seat",
-    "Baby monitor",
-    "Bottles",
-    "Burp cloths",
-    "Nursing pillow",
-    "Diaper bag",
-    "Play mat",
-    "Pacifiers",
-    "White noise machine",
-  ],
-  "3-6": [
-    "3-6mo clothes",
-    "Bouncer",
-    "Activity gym",
-    "Bumbo seat",
-    "Teething toys",
-    "Sleep sack",
-    "High chair",
-    "Exersaucer",
-    "Baby carrier",
-  ],
-  "6-12": [
-    "6-12mo clothes",
-    "High chair",
-    "Jumperoo",
-    "Push walker",
-    "Board books",
-    "Sippy cups",
-    "Baby gate",
-    "Convertible car seat",
-    "Sleep sack",
-    "Stacking toys",
-  ],
-  "12-24": [
-    "12-18mo clothes",
-    "18-24mo clothes",
-    "Toddler shoes",
-    "Push walker",
-    "Ride-on toys",
-    "Toddler bed rail",
-    "Potty seat",
-    "Step stool",
-    "Crayons",
-    "Duplo blocks",
-    "Balance bike",
-  ],
-  "24-36": [
-    "2T-3T clothes",
-    "Tricycle",
-    "Balance bike",
-    "Toddler backpack",
-    "Potty seat",
-    "Rain boots",
-    "Play kitchen",
-    "Art supplies",
-    "Toddler bed",
-    "Scooter",
-  ],
-  "36-60": [
-    "3T-5T clothes",
-    "Bicycle with training wheels",
-    "Backpack",
-    "Lunch box",
-    "Art supplies",
-    "Sports equipment",
-    "Scooter",
-    "Rain boots",
-    "Chapter books",
-    "Booster seat",
-  ],
-};
-
-function getAgeMonths(dobStr: string): number {
-  const dob = new Date(dobStr);
-  const now = new Date();
-  return (
-    (now.getFullYear() - dob.getFullYear()) * 12 +
-    (now.getMonth() - dob.getMonth())
-  );
-}
-
-function getSuggestionsForAge(months: number): string[] {
-  if (months < 3) return AGE_SUGGESTIONS["0-3"];
-  if (months < 6) return AGE_SUGGESTIONS["3-6"];
-  if (months < 12) return AGE_SUGGESTIONS["6-12"];
-  if (months < 24) return AGE_SUGGESTIONS["12-24"];
-  if (months < 36) return AGE_SUGGESTIONS["24-36"];
-  return AGE_SUGGESTIONS["36-60"];
-}
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 15);
@@ -128,68 +38,57 @@ export default function InventorySuggestScreen() {
   const firstChild = children[0];
   const childName = firstChild?.name ?? "your kiddo";
 
-  const suggestions = useMemo(() => {
-    if (!firstChild) return AGE_SUGGESTIONS["0-3"];
-    const months = getAgeMonths(firstChild.dob);
-    return getSuggestionsForAge(months);
+  // Get milestone-based suggestions from the child's age
+  const milestone = useMemo(() => {
+    if (!firstChild?.dob) return null;
+    return getRelevantMilestone(firstChild.dob);
+  }, [firstChild]);
+
+  const suggestedItems = useMemo(() => {
+    if (!firstChild?.dob) return [];
+    return getSuggestedItems(firstChild.dob);
   }, [firstChild]);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [showCustom, setShowCustom] = useState(false);
-  const [customItem, setCustomItem] = useState("");
 
-  const autocompleteResults = useMemo(() => {
-    if (!customItem.trim()) return [];
-    return searchProducts(customItem);
-  }, [customItem]);
-
-  const toggleChip = (item: string) => {
+  const toggleItem = (item: MilestoneItem) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(item)) {
-        next.delete(item);
+      if (next.has(item.name)) {
+        next.delete(item.name);
       } else {
-        next.add(item);
+        next.add(item.name);
       }
       return next;
     });
   };
 
-  const handleAddCustom = () => {
-    const trimmed = customItem.trim();
-    if (trimmed.length > 0) {
-      setSelected((prev) => new Set(prev).add(trimmed));
-      setCustomItem("");
-      setShowCustom(false);
-    }
-  };
-
-  const handleSelectProduct = (product: Product) => {
-    setSelected((prev) => new Set(prev).add(product.name));
-    setCustomItem("");
-    setShowCustom(false);
-  };
-
   const handleDone = async () => {
-    selected.forEach((itemName) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    // Add selected items to local store
+    const itemsToAdd = suggestedItems.filter((i) => selected.has(i.name));
+    itemsToAdd.forEach((item) => {
       addItem({
         id: generateId(),
-        name: itemName,
-        category: "general",
+        name: item.name,
+        category: item.category,
         ageRange: "",
         status: "available",
         matchedTo: null,
-        emoji: "📦",
+        emoji: item.emoji,
       });
     });
 
-    if (session?.user?.id) {
-      const rows = Array.from(selected).map((itemName) => ({
+    // Persist to Supabase
+    if (session?.user?.id && itemsToAdd.length > 0) {
+      const rows = itemsToAdd.map((item) => ({
         user_id: session.user.id,
-        name: itemName,
-        category: "General",
+        name: item.name,
+        category: item.category,
         age_range: "",
-        emoji: "📦",
+        emoji: item.emoji,
         status: "available",
       }));
       await supabase.from("items").insert(rows);
@@ -198,6 +97,14 @@ export default function InventorySuggestScreen() {
     setOnboardingComplete();
     router.replace("/(tabs)");
   };
+
+  const handleSkip = () => {
+    setOnboardingComplete();
+    router.replace("/(tabs)");
+  };
+
+  // Friendly age label
+  const ageLabel = milestone?.label ?? "";
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -218,19 +125,26 @@ export default function InventorySuggestScreen() {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>What does {childName} have?</Text>
+        {/* Friendly prompt */}
+        <Text style={styles.heroEmoji}>
+          {firstChild?.emoji ?? "\u{1F476}"}
+        </Text>
+        <Text style={styles.title}>
+          {childName} is {ageLabel}!
+        </Text>
         <Text style={styles.subtitle}>
-          Tap what you own. We'll track when it's time to pass it on.
+          Anything come to mind that's been outgrown?{"\n"}
+          Tap what you're ready to pass along.
         </Text>
 
-        {/* Suggestion chips */}
+        {/* Milestone items as tappable chips */}
         <View style={styles.chipGrid}>
-          {suggestions.map((item) => {
-            const isSelected = selected.has(item);
+          {suggestedItems.map((item) => {
+            const isSelected = selected.has(item.name);
             return (
-              <Pressable key={item} onPress={() => toggleChip(item)}>
+              <Pressable key={item.name} onPress={() => toggleItem(item)}>
                 {isSelected ? (
                   <LinearGradient
                     colors={gradientColors.button}
@@ -238,11 +152,14 @@ export default function InventorySuggestScreen() {
                     end={{ x: 1, y: 0 }}
                     style={styles.chip}
                   >
-                    <Text style={styles.chipTextSelected}>{item}</Text>
+                    <Text style={styles.chipEmoji}>{item.emoji}</Text>
+                    <Text style={styles.chipTextSelected}>{item.name}</Text>
+                    <Text style={styles.chipCheck}>{"\u2713"}</Text>
                   </LinearGradient>
                 ) : (
                   <View style={styles.chipUnselected}>
-                    <Text style={styles.chipText}>{item}</Text>
+                    <Text style={styles.chipEmoji}>{item.emoji}</Text>
+                    <Text style={styles.chipText}>{item.name}</Text>
                   </View>
                 )}
               </Pressable>
@@ -250,72 +167,38 @@ export default function InventorySuggestScreen() {
           })}
         </View>
 
-        {/* Custom item */}
-        {showCustom ? (
-          <View style={styles.customSection}>
-            <View style={styles.customRow}>
-              <TextInput
-                style={styles.customInput}
-                placeholder="e.g., Baby Monitor"
-                placeholderTextColor={colors.textLight}
-                value={customItem}
-                onChangeText={setCustomItem}
-                autoFocus
-                onSubmitEditing={handleAddCustom}
-              />
-              <Button
-                variant="secondary"
-                size="sm"
-                title="Add"
-                onPress={handleAddCustom}
-              />
-            </View>
-            {/* Autocomplete dropdown */}
-            {autocompleteResults.length > 0 && (
-              <View style={styles.autocompleteList}>
-                {autocompleteResults.map((product) => (
-                  <Pressable
-                    key={product.name}
-                    style={styles.autocompleteRow}
-                    onPress={() => handleSelectProduct(product)}
-                  >
-                    <Text style={styles.autocompleteEmoji}>
-                      {product.emoji}
-                    </Text>
-                    <View style={styles.autocompleteTextWrap}>
-                      <Text style={styles.autocompleteName}>
-                        {product.name}
-                      </Text>
-                      <Text style={styles.autocompleteCategory}>
-                        {product.category}
-                      </Text>
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-          </View>
-        ) : (
-          <Button
-            variant="ghost"
-            size="md"
-            title="+ Add something else"
-            onPress={() => setShowCustom(true)}
-            style={styles.addCustomButton}
-          />
-        )}
+        {/* Reassurance */}
+        <View style={styles.reassuranceCard}>
+          <Text style={styles.reassuranceEmoji}>{"\u{1F4A1}"}</Text>
+          <Text style={styles.reassuranceText}>
+            No pressure! You can always add items later.{"\n"}
+            We'll send friendly reminders at the right time.
+          </Text>
+        </View>
       </ScrollView>
 
-      {/* Bottom CTA */}
+      {/* Bottom CTAs */}
       <View style={styles.bottom}>
-        <Button
-          variant="primary"
-          size="lg"
-          title="Done — show me matches ✨"
-          onPress={handleDone}
-          disabled={selected.size === 0}
-          style={styles.button}
-        />
+        {selected.size > 0 ? (
+          <Button
+            variant="primary"
+            size="lg"
+            title={`Add ${selected.size} item${selected.size > 1 ? "s" : ""} \u2728`}
+            onPress={handleDone}
+            style={styles.button}
+          />
+        ) : (
+          <Button
+            variant="primary"
+            size="lg"
+            title="Done \u2014 show me the app \u2728"
+            onPress={handleDone}
+            style={styles.button}
+          />
+        )}
+        <TouchableOpacity onPress={handleSkip} activeOpacity={0.7}>
+          <Text style={styles.skipText}>Skip for now</Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -344,34 +227,57 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
-    paddingTop: 32,
+    paddingTop: 24,
+    paddingBottom: 20,
+  },
+
+  // Hero
+  heroEmoji: {
+    fontSize: 56,
+    textAlign: "center",
+    marginBottom: 8,
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "700",
     color: colors.text,
+    textAlign: "center",
   },
   subtitle: {
     fontSize: 15,
     color: colors.textMuted,
     marginTop: 8,
-    marginBottom: 28,
+    marginBottom: 24,
+    textAlign: "center",
+    lineHeight: 22,
   },
+
+  // Chips
   chipGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
+    marginBottom: 20,
   },
   chip: {
-    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 20,
+    gap: 6,
   },
   chipUnselected: {
-    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 20,
     backgroundColor: "#F0F0ED",
+    gap: 6,
+  },
+  chipEmoji: {
+    fontSize: 16,
   },
   chipText: {
     fontSize: 14,
@@ -383,67 +289,47 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#FFFFFF",
   },
-  addCustomButton: {
-    marginTop: 16,
-    alignSelf: "flex-start",
-  },
-  customSection: {
-    marginTop: 16,
-  },
-  customRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  customInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 15,
-    color: colors.text,
-    backgroundColor: colors.card,
-  },
-  autocompleteList: {
-    marginTop: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    backgroundColor: colors.card,
-    overflow: "hidden",
-  },
-  autocompleteRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  autocompleteEmoji: {
-    fontSize: 18,
-    marginRight: 10,
-  },
-  autocompleteTextWrap: {
-    flex: 1,
-  },
-  autocompleteName: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: colors.text,
-  },
-  autocompleteCategory: {
+  chipCheck: {
     fontSize: 12,
-    color: colors.textMuted,
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+
+  // Reassurance
+  reassuranceCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  reassuranceEmoji: {
+    fontSize: 20,
     marginTop: 1,
   },
+  reassuranceText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.textMuted,
+    lineHeight: 19,
+  },
+
+  // Bottom
   bottom: {
     paddingHorizontal: 20,
     paddingBottom: 24,
     alignItems: "center",
+    gap: 12,
   },
   button: {
     width: "100%",
+  },
+  skipText: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: colors.textMuted,
   },
 });

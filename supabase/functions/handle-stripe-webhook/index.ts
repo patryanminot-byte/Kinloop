@@ -45,7 +45,7 @@ serve(async (req: Request) => {
     switch (event.type) {
       case "payment_intent.succeeded": {
         const pi = event.data.object as Stripe.PaymentIntent;
-        const itemId = pi.metadata.kinloop_item_id;
+        const itemId = pi.metadata.watasu_item_id;
 
         if (itemId) {
           // Update match status to accepted
@@ -68,7 +68,7 @@ serve(async (req: Request) => {
       case "payment_intent.payment_failed": {
         const pi = event.data.object as Stripe.PaymentIntent;
         console.error(
-          `Payment failed for PI: ${pi.id}, item: ${pi.metadata.kinloop_item_id}, reason: ${pi.last_payment_error?.message ?? "unknown"}`,
+          `Payment failed for PI: ${pi.id}, item: ${pi.metadata.watasu_item_id}, reason: ${pi.last_payment_error?.message ?? "unknown"}`,
         );
         // No status change on failure — buyer can retry
         break;

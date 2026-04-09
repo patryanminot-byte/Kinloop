@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { View, Text, Modal, StyleSheet, Alert } from "react-native";
-import { useStripe } from "@stripe/stripe-react-native";
+import Constants from "expo-constants";
 import * as Haptics from "expo-haptics";
+
+const isExpoGo = Constants.appOwnership === "expo";
 import { supabase } from "../lib/supabase";
 import { calculateTotal, feeLabel } from "../lib/stripe";
 import { colors } from "../lib/colors";
@@ -31,7 +33,7 @@ export default function PaymentSheet({
   onSuccess,
   onCancel,
 }: PaymentSheetProps) {
-  const { initPaymentSheet, presentPaymentSheet } = useStripe();
+  const stripe = isExpoGo ? null : require("@stripe/stripe-react-native").useStripe();
   const [loading, setLoading] = useState(false);
 
   const { itemPrice: price, fee, total } = calculateTotal(itemPrice);
@@ -56,10 +58,15 @@ export default function PaymentSheet({
         throw new Error(fnError?.message ?? "Failed to create payment");
       }
 
+      if (!stripe) {
+        Alert.alert("Stripe not available", "Payments require a production build.");
+        return;
+      }
+
       // 2. Initialize the Stripe payment sheet
-      const { error: initError } = await initPaymentSheet({
+      const { error: initError } = await stripe.initPaymentSheet({
         paymentIntentClientSecret: data.clientSecret,
-        merchantDisplayName: "Kinloop",
+        merchantDisplayName: "Watasu",
       });
 
       if (initError) {
@@ -67,7 +74,7 @@ export default function PaymentSheet({
       }
 
       // 3. Present the payment sheet to the user
-      const { error: presentError } = await presentPaymentSheet();
+      const { error: presentError } = await stripe.presentPaymentSheet();
 
       if (presentError) {
         // User cancelled — not a real error
@@ -109,7 +116,7 @@ export default function PaymentSheet({
               <Text style={styles.value}>${price}</Text>
             </View>
             <View style={styles.row}>
-              <Text style={styles.label}>Kinloop fee</Text>
+              <Text style={styles.label}>Watasu fee</Text>
               <Text style={styles.value}>${fee}</Text>
             </View>
             <View style={styles.divider} />

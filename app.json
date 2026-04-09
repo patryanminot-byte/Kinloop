@@ -17,6 +17,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.patrickminot.watasu",
       "buildNumber": "3",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Watasu uses your approximate location to show nearby items from community parents."
       }
@@ -60,7 +61,9 @@
           "locationWhenInUsePermission": "Watasu uses your approximate location to show nearby items from community parents.",
           "isAndroidBackgroundLocationEnabled": false
         }
-      ]
+      ],
+      "expo-web-browser",
+      "expo-apple-authentication"
     ]
   }
 }

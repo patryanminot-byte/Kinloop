@@ -1,10 +1,9 @@
 import { useEffect, useRef } from "react";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { StripeProvider } from "@stripe/stripe-react-native";
 import * as SplashScreen from "expo-splash-screen";
+import Constants from "expo-constants";
 import { colors } from "../lib/colors";
-import { STRIPE_PUBLISHABLE_KEY } from "../lib/stripe";
 import { useNotifications } from "../hooks/useNotifications";
 import { useAuth } from "../hooks/useAuth";
 import { useAppStore } from "../stores/appStore";
@@ -38,9 +37,20 @@ export default function RootLayout() {
         .single()
         .then(({ data }) => {
           if (data) {
+            // Derive initials from name if avatar_initials is empty
+            const initials =
+              data.avatar_initials ||
+              (data.name
+                ? data.name
+                    .split(" ")
+                    .map((w: string) => w[0])
+                    .join("")
+                    .toUpperCase()
+                    .slice(0, 2)
+                : "");
             setUserProfile({
               name: data.name,
-              initials: data.avatar_initials ?? "",
+              initials,
               city: data.location_city ?? "",
               zip: data.location_zip ?? "",
             });
@@ -106,8 +116,10 @@ export default function RootLayout() {
     }
   }, [loading]);
 
-  return (
-    <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
+  const isExpoGo = Constants.appOwnership === "expo";
+
+  const content = (
+    <>
       <StatusBar style="dark" />
       <Stack
         screenOptions={{
@@ -129,6 +141,19 @@ export default function RootLayout() {
         />
         <Stack.Screen name="shop/[id]" />
       </Stack>
+    </>
+  );
+
+  if (isExpoGo) {
+    return content;
+  }
+
+  const { StripeProvider } = require("@stripe/stripe-react-native");
+  const { STRIPE_PUBLISHABLE_KEY } = require("../lib/stripe");
+
+  return (
+    <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
+      {content}
     </StripeProvider>
   );
 }

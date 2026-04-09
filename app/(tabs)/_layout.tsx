@@ -9,7 +9,7 @@ function TabIcon({ icon, label, focused }: { icon: string; label: string; focuse
       <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>
         {icon}
       </Text>
-      <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>
+      <Text style={[styles.tabLabel, focused && styles.tabLabelActive]} numberOfLines={1}>
         {label}
       </Text>
     </View>
@@ -48,7 +48,7 @@ export default function TabLayout() {
         name="stuff"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon="◎" label="Stuff" focused={focused} />
+            <TabIcon icon="◎" label="My Stuff" focused={focused} />
           ),
         }}
       />
@@ -61,11 +61,17 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="impact"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon="○" label="You" focused={focused} />
+            <TabIcon icon="✧" label="Impact" focused={focused} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          href: null,
         }}
       />
     </Tabs>
@@ -84,6 +90,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 2,
+    minWidth: 50,
   },
   tabIcon: {
     fontSize: 22,

@@ -9,7 +9,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { colors, gradientColors } from "../lib/colors";
 import { Pricing } from "../lib/types";
-import { kinloopFee } from "../lib/utils";
+import { watasuFee } from "../lib/utils";
 
 interface PricingPickerProps {
   selected: Pricing | null;
@@ -30,7 +30,7 @@ const OPTIONS: OptionConfig[] = [
     type: "free",
     emoji: "🎁",
     label: "Pass it on free",
-    subtitle: "Most common between friends",
+    subtitle: "Just pass it along",
   },
   {
     type: "give-what-you-can",
@@ -42,7 +42,7 @@ const OPTIONS: OptionConfig[] = [
     type: "set-price",
     emoji: "🏷️",
     label: "Set a price",
-    subtitle: "For bigger items",
+    subtitle: "Name your price",
   },
 ];
 
@@ -136,10 +136,10 @@ export default function PricingPicker({
           {priceText.length > 0 && !isNaN(parseInt(priceText, 10)) && parseInt(priceText, 10) > 0 && (
             <View style={styles.feeInfo}>
               <Text style={styles.feeText}>
-                Flat ${kinloopFee(parseInt(priceText, 10))} fee included
+                Flat ${watasuFee(parseInt(priceText, 10))} fee included
               </Text>
               <Text style={styles.receiveText}>
-                You'll receive ${parseInt(priceText, 10) - kinloopFee(parseInt(priceText, 10))}
+                You'll receive ${parseInt(priceText, 10) - watasuFee(parseInt(priceText, 10))}
               </Text>
             </View>
           )}

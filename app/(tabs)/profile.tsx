@@ -48,7 +48,7 @@ const SETTINGS_ROWS = [
   "Notifications",
   "Privacy",
   "Help & Support",
-  "About Kinloop",
+  "About Watasu",
 ];
 
 export default function ProfileScreen() {

@@ -79,7 +79,7 @@ export function useMatches(userId: string | undefined) {
         status: "offered",
         pricing_type: pricingType,
         pricing_amount: pricingAmount,
-        kinloop_fee: fee,
+        watasu_fee: fee,
         personal_line: personalLine || null,
         offered_at: new Date().toISOString(),
       })

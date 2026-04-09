@@ -248,7 +248,7 @@ export default function MatchCelebration({
         <Button
           variant="primary"
           size="lg"
-          title="Send the love \u{1F48C}"
+          title={"Send the love 💌"}
           onPress={onSend}
         />
         <View style={styles.buttonSpacer} />
