@@ -147,9 +147,18 @@ export default function ProfileScreen() {
   };
 
   const KID_EMOJIS = [
-    // Kid faces (gender-neutral, skin tones)
+    // Baby
+    "\u{1F476}", "\u{1F476}\u{1F3FB}", "\u{1F476}\u{1F3FC}",
+    "\u{1F476}\u{1F3FD}", "\u{1F476}\u{1F3FE}", "\u{1F476}\u{1F3FF}",
+    // Child
     "\u{1F9D2}", "\u{1F9D2}\u{1F3FB}", "\u{1F9D2}\u{1F3FC}",
     "\u{1F9D2}\u{1F3FD}", "\u{1F9D2}\u{1F3FE}", "\u{1F9D2}\u{1F3FF}",
+    // Boy / Girl
+    "\u{1F466}", "\u{1F466}\u{1F3FC}", "\u{1F466}\u{1F3FE}",
+    "\u{1F467}", "\u{1F467}\u{1F3FC}", "\u{1F467}\u{1F3FE}",
+    // Teen/Adult
+    "\u{1F9D1}", "\u{1F9D1}\u{1F3FB}", "\u{1F9D1}\u{1F3FC}",
+    "\u{1F9D1}\u{1F3FD}", "\u{1F9D1}\u{1F3FE}", "\u{1F9D1}\u{1F3FF}",
     // Expressive faces
     "\u{1F60A}", "\u{1F604}", "\u{1F970}", "\u{1F60E}",
     "\u{1F929}", "\u{1F607}", "\u{1F973}", "\u{1F60B}",
