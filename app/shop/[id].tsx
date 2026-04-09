@@ -6,6 +6,8 @@ import {
   ScrollView,
   Pressable,
   Alert,
+  Modal,
+  TextInput,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -162,6 +164,10 @@ export default function ShopItemDetailScreen() {
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [addedToMine, setAddedToMine] = useState(false);
+  const [showReport, setShowReport] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportNote, setReportNote] = useState("");
+  const [reportSubmitted, setReportSubmitted] = useState(false);
 
   const { session } = useAuth();
   const userId = session?.user?.id;
@@ -355,7 +361,119 @@ export default function ShopItemDetailScreen() {
             </Text>
           </View>
         )}
+        {/* Report link */}
+        <Pressable
+          onPress={() => setShowReport(true)}
+          style={styles.reportLink}
+        >
+          <Text style={styles.reportLinkText}>
+            See something unsafe? Report this item
+          </Text>
+        </Pressable>
       </ScrollView>
+
+      {/* Report modal */}
+      <Modal visible={showReport} animationType="slide" transparent>
+        <View style={styles.reportOverlay}>
+          <View style={styles.reportModal}>
+            <Text style={styles.reportTitle}>Report this item</Text>
+
+            {reportSubmitted ? (
+              <View style={styles.reportSuccess}>
+                <Text style={styles.reportSuccessEmoji}>{"\u2705"}</Text>
+                <Text style={styles.reportSuccessText}>
+                  Report submitted. We'll review it shortly.
+                </Text>
+                <Pressable
+                  onPress={() => {
+                    setShowReport(false);
+                    setReportSubmitted(false);
+                    setReportReason("");
+                    setReportNote("");
+                  }}
+                  style={styles.reportDoneBtn}
+                >
+                  <Text style={styles.reportDoneBtnText}>Done</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <>
+                <Text style={styles.reportLabel}>Reason</Text>
+                {[
+                  "Recalled item",
+                  "Unsafe/damaged",
+                  "Misleading description",
+                  "Spam",
+                  "Other",
+                ].map((reason) => (
+                  <Pressable
+                    key={reason}
+                    style={[
+                      styles.reportOption,
+                      reportReason === reason && styles.reportOptionSelected,
+                    ]}
+                    onPress={() => setReportReason(reason)}
+                  >
+                    <Text
+                      style={[
+                        styles.reportOptionText,
+                        reportReason === reason &&
+                          styles.reportOptionTextSelected,
+                      ]}
+                    >
+                      {reason}
+                    </Text>
+                  </Pressable>
+                ))}
+
+                <Text style={styles.reportLabel}>
+                  Details{" "}
+                  <Text style={styles.reportOptional}>(optional)</Text>
+                </Text>
+                <TextInput
+                  style={styles.reportInput}
+                  value={reportNote}
+                  onChangeText={setReportNote}
+                  placeholder="Tell us more..."
+                  placeholderTextColor="#AEAEB2"
+                  multiline
+                  numberOfLines={3}
+                />
+
+                <Pressable
+                  style={[
+                    styles.reportSubmitBtn,
+                    !reportReason && styles.reportSubmitBtnDisabled,
+                  ]}
+                  onPress={async () => {
+                    if (!reportReason) return;
+                    await supabase.from("reports").insert({
+                      item_id: item?.id,
+                      reporter_id: userId,
+                      reason: reportReason,
+                      note: reportNote || null,
+                    });
+                    setReportSubmitted(true);
+                  }}
+                  disabled={!reportReason}
+                >
+                  <Text style={styles.reportSubmitText}>Submit Report</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => {
+                    setShowReport(false);
+                    setReportReason("");
+                    setReportNote("");
+                  }}
+                >
+                  <Text style={styles.reportCancelText}>Cancel</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* Action button pinned at bottom */}
       <View style={styles.actionBar}>
@@ -590,6 +708,122 @@ const styles = StyleSheet.create({
   gwycHint: {
     fontSize: 12,
     color: colors.textMuted,
+  },
+
+  // Report
+  reportLink: {
+    alignItems: "center",
+    paddingVertical: 16,
+    marginTop: 8,
+  },
+  reportLinkText: {
+    fontSize: 13,
+    color: "#AEAEB2",
+    textDecorationLine: "underline",
+  },
+  reportOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  reportModal: {
+    backgroundColor: colors.bg,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    paddingBottom: 40,
+  },
+  reportTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: colors.text,
+    marginBottom: 16,
+  },
+  reportLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.textMuted,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  reportOptional: {
+    fontWeight: "400",
+  },
+  reportOption: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: 6,
+  },
+  reportOptionSelected: {
+    borderColor: "#EF4444",
+    backgroundColor: "#FEF2F2",
+  },
+  reportOptionText: {
+    fontSize: 15,
+    color: colors.text,
+  },
+  reportOptionTextSelected: {
+    color: "#EF4444",
+    fontWeight: "600",
+  },
+  reportInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 15,
+    color: colors.text,
+    minHeight: 70,
+    backgroundColor: colors.card,
+  },
+  reportSubmitBtn: {
+    backgroundColor: "#EF4444",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginTop: 16,
+  },
+  reportSubmitBtnDisabled: {
+    opacity: 0.4,
+  },
+  reportSubmitText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  reportCancelText: {
+    fontSize: 15,
+    color: colors.textMuted,
+    textAlign: "center",
+    marginTop: 12,
+  },
+  reportSuccess: {
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 20,
+  },
+  reportSuccessEmoji: { fontSize: 32 },
+  reportSuccessText: {
+    fontSize: 16,
+    color: colors.text,
+    textAlign: "center",
+  },
+  reportDoneBtn: {
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: 8,
+  },
+  reportDoneBtnText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.text,
   },
 
   // Action bar

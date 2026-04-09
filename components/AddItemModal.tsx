@@ -34,6 +34,7 @@ import {
 import { useItemCatalog } from "../hooks/useItemCatalog";
 import Button from "./ui/Button";
 import PricingPicker from "./PricingPicker";
+import SafetyWarning, { getSafetyWarning } from "./SafetyWarning";
 import type { Pricing } from "../lib/types";
 
 const { height: SCREEN_H } = Dimensions.get("window");
@@ -99,6 +100,9 @@ export default function AddItemModal({
   const [justAdded, setJustAdded] = useState(false);
   const [addedName, setAddedName] = useState("");
 
+  // Safety warning state
+  const [safetyChecked, setSafetyChecked] = useState(false);
+
   const searchInputRef = useRef<TextInput>(null);
 
   // Search results
@@ -139,6 +143,7 @@ export default function AddItemModal({
     setBundlePhotoUri(null);
     setJustAdded(false);
     setAddedName("");
+    setSafetyChecked(false);
   };
 
   const resetForAnother = () => {
@@ -231,8 +236,11 @@ export default function AddItemModal({
 
   const sizeOptions = sizeSystem ? SIZE_OPTIONS[sizeSystem] : [];
 
+  const safetyWarningMsg = getSafetyWarning(category ?? "", displayName);
   const isSingleValid =
-    displayName.trim().length > 0 && category !== null;
+    displayName.trim().length > 0 &&
+    category !== null &&
+    (!safetyWarningMsg || safetyChecked);
 
   // Browse: items for current sub-category (or whole category if no sub-cats)
   const browseItems = useMemo(() => {
@@ -1096,6 +1104,17 @@ export default function AddItemModal({
                   <Text style={styles.optionalLabel}>(optional)</Text>
                 </Text>
                 <PricingPicker selected={pricing} onSelect={setPricing} />
+
+                <View style={{ height: 16 }} />
+
+                {/* Safety warning (if applicable) */}
+                {safetyWarningMsg && (
+                  <SafetyWarning
+                    message={safetyWarningMsg}
+                    checked={safetyChecked}
+                    onToggle={() => setSafetyChecked(!safetyChecked)}
+                  />
+                )}
 
                 <View style={{ height: 16 }} />
 

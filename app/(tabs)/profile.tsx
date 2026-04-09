@@ -8,8 +8,12 @@ import {
   TextInput,
   Alert,
   Image,
+  Platform,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -53,10 +57,12 @@ function childAge(dob: string): string {
 }
 
 const SETTINGS_ROWS = [
-  { label: "Notifications", icon: "\u{1F514}" },
-  { label: "Privacy", icon: "\u{1F512}" },
-  { label: "Help & Support", icon: "\u{1F4AC}" },
-  { label: "About Watasu", icon: "\u{2728}" },
+  { label: "Notifications", icon: "\u{1F514}", route: null },
+  { label: "Privacy", icon: "\u{1F512}", route: null },
+  { label: "Privacy Policy", icon: "\u{1F4DC}", route: "/legal/privacy" },
+  { label: "Terms of Service", icon: "\u{1F4CB}", route: "/legal/terms" },
+  { label: "Help & Support", icon: "\u{1F4AC}", route: null },
+  { label: "About Watasu", icon: "\u{2728}", route: null },
 ];
 
 const VISIBILITY_OPTIONS: {
@@ -149,6 +155,7 @@ export default function ProfileScreen() {
   const [kidNameDraft, setKidNameDraft] = useState("");
   const [kidDobDraft, setKidDobDraft] = useState("");
   const [kidEmojiDraft, setKidEmojiDraft] = useState("");
+  const [showKidDatePicker, setShowKidDatePicker] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -183,16 +190,42 @@ export default function ProfileScreen() {
   const estimatedSaved = handedOff > 0 ? handedOff * 85 : 340;
   const lbsDiverted = handedOff > 0 ? handedOff * 7 : 28;
 
-  const handlePickPhoto = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
-    if (!result.canceled && result.assets?.[0]) {
-      setPhotoUri(result.assets[0].uri);
-    }
+  const handlePickPhoto = () => {
+    Alert.alert("Profile Photo", "Choose an option", [
+      {
+        text: "Take Photo",
+        onPress: async () => {
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
+          if (status !== "granted") {
+            Alert.alert("Permission needed", "Camera access is required to take a photo.");
+            return;
+          }
+          const result = await ImagePicker.launchCameraAsync({
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.7,
+          });
+          if (!result.canceled && result.assets?.[0]) {
+            setPhotoUri(result.assets[0].uri);
+          }
+        },
+      },
+      {
+        text: "Choose from Library",
+        onPress: async () => {
+          const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.7,
+          });
+          if (!result.canceled && result.assets?.[0]) {
+            setPhotoUri(result.assets[0].uri);
+          }
+        },
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
   };
 
   const handleEditName = () => {
@@ -253,6 +286,23 @@ export default function ProfileScreen() {
     setKidNameDraft(kid.name);
     setKidDobDraft(kid.dob);
     setKidEmojiDraft(kid.emoji);
+    setShowKidDatePicker(false);
+  };
+
+  const kidDobDate = kidDobDraft
+    ? new Date(kidDobDraft + "T00:00:00")
+    : new Date(new Date().getFullYear() - 1, new Date().getMonth(), new Date().getDate());
+
+  const handleKidDateChange = (_event: DateTimePickerEvent, date?: Date) => {
+    if (Platform.OS === "android") setShowKidDatePicker(false);
+    if (date) {
+      setKidDobDraft(date.toISOString().split("T")[0]);
+    }
+  };
+
+  const formatKidDobLabel = (dob: string) => {
+    const d = new Date(dob + "T00:00:00");
+    return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
   };
 
   const handleSaveKid = async () => {
@@ -354,57 +404,6 @@ export default function ProfileScreen() {
           <GradientBar height={3} style={styles.gradientBar} />
         </View>
 
-        {/* ── Impact Stats — tappable to go to impact page ── */}
-        <Pressable
-          onPress={() => router.push("/(tabs)/impact" as `/${string}`)}
-        >
-          <View style={styles.impactCard}>
-            <LinearGradient
-              colors={gradientColors.subtle}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.impactGradient}
-            >
-              <View style={styles.impactStatsRow}>
-                <View style={styles.impactStatBox}>
-                  <GradientText style={styles.impactStatNumber}>
-                    {totalItems || 12}
-                  </GradientText>
-                  <Text style={styles.impactStatLabel}>items{"\n"}tracked</Text>
-                </View>
-                <View style={styles.impactStatDivider} />
-                <View style={styles.impactStatBox}>
-                  <GradientText style={styles.impactStatNumber}>
-                    {handedOff || 4}
-                  </GradientText>
-                  <Text style={styles.impactStatLabel}>passed{"\n"}along</Text>
-                </View>
-                <View style={styles.impactStatDivider} />
-                <View style={styles.impactStatBox}>
-                  <GradientText style={styles.impactStatNumber}>
-                    ${estimatedSaved}
-                  </GradientText>
-                  <Text style={styles.impactStatLabel}>saved</Text>
-                </View>
-                <View style={styles.impactStatDivider} />
-                <View style={styles.impactStatBox}>
-                  <GradientText style={styles.impactStatNumber}>
-                    {lbsDiverted}
-                  </GradientText>
-                  <Text style={styles.impactStatLabel}>lbs from{"\n"}landfill</Text>
-                </View>
-              </View>
-
-              <View style={styles.impactFooter}>
-                <Text style={styles.impactFooterText}>
-                  {friendCount} friends in your circle {"\u00B7"} See full
-                  impact {"\u203A"}
-                </Text>
-              </View>
-            </LinearGradient>
-          </View>
-        </Pressable>
-
         {/* ── Your Kids — each tappable to edit ── */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Your kids</Text>
@@ -460,19 +459,36 @@ export default function ProfileScreen() {
               {/* Birthday */}
               <View style={styles.kidEditSection}>
                 <Text style={styles.kidEditLabel}>Birthday</Text>
-                <TextInput
-                  style={styles.kidNameInput}
-                  value={kidDobDraft}
-                  onChangeText={setKidDobDraft}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="numbers-and-punctuation"
-                  returnKeyType="done"
-                  onSubmitEditing={handleSaveKid}
-                />
-                <Text style={styles.kidAgePreview}>
-                  {kidDobDraft ? `${childAge(kidDobDraft)} old` : ""}
-                </Text>
+                <Pressable
+                  style={styles.kidDateBtn}
+                  onPress={() => setShowKidDatePicker(true)}
+                >
+                  <Text style={styles.kidDateBtnText}>
+                    {kidDobDraft
+                      ? `${formatKidDobLabel(kidDobDraft)}  ·  ${childAge(kidDobDraft)} old`
+                      : "Select birthday"}
+                  </Text>
+                </Pressable>
+                {showKidDatePicker && (
+                  <>
+                    <DateTimePicker
+                      value={kidDobDate}
+                      mode="date"
+                      display={Platform.OS === "ios" ? "spinner" : "default"}
+                      maximumDate={new Date()}
+                      minimumDate={new Date(new Date().getFullYear() - 18, 0, 1)}
+                      onChange={handleKidDateChange}
+                    />
+                    {Platform.OS === "ios" && (
+                      <Pressable
+                        onPress={() => setShowKidDatePicker(false)}
+                        style={styles.kidDateDoneBtn}
+                      >
+                        <Text style={styles.kidDateDoneText}>Done</Text>
+                      </Pressable>
+                    )}
+                  </>
+                )}
               </View>
 
               <Pressable onPress={handleSaveKid} style={styles.kidSaveBtn}>
@@ -495,6 +511,57 @@ export default function ProfileScreen() {
           ),
         )}
 
+        {/* ── Impact Stats — tappable to go to impact page ── */}
+        <Pressable
+          onPress={() => router.push("/(tabs)/impact" as `/${string}`)}
+        >
+          <View style={styles.impactCard}>
+            <LinearGradient
+              colors={gradientColors.subtle}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.impactGradient}
+            >
+              <View style={styles.impactStatsRow}>
+                <View style={styles.impactStatBox}>
+                  <GradientText style={styles.impactStatNumber}>
+                    {totalItems || 12}
+                  </GradientText>
+                  <Text style={styles.impactStatLabel}>items{"\n"}tracked</Text>
+                </View>
+                <View style={styles.impactStatDivider} />
+                <View style={styles.impactStatBox}>
+                  <GradientText style={styles.impactStatNumber}>
+                    {handedOff || 4}
+                  </GradientText>
+                  <Text style={styles.impactStatLabel}>passed{"\n"}along</Text>
+                </View>
+                <View style={styles.impactStatDivider} />
+                <View style={styles.impactStatBox}>
+                  <GradientText style={styles.impactStatNumber}>
+                    ${estimatedSaved}
+                  </GradientText>
+                  <Text style={styles.impactStatLabel}>saved</Text>
+                </View>
+                <View style={styles.impactStatDivider} />
+                <View style={styles.impactStatBox}>
+                  <GradientText style={styles.impactStatNumber}>
+                    {lbsDiverted}
+                  </GradientText>
+                  <Text style={styles.impactStatLabel}>lbs from{"\n"}landfill</Text>
+                </View>
+              </View>
+
+              <View style={styles.impactFooter}>
+                <Text style={styles.impactFooterText}>
+                  {friendCount} friends in your circle {"\u00B7"} See full
+                  impact {"\u203A"}
+                </Text>
+              </View>
+            </LinearGradient>
+          </View>
+        </Pressable>
+
         {/* ── Who can see your items ── */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Who sees your items</Text>
@@ -512,7 +579,11 @@ export default function ProfileScreen() {
               {index > 0 && <View style={styles.divider} />}
               <Pressable
                 style={styles.settingsRow}
-                onPress={() => Alert.alert("Coming soon")}
+                onPress={() =>
+                  item.route
+                    ? router.push(item.route as `/${string}`)
+                    : Alert.alert("Coming soon")
+                }
               >
                 <Text style={styles.settingsIcon}>{item.icon}</Text>
                 <Text style={styles.settingsLabel}>{item.label}</Text>
@@ -770,11 +841,28 @@ const styles = StyleSheet.create({
   emojiOptionText: {
     fontSize: 22,
   },
-  kidAgePreview: {
-    fontSize: 13,
-    color: colors.neonPurple,
+  kidDateBtn: {
+    backgroundColor: colors.bg,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  kidDateBtnText: {
+    fontSize: 15,
+    color: colors.text,
+    fontWeight: "500",
+  },
+  kidDateDoneBtn: {
+    alignSelf: "flex-end",
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  kidDateDoneText: {
+    fontSize: 15,
     fontWeight: "600",
-    marginTop: 2,
+    color: colors.neonPurple,
   },
   kidEmoji: {
     fontSize: 32,

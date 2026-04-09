@@ -141,6 +141,9 @@ export default function RootLayout() {
           options={{ presentation: "modal" }}
         />
         <Stack.Screen name="shop/[id]" />
+        <Stack.Screen name="legal/privacy" />
+        <Stack.Screen name="legal/terms" />
+        <Stack.Screen name="onboarding/consent" />
       </Stack>
     </>
   );

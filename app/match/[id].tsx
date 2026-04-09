@@ -135,6 +135,7 @@ export default function MatchDetailScreen() {
   const [showNudgeComposer, setShowNudgeComposer] = useState(isNudgeFromHome);
   const [nudgeMessage, setNudgeMessage] = useState("");
   const [nudgeSent, setNudgeSent] = useState(false);
+  const [safetyTipDismissed, setSafetyTipDismissed] = useState(false);
 
   const handleAddPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -306,6 +307,31 @@ export default function MatchDetailScreen() {
             </View>
           </View>
         </Card>
+
+        {/* Handoff safety tip — shown once per match */}
+        {!safetyTipDismissed && (
+          <View style={styles.safetyTip}>
+            <View style={styles.safetyTipHeader}>
+              <Text style={styles.safetyTipIcon}>
+                {match.ring === "nearby" ? "\u{1F6E1}\uFE0F" : "\u{1F4A1}"}
+              </Text>
+              <Text style={styles.safetyTipTitle}>
+                {match.ring === "nearby" ? "Meeting someone new?" : "Handoff tip"}
+              </Text>
+              <Pressable
+                onPress={() => setSafetyTipDismissed(true)}
+                hitSlop={12}
+              >
+                <Text style={styles.safetyTipDismiss}>{"\u2715"}</Text>
+              </Pressable>
+            </View>
+            <Text style={styles.safetyTipText}>
+              {match.ring === "nearby"
+                ? "Meet in a public, well-lit spot. Tell a friend where you're going. Inspect the item before completing the transaction."
+                : "Inspect the item together and share any quirks you've noticed. Pass along the manual if you have it!"}
+            </Text>
+          </View>
+        )}
 
         {/* Pricing picker */}
         {isReady && (
@@ -606,6 +632,39 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: 2,
   },
+  // Safety tip
+  safetyTip: {
+    backgroundColor: "#EFF6FF",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    padding: 14,
+    marginTop: 12,
+  },
+  safetyTipHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 6,
+  },
+  safetyTipIcon: { fontSize: 16 },
+  safetyTipTitle: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#1E40AF",
+  },
+  safetyTipDismiss: {
+    fontSize: 14,
+    color: "#93C5FD",
+    padding: 4,
+  },
+  safetyTipText: {
+    fontSize: 13,
+    color: "#1E3A8A",
+    lineHeight: 19,
+  },
+
   section: {
     marginTop: 20,
   },

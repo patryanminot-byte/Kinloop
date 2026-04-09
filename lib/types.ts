@@ -68,4 +68,5 @@ export interface Match {
   daysAgo: number;
   sentAt?: string;
   handoff?: HandoffPlan | null;
+  ring?: "friend" | "nearby";
 }

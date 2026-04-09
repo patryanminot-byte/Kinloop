@@ -49,7 +49,7 @@ export default function WelcomeScreen() {
     const newUser = await isNewUser(userId);
     if (newUser) {
       await createProfile(userId, identifier, name);
-      router.push("/onboarding/your-name");
+      router.push("/onboarding/consent");
     } else {
       // Returning user — go straight to tabs
       router.replace("/(tabs)");
@@ -331,6 +331,23 @@ export default function WelcomeScreen() {
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
             <Text style={styles.hint}>Takes 90 seconds</Text>
+
+            <Text style={styles.legalText}>
+              By continuing, you agree to our{" "}
+              <Text
+                style={styles.legalLink}
+                onPress={() => router.push("/legal/terms" as `/${string}`)}
+              >
+                Terms of Service
+              </Text>
+              {" "}and{" "}
+              <Text
+                style={styles.legalLink}
+                onPress={() => router.push("/legal/privacy" as `/${string}`)}
+              >
+                Privacy Policy
+              </Text>
+            </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -516,5 +533,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#AEAEB2",
     marginTop: 10,
+  },
+  legalText: {
+    fontSize: 11,
+    color: "#AEAEB2",
+    marginTop: 16,
+    textAlign: "center",
+    lineHeight: 16,
+  },
+  legalLink: {
+    color: colors.neonPurple,
+    fontWeight: "500",
   },
 });
