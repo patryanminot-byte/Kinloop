@@ -72,6 +72,8 @@ export default function ProfileScreen() {
   const [nameDraft, setNameDraft] = useState("");
   const [editingKidId, setEditingKidId] = useState<string | null>(null);
   const [kidNameDraft, setKidNameDraft] = useState("");
+  const [kidDobDraft, setKidDobDraft] = useState("");
+  const [kidEmojiDraft, setKidEmojiDraft] = useState("");
 
   useEffect(() => {
     if (!userId) return;
@@ -144,20 +146,41 @@ export default function ProfileScreen() {
     setEditingName(false);
   };
 
+  const KID_EMOJIS = [
+    "\u{1F476}", "\u{1F476}\u{1F3FB}", "\u{1F476}\u{1F3FC}",
+    "\u{1F476}\u{1F3FD}", "\u{1F476}\u{1F3FE}", "\u{1F476}\u{1F3FF}",
+    "\u{1F467}", "\u{1F467}\u{1F3FB}", "\u{1F467}\u{1F3FC}",
+    "\u{1F467}\u{1F3FD}", "\u{1F467}\u{1F3FE}", "\u{1F467}\u{1F3FF}",
+    "\u{1F466}", "\u{1F466}\u{1F3FB}", "\u{1F466}\u{1F3FC}",
+    "\u{1F466}\u{1F3FD}", "\u{1F466}\u{1F3FE}", "\u{1F466}\u{1F3FF}",
+  ];
+
   const handleEditKid = (kid: Child) => {
     setEditingKidId(kid.id);
     setKidNameDraft(kid.name);
+    setKidDobDraft(kid.dob);
+    setKidEmojiDraft(kid.emoji);
   };
 
   const handleSaveKid = async () => {
     if (editingKidId && kidNameDraft.trim().length > 0) {
+      const updates: Record<string, string> = { name: kidNameDraft.trim() };
+      if (kidDobDraft) updates.dob = kidDobDraft;
+      if (kidEmojiDraft) updates.emoji = kidEmojiDraft;
       await supabase
         .from("children")
-        .update({ name: kidNameDraft.trim() })
+        .update(updates)
         .eq("id", editingKidId);
       setKids((prev) =>
         prev.map((k) =>
-          k.id === editingKidId ? { ...k, name: kidNameDraft.trim() } : k,
+          k.id === editingKidId
+            ? {
+                ...k,
+                name: kidNameDraft.trim(),
+                dob: kidDobDraft || k.dob,
+                emoji: kidEmojiDraft || k.emoji,
+              }
+            : k,
         ),
       );
     }
@@ -295,16 +318,61 @@ export default function ProfileScreen() {
         {displayKids.map((kid) =>
           editingKidId === kid.id ? (
             <View key={kid.id} style={styles.kidEditCard}>
-              <Text style={styles.kidEmoji}>{kid.emoji}</Text>
-              <TextInput
-                style={styles.kidNameInput}
-                value={kidNameDraft}
-                onChangeText={setKidNameDraft}
-                autoFocus
-                autoCapitalize="words"
-                returnKeyType="done"
-                onSubmitEditing={handleSaveKid}
-              />
+              {/* Emoji picker */}
+              <View style={styles.kidEditSection}>
+                <Text style={styles.kidEditLabel}>Avatar</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.emojiScroll}
+                  contentContainerStyle={styles.emojiScrollContent}
+                >
+                  {KID_EMOJIS.map((e) => (
+                    <Pressable
+                      key={e}
+                      onPress={() => setKidEmojiDraft(e)}
+                      style={[
+                        styles.emojiOption,
+                        kidEmojiDraft === e && styles.emojiOptionSelected,
+                      ]}
+                    >
+                      <Text style={styles.emojiOptionText}>{e}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Name */}
+              <View style={styles.kidEditSection}>
+                <Text style={styles.kidEditLabel}>Name</Text>
+                <TextInput
+                  style={styles.kidNameInput}
+                  value={kidNameDraft}
+                  onChangeText={setKidNameDraft}
+                  autoFocus
+                  autoCapitalize="words"
+                  returnKeyType="next"
+                />
+              </View>
+
+              {/* Birthday */}
+              <View style={styles.kidEditSection}>
+                <Text style={styles.kidEditLabel}>Birthday</Text>
+                <TextInput
+                  style={styles.kidNameInput}
+                  value={kidDobDraft}
+                  onChangeText={setKidDobDraft}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="numbers-and-punctuation"
+                  returnKeyType="done"
+                  onSubmitEditing={handleSaveKid}
+                />
+                <Text style={styles.kidAgePreview}>
+                  {kidDobDraft ? `${childAge(kidDobDraft)} old` : ""}
+                </Text>
+              </View>
+
               <Pressable onPress={handleSaveKid} style={styles.kidSaveBtn}>
                 <Text style={styles.kidSaveBtnText}>Save</Text>
               </Pressable>
@@ -547,15 +615,54 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   kidEditCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
     backgroundColor: colors.card,
     borderRadius: 14,
     borderWidth: 2,
     borderColor: colors.neonPurple,
-    padding: 14,
+    padding: 16,
     marginBottom: 8,
+    gap: 12,
+  },
+  kidEditSection: {
+    gap: 4,
+  },
+  kidEditLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.textMuted,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  emojiScroll: {
+    marginHorizontal: -4,
+  },
+  emojiScrollContent: {
+    gap: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+  },
+  emojiOption: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.bg,
+    borderWidth: 2,
+    borderColor: "transparent",
+  },
+  emojiOptionSelected: {
+    borderColor: colors.neonPurple,
+    backgroundColor: colors.neonPurple + "15",
+  },
+  emojiOptionText: {
+    fontSize: 22,
+  },
+  kidAgePreview: {
+    fontSize: 13,
+    color: colors.neonPurple,
+    fontWeight: "600",
+    marginTop: 2,
   },
   kidEmoji: {
     fontSize: 32,
@@ -587,12 +694,13 @@ const styles = StyleSheet.create({
   },
   kidSaveBtn: {
     backgroundColor: colors.neonPurple,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: "center",
+    marginTop: 4,
   },
   kidSaveBtnText: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: "700",
     color: "#FFFFFF",
   },
