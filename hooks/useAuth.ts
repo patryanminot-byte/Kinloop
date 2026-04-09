@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Platform } from "react-native";
+import Constants from "expo-constants";
 import { supabase } from "../lib/supabase";
 import type { Session } from "@supabase/supabase-js";
 import * as AppleAuthentication from "expo-apple-authentication";
@@ -89,10 +90,10 @@ export function useAuth() {
 
   // ── Google Sign In ──────────────────────────────────────────────────
   const signInWithGoogle = async () => {
-    // Use the Expo auth proxy for Expo Go, custom scheme for standalone
-    const redirectTo = makeRedirectUri({
-      native: "watasu://google-auth",
-    });
+    const isExpoGo = Constants.appOwnership === "expo";
+    const redirectTo = isExpoGo
+      ? makeRedirectUri({ scheme: "exp" })
+      : makeRedirectUri({ native: "watasu://google-auth" });
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
