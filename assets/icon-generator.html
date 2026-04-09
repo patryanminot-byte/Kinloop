@@ -5,138 +5,178 @@
   body {
     margin: 0;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     height: 100vh;
     background: #1a1a1a;
+    gap: 20px;
   }
-  canvas {
-    border-radius: 0;
+  canvas { border-radius: 0; }
+  a {
+    color: #A78BFA;
+    font-family: system-ui;
+    font-size: 16px;
+    cursor: pointer;
+    text-decoration: underline;
   }
 </style>
 </head>
 <body>
 <canvas id="icon" width="1024" height="1024"></canvas>
+<a id="download">Download icon (1024x1024 PNG)</a>
 <script>
 const canvas = document.getElementById('icon');
 const ctx = canvas.getContext('2d');
 const W = 1024;
-const C = W / 2; // center
+const C = W / 2;
 
-// Background: soft warm white
-ctx.fillStyle = '#FEFCFA';
+// ── Background ──
+// Soft warm white with subtle radial warmth
+ctx.fillStyle = '#FAFAF8';
 ctx.fillRect(0, 0, W, W);
 
-// Rainbow gradient for the circular arrows
-function rainbowGradient(x0, y0, x1, y1) {
-  const g = ctx.createLinearGradient(x0, y0, x1, y1);
-  g.addColorStop(0, '#A78BFA');    // purple
-  g.addColorStop(0.25, '#60A5FA'); // blue
-  g.addColorStop(0.5, '#34D399');  // green
-  g.addColorStop(0.75, '#FBBF24'); // yellow
-  g.addColorStop(1, '#F472B6');    // pink
-  return g;
-}
-
-// Draw a thick circular arc with rounded ends
-function drawArc(startAngle, endAngle, radius, lineWidth, color) {
-  ctx.beginPath();
-  ctx.arc(C, C, radius, startAngle, endAngle);
-  ctx.strokeStyle = color;
-  ctx.lineWidth = lineWidth;
-  ctx.lineCap = 'round';
-  ctx.stroke();
-}
-
-// Draw arrowhead at end of arc
-function drawArrowhead(angle, radius, size, color) {
-  const x = C + Math.cos(angle) * radius;
-  const y = C + Math.sin(angle) * radius;
-
-  // Arrow points in the direction tangent to the circle
-  const tangentAngle = angle + Math.PI / 2;
-
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(tangentAngle);
-
-  ctx.beginPath();
-  ctx.moveTo(0, -size * 0.6);
-  ctx.lineTo(size, 0);
-  ctx.lineTo(0, size * 0.6);
-  ctx.closePath();
-  ctx.fillStyle = color;
-  ctx.fill();
-
-  ctx.restore();
-}
-
-// Outer subtle glow
-const glowGrad = ctx.createRadialGradient(C, C, 200, C, C, 500);
-glowGrad.addColorStop(0, 'rgba(167, 139, 250, 0.03)');
-glowGrad.addColorStop(0.5, 'rgba(96, 165, 250, 0.05)');
-glowGrad.addColorStop(1, 'rgba(244, 114, 182, 0.03)');
-ctx.fillStyle = glowGrad;
+// Subtle radial glow from center
+const bgGlow = ctx.createRadialGradient(C, C, 0, C, C, 480);
+bgGlow.addColorStop(0, 'rgba(167, 139, 250, 0.06)');
+bgGlow.addColorStop(0.5, 'rgba(96, 165, 250, 0.04)');
+bgGlow.addColorStop(1, 'rgba(244, 114, 182, 0.02)');
+ctx.fillStyle = bgGlow;
 ctx.fillRect(0, 0, W, W);
 
-// Draw 3 flowing arcs forming a circle (like a recycling symbol)
-const radius = 260;
-const arcWidth = 52;
-const gap = 0.35; // gap between arcs in radians
-const arrowSize = 40;
+// ── Three flowing arcs (recycling/circulation symbol) ──
+const radius = 270;
+const arcWidth = 60;
+const gapAngle = 0.42; // gap between arcs
+const thirdCircle = (2 * Math.PI) / 3;
 
-const arcs = [
-  { start: -Math.PI / 2 + gap/2, end: -Math.PI / 2 + (2 * Math.PI / 3) - gap/2, colors: ['#A78BFA', '#60A5FA'] },
-  { start: -Math.PI / 2 + (2 * Math.PI / 3) + gap/2, end: -Math.PI / 2 + (4 * Math.PI / 3) - gap/2, colors: ['#34D399', '#FBBF24'] },
-  { start: -Math.PI / 2 + (4 * Math.PI / 3) + gap/2, end: -Math.PI / 2 + (6 * Math.PI / 3) - gap/2, colors: ['#F472B6', '#A78BFA'] },
+// Each arc: start, sweep, and gradient colors
+const arcDefs = [
+  { offset: 0, colors: ['#A78BFA', '#7C3AED'] },         // purple
+  { offset: 1, colors: ['#34D399', '#0EA5E9'] },          // green → cyan
+  { offset: 2, colors: ['#F472B6', '#FBBF24'] },          // pink → gold
 ];
 
-arcs.forEach(arc => {
-  // Create gradient along the arc
-  const sx = C + Math.cos(arc.start) * radius;
-  const sy = C + Math.sin(arc.start) * radius;
-  const ex = C + Math.cos(arc.end) * radius;
-  const ey = C + Math.sin(arc.end) * radius;
+function drawFlowingArc(def) {
+  const baseAngle = -Math.PI / 2 + def.offset * thirdCircle;
+  const startA = baseAngle + gapAngle / 2;
+  const endA = baseAngle + thirdCircle - gapAngle / 2;
 
+  // Gradient along the arc
+  const sx = C + Math.cos(startA) * radius;
+  const sy = C + Math.sin(startA) * radius;
+  const ex = C + Math.cos(endA) * radius;
+  const ey = C + Math.sin(endA) * radius;
   const grad = ctx.createLinearGradient(sx, sy, ex, ey);
-  grad.addColorStop(0, arc.colors[0]);
-  grad.addColorStop(1, arc.colors[1]);
+  grad.addColorStop(0, def.colors[0]);
+  grad.addColorStop(1, def.colors[1]);
 
-  // Draw arc
+  // Draw the arc
   ctx.beginPath();
-  ctx.arc(C, C, radius, arc.start, arc.end);
+  ctx.arc(C, C, radius, startA, endA);
   ctx.strokeStyle = grad;
   ctx.lineWidth = arcWidth;
   ctx.lineCap = 'round';
   ctx.stroke();
 
-  // Draw arrowhead
-  drawArrowhead(arc.end, radius, arrowSize, arc.colors[1]);
-});
+  // Arrowhead — triangular, pointing along the tangent at the arc end
+  const tipAngle = endA;
+  const tx = C + Math.cos(tipAngle) * radius;
+  const ty = C + Math.sin(tipAngle) * radius;
+  const tangent = tipAngle + Math.PI / 2;
+  const aSize = 38;
 
-// Center: bean sprout emoji area with soft circle bg
-const innerR = 145;
-const innerGrad = ctx.createRadialGradient(C, C, 0, C, C, innerR);
-innerGrad.addColorStop(0, 'rgba(167, 139, 250, 0.08)');
-innerGrad.addColorStop(1, 'rgba(167, 139, 250, 0.02)');
-ctx.beginPath();
-ctx.arc(C, C, innerR, 0, Math.PI * 2);
-ctx.fillStyle = innerGrad;
-ctx.fill();
+  ctx.save();
+  ctx.translate(tx, ty);
+  ctx.rotate(tangent);
+  ctx.beginPath();
+  ctx.moveTo(aSize * 1.1, 0);
+  ctx.lineTo(-aSize * 0.4, -aSize * 0.7);
+  ctx.lineTo(-aSize * 0.1, 0);
+  ctx.lineTo(-aSize * 0.4, aSize * 0.7);
+  ctx.closePath();
+  ctx.fillStyle = def.colors[1];
+  ctx.fill();
+  ctx.restore();
+}
 
-// Draw the sprout emoji in center
-ctx.font = '180px serif';
-ctx.textAlign = 'center';
-ctx.textBaseline = 'middle';
-ctx.fillText('🌱', C, C + 8);
+// Draw subtle shadow under arcs
+ctx.save();
+ctx.shadowColor = 'rgba(0, 0, 0, 0.08)';
+ctx.shadowBlur = 20;
+ctx.shadowOffsetX = 0;
+ctx.shadowOffsetY = 4;
+arcDefs.forEach(drawFlowingArc);
+ctx.restore();
 
-// Small sparkles around the circle
-function drawSparkle(x, y, size, color) {
+// Draw arcs again on top (without shadow)
+arcDefs.forEach(drawFlowingArc);
+
+// ── Center sprout (hand-drawn, not emoji) ── scaled up for visibility
+function drawSprout() {
+  ctx.save();
+  ctx.translate(C, C + 15);
+  const s = 1.8; // scale factor
+  ctx.scale(s, s);
+
+  // Stem — gentle curve
+  ctx.beginPath();
+  ctx.moveTo(0, 50);
+  ctx.quadraticCurveTo(-3, 15, 5, -15);
+  ctx.strokeStyle = '#16A34A';
+  ctx.lineWidth = 9;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+
+  // Left leaf
+  ctx.beginPath();
+  ctx.moveTo(0, -8);
+  ctx.quadraticCurveTo(-60, -65, -12, -88);
+  ctx.quadraticCurveTo(10, -50, 0, -8);
+  const leftLeafGrad = ctx.createLinearGradient(-45, -88, 5, -8);
+  leftLeafGrad.addColorStop(0, '#4ADE80');
+  leftLeafGrad.addColorStop(1, '#16A34A');
+  ctx.fillStyle = leftLeafGrad;
+  ctx.fill();
+
+  // Left leaf vein
+  ctx.beginPath();
+  ctx.moveTo(0, -14);
+  ctx.quadraticCurveTo(-22, -45, -10, -70);
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Right leaf (slightly larger, tilted up)
+  ctx.beginPath();
+  ctx.moveTo(6, -20);
+  ctx.quadraticCurveTo(72, -88, 22, -108);
+  ctx.quadraticCurveTo(-5, -65, 6, -20);
+  const rightLeafGrad = ctx.createLinearGradient(55, -108, 0, -20);
+  rightLeafGrad.addColorStop(0, '#86EFAC');
+  rightLeafGrad.addColorStop(1, '#22C55E');
+  ctx.fillStyle = rightLeafGrad;
+  ctx.fill();
+
+  // Right leaf vein
+  ctx.beginPath();
+  ctx.moveTo(8, -26);
+  ctx.quadraticCurveTo(32, -60, 20, -85);
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+drawSprout();
+
+// ── Small sparkles ──
+function drawSparkle(x, y, size, color, alpha) {
   ctx.save();
   ctx.translate(x, y);
+  ctx.globalAlpha = alpha || 0.6;
   ctx.fillStyle = color;
-
-  // 4-point star
   ctx.beginPath();
   ctx.moveTo(0, -size);
   ctx.quadraticCurveTo(size * 0.15, -size * 0.15, size, 0);
@@ -144,23 +184,29 @@ function drawSparkle(x, y, size, color) {
   ctx.quadraticCurveTo(-size * 0.15, size * 0.15, -size, 0);
   ctx.quadraticCurveTo(-size * 0.15, -size * 0.15, 0, -size);
   ctx.fill();
-
   ctx.restore();
 }
 
-// Sparkles positioned around the circle
 const sparkles = [
-  { x: 180, y: 180, size: 14, color: '#A78BFA' },
-  { x: 830, y: 220, size: 10, color: '#60A5FA' },
-  { x: 860, y: 750, size: 12, color: '#34D399' },
-  { x: 200, y: 800, size: 11, color: '#FBBF24' },
-  { x: 520, y: 150, size: 8, color: '#F472B6' },
-  { x: 870, y: 500, size: 9, color: '#A78BFA' },
-  { x: 160, y: 520, size: 10, color: '#34D399' },
-  { x: 550, y: 870, size: 8, color: '#60A5FA' },
+  { x: 160, y: 155, size: 16, color: '#A78BFA', alpha: 0.5 },
+  { x: 855, y: 185, size: 12, color: '#60A5FA', alpha: 0.45 },
+  { x: 880, y: 780, size: 14, color: '#34D399', alpha: 0.5 },
+  { x: 170, y: 830, size: 13, color: '#FBBF24', alpha: 0.45 },
+  { x: 510, y: 120, size: 10, color: '#F472B6', alpha: 0.4 },
+  { x: 900, y: 490, size: 11, color: '#A78BFA', alpha: 0.35 },
+  { x: 135, y: 500, size: 12, color: '#34D399', alpha: 0.4 },
+  { x: 540, y: 900, size: 10, color: '#60A5FA', alpha: 0.35 },
 ];
 
-sparkles.forEach(s => drawSparkle(s.x, s.y, s.size, s.color));
+sparkles.forEach(s => drawSparkle(s.x, s.y, s.size, s.color, s.alpha));
+
+// ── Download link ──
+document.getElementById('download').addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.download = 'watasu-icon-1024.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+});
 </script>
 </body>
 </html>
