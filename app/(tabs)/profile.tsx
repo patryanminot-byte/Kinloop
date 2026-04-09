@@ -147,11 +147,18 @@ export default function ProfileScreen() {
   };
 
   const KID_EMOJIS = [
+    // Expressive faces
     "\u{1F60A}", "\u{1F604}", "\u{1F970}", "\u{1F60E}",
     "\u{1F929}", "\u{1F607}", "\u{1F973}", "\u{1F60B}",
-    "\u{1F917}", "\u{1F914}", "\u{1F61C}", "\u{1F643}",
-    "\u{1F63A}", "\u{1F638}", "\u{1F31F}", "\u{1F308}",
-    "\u{2728}", "\u{1F331}",
+    "\u{1F917}", "\u{1F61C}", "\u{1F643}",
+    // Animals
+    "\u{1F43B}", "\u{1F98A}", "\u{1F430}", "\u{1F431}",
+    "\u{1F981}", "\u{1F43C}", "\u{1F428}", "\u{1F984}",
+    "\u{1F42C}", "\u{1F98B}", "\u{1F422}", "\u{1F41D}",
+    // Nature & fun
+    "\u{1F31F}", "\u{1F308}", "\u{1F33B}", "\u{1F338}",
+    "\u{1F340}", "\u{1F331}", "\u{1F30A}", "\u{2728}",
+    "\u{1F680}", "\u{1F388}", "\u{1F3A8}", "\u{1F996}",
   ];
 
   const handleEditKid = (kid: Child) => {
