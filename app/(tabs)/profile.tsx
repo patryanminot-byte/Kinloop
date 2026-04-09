@@ -147,12 +147,11 @@ export default function ProfileScreen() {
   };
 
   const KID_EMOJIS = [
-    "\u{1F476}", "\u{1F476}\u{1F3FB}", "\u{1F476}\u{1F3FC}",
-    "\u{1F476}\u{1F3FD}", "\u{1F476}\u{1F3FE}", "\u{1F476}\u{1F3FF}",
-    "\u{1F467}", "\u{1F467}\u{1F3FB}", "\u{1F467}\u{1F3FC}",
-    "\u{1F467}\u{1F3FD}", "\u{1F467}\u{1F3FE}", "\u{1F467}\u{1F3FF}",
-    "\u{1F466}", "\u{1F466}\u{1F3FB}", "\u{1F466}\u{1F3FC}",
-    "\u{1F466}\u{1F3FD}", "\u{1F466}\u{1F3FE}", "\u{1F466}\u{1F3FF}",
+    "\u{1F60A}", "\u{1F604}", "\u{1F970}", "\u{1F60E}",
+    "\u{1F929}", "\u{1F607}", "\u{1F973}", "\u{1F60B}",
+    "\u{1F917}", "\u{1F914}", "\u{1F61C}", "\u{1F643}",
+    "\u{1F63A}", "\u{1F638}", "\u{1F31F}", "\u{1F308}",
+    "\u{2728}", "\u{1F331}",
   ];
 
   const handleEditKid = (kid: Child) => {
