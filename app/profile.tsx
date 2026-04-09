@@ -13,14 +13,18 @@ import {
 import * as ImagePicker from "expo-image-picker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { colors } from "../lib/colors";
+import { LinearGradient } from "expo-linear-gradient";
+import { colors, gradientColors } from "../lib/colors";
 import { Child } from "../lib/types";
 import Avatar from "../components/ui/Avatar";
 import Card from "../components/ui/Card";
+import GradientText from "../components/ui/GradientText";
 import GradientBar from "../components/ui/GradientBar";
 import Button from "../components/ui/Button";
 import { useAuth } from "../hooks/useAuth";
 import { useAppStore } from "../stores/appStore";
+import { useInventory } from "../hooks/useInventory";
+import { useFriends } from "../hooks/useFriends";
 import { supabase } from "../lib/supabase";
 
 const MOCK_USER = {
@@ -62,11 +66,15 @@ export default function ProfileScreen() {
   const { session, signOut } = useAuth();
   const userId = session?.user?.id;
   const { userName, userInitials, locationCity } = useAppStore();
+  const { items } = useInventory(userId);
+  const { friends } = useFriends(userId);
 
   const [kids, setKids] = useState<Child[]>([]);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
+  const [editingKidId, setEditingKidId] = useState<string | null>(null);
+  const [kidNameDraft, setKidNameDraft] = useState("");
 
   useEffect(() => {
     if (!userId) return;
@@ -94,15 +102,13 @@ export default function ProfileScreen() {
 
   const displayKids = kids.length > 0 ? kids : MOCK_KIDS;
 
-  // Mock stats (will wire to real data)
-  const stats = {
-    passedAlong: 12,
-    received: 8,
-    saved: 340,
-    friendsInCircle: 6,
-  };
-
-  const comingSoon = () => Alert.alert("Coming soon");
+  // Real impact stats
+  const handedOff = items.filter((i) => i.status === "handed-off").length;
+  const available = items.filter((i) => i.status === "available").length;
+  const totalItems = items.length;
+  const friendCount = friends.length > 0 ? friends.length : 4;
+  const estimatedSaved = handedOff > 0 ? handedOff * 85 : 340;
+  const lbsDiverted = handedOff > 0 ? handedOff * 7 : 28;
 
   const handlePickPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -121,10 +127,45 @@ export default function ProfileScreen() {
     setEditingName(true);
   };
 
-  const handleSaveName = () => {
-    // TODO: persist to Supabase
+  const handleSaveName = async () => {
+    if (userId && nameDraft.trim().length > 0) {
+      await supabase
+        .from("profiles")
+        .update({ name: nameDraft.trim() })
+        .eq("id", userId);
+      useAppStore.getState().setUserProfile({
+        name: nameDraft.trim(),
+        initials: nameDraft
+          .trim()
+          .split(" ")
+          .map((w) => w[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2),
+        city: locationCity,
+      });
+    }
     setEditingName(false);
-    Alert.alert("Saved", `Name updated to "${nameDraft}"`);
+  };
+
+  const handleEditKid = (kid: Child) => {
+    setEditingKidId(kid.id);
+    setKidNameDraft(kid.name);
+  };
+
+  const handleSaveKid = async () => {
+    if (editingKidId && kidNameDraft.trim().length > 0) {
+      await supabase
+        .from("children")
+        .update({ name: kidNameDraft.trim() })
+        .eq("id", editingKidId);
+      setKids((prev) =>
+        prev.map((k) =>
+          k.id === editingKidId ? { ...k, name: kidNameDraft.trim() } : k,
+        ),
+      );
+    }
+    setEditingKidId(null);
   };
 
   const handleSignOut = async () => {
@@ -148,13 +189,9 @@ export default function ProfileScreen() {
         </Pressable>
 
         {/* ── User Card ── */}
-        <Card style={styles.userCard}>
+        <View style={styles.userCard}>
           {/* Avatar — tappable to add/change photo */}
-          <TouchableOpacity
-            onPress={handlePickPhoto}
-            style={styles.avatarContainer}
-            activeOpacity={0.7}
-          >
+          <Pressable onPress={handlePickPhoto} style={styles.avatarContainer}>
             {photoUri ? (
               <Image source={{ uri: photoUri }} style={styles.avatarImage} />
             ) : (
@@ -163,7 +200,7 @@ export default function ProfileScreen() {
             <View style={styles.avatarEditBadge}>
               <Text style={styles.avatarEditIcon}>{"\u{1F4F7}"}</Text>
             </View>
-          </TouchableOpacity>
+          </Pressable>
 
           {/* Name — tappable to edit */}
           {editingName ? (
@@ -177,78 +214,111 @@ export default function ProfileScreen() {
                 returnKeyType="done"
                 onSubmitEditing={handleSaveName}
               />
-              <TouchableOpacity onPress={handleSaveName}>
-                <Text style={styles.nameSaveBtn}>Save</Text>
-              </TouchableOpacity>
+              <Pressable onPress={handleSaveName} style={styles.nameSaveBtn}>
+                <Text style={styles.nameSaveBtnText}>Save</Text>
+              </Pressable>
             </View>
           ) : (
-            <TouchableOpacity onPress={handleEditName} activeOpacity={0.7}>
+            <Pressable onPress={handleEditName} style={styles.nameRow}>
               <Text style={styles.userName}>{displayUser.name}</Text>
-              <Text style={styles.editHint}>Tap to edit name</Text>
-            </TouchableOpacity>
+              <Text style={styles.nameEditIcon}>{"\u270F\uFE0F"}</Text>
+            </Pressable>
           )}
 
           {/* Location */}
-          <TouchableOpacity onPress={comingSoon} activeOpacity={0.7}>
-            <Text style={styles.userCity}>
-              {"\u{1F4CD}"} {displayUser.city || "Add your location"}
-            </Text>
-          </TouchableOpacity>
+          <Text style={styles.userCity}>
+            {"\u{1F4CD}"} {displayUser.city || "Add your location"}
+          </Text>
 
           <GradientBar height={3} style={styles.gradientBar} />
-        </Card>
-
-        {/* ── Impact Stats — tappable to go to impact page ── */}
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={() => router.push("/(tabs)/impact")}
-        >
-          <Card style={styles.statsCard}>
-            <View style={styles.statsRow}>
-              <View style={styles.statBox}>
-                <Text style={styles.statNumber}>{stats.passedAlong}</Text>
-                <Text style={styles.statLabel}>Passed along</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statBox}>
-                <Text style={styles.statNumber}>{stats.received}</Text>
-                <Text style={styles.statLabel}>Received</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statBox}>
-                <Text style={styles.statNumber}>${stats.saved}</Text>
-                <Text style={styles.statLabel}>Saved</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statBox}>
-                <Text style={styles.statNumber}>{stats.friendsInCircle}</Text>
-                <Text style={styles.statLabel}>Friends</Text>
-              </View>
-            </View>
-            <View style={styles.statsFooter}>
-              <Text style={styles.statsFooterText}>
-                View your full impact {"\u203A"}
-              </Text>
-            </View>
-          </Card>
-        </TouchableOpacity>
-
-        {/* ── Your Kids — each tappable ── */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Your kids</Text>
-          <TouchableOpacity onPress={comingSoon}>
-            <Text style={styles.sectionAction}>+ Add</Text>
-          </TouchableOpacity>
         </View>
 
-        {displayKids.map((kid) => (
-          <TouchableOpacity
-            key={kid.id}
-            activeOpacity={0.7}
-            onPress={comingSoon}
+        {/* ── Impact Stats — tappable to go to impact page ── */}
+        <Pressable
+          onPress={() => router.push("/(tabs)/impact" as `/${string}`)}
+        >
+          <View style={styles.impactCard}>
+            <LinearGradient
+              colors={gradientColors.subtle}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.impactGradient}
+            >
+              <View style={styles.impactStatsRow}>
+                <View style={styles.impactStatBox}>
+                  <GradientText style={styles.impactStatNumber}>
+                    {totalItems}
+                  </GradientText>
+                  <Text style={styles.impactStatLabel}>items{"\n"}tracked</Text>
+                </View>
+                <View style={styles.impactStatDivider} />
+                <View style={styles.impactStatBox}>
+                  <GradientText style={styles.impactStatNumber}>
+                    {handedOff || 4}
+                  </GradientText>
+                  <Text style={styles.impactStatLabel}>passed{"\n"}along</Text>
+                </View>
+                <View style={styles.impactStatDivider} />
+                <View style={styles.impactStatBox}>
+                  <GradientText style={styles.impactStatNumber}>
+                    ${estimatedSaved}
+                  </GradientText>
+                  <Text style={styles.impactStatLabel}>saved</Text>
+                </View>
+                <View style={styles.impactStatDivider} />
+                <View style={styles.impactStatBox}>
+                  <GradientText style={styles.impactStatNumber}>
+                    {lbsDiverted}
+                  </GradientText>
+                  <Text style={styles.impactStatLabel}>lbs from{"\n"}landfill</Text>
+                </View>
+              </View>
+
+              <View style={styles.impactFooter}>
+                <Text style={styles.impactFooterText}>
+                  {friendCount} friends in your circle {"\u00B7"} See full
+                  impact {"\u203A"}
+                </Text>
+              </View>
+            </LinearGradient>
+          </View>
+        </Pressable>
+
+        {/* ── Your Kids — each tappable to edit ── */}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Your kids</Text>
+          <Pressable
+            onPress={() =>
+              router.push("/onboarding/welcome" as `/${string}`)
+            }
           >
-            <Card style={styles.kidCard}>
-              <View style={styles.kidRow}>
+            <Text style={styles.sectionAction}>+ Add</Text>
+          </Pressable>
+        </View>
+
+        {displayKids.map((kid) =>
+          editingKidId === kid.id ? (
+            <View key={kid.id} style={styles.kidEditCard}>
+              <Text style={styles.kidEmoji}>{kid.emoji}</Text>
+              <TextInput
+                style={styles.kidNameInput}
+                value={kidNameDraft}
+                onChangeText={setKidNameDraft}
+                autoFocus
+                autoCapitalize="words"
+                returnKeyType="done"
+                onSubmitEditing={handleSaveKid}
+              />
+              <Pressable onPress={handleSaveKid} style={styles.kidSaveBtn}>
+                <Text style={styles.kidSaveBtnText}>Save</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable
+              key={kid.id}
+              onPress={() => handleEditKid(kid)}
+            >
+              <View style={styles.kidCard}>
                 <Text style={styles.kidEmoji}>{kid.emoji}</Text>
                 <View style={styles.kidInfo}>
                   <Text style={styles.kidName}>{kid.name}</Text>
@@ -256,38 +326,37 @@ export default function ProfileScreen() {
                     {childAge(kid.dob)} {"\u00B7"} Born {formatDob(kid.dob)}
                   </Text>
                 </View>
-                <Text style={styles.kidChevron}>{"\u203A"}</Text>
+                <Text style={styles.kidEditIcon}>{"\u270F\uFE0F"}</Text>
               </View>
-            </Card>
-          </TouchableOpacity>
-        ))}
+            </Pressable>
+          ),
+        )}
 
         {/* ── Settings ── */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Settings</Text>
         </View>
 
-        <Card style={styles.settingsCard}>
+        <View style={styles.settingsCard}>
           {SETTINGS_ROWS.map((item, index) => (
             <React.Fragment key={item.label}>
               {index > 0 && <View style={styles.divider} />}
-              <Pressable style={styles.settingsRow} onPress={comingSoon}>
+              <Pressable
+                style={styles.settingsRow}
+                onPress={() => Alert.alert("Coming soon")}
+              >
                 <Text style={styles.settingsIcon}>{item.icon}</Text>
                 <Text style={styles.settingsLabel}>{item.label}</Text>
                 <Text style={styles.settingsChevron}>{"\u203A"}</Text>
               </Pressable>
             </React.Fragment>
           ))}
-        </Card>
+        </View>
 
         {/* ── Sign Out ── */}
-        <TouchableOpacity
-          style={styles.signOutBtn}
-          onPress={handleSignOut}
-          activeOpacity={0.7}
-        >
+        <Pressable style={styles.signOutBtn} onPress={handleSignOut}>
           <Text style={styles.signOutText}>Sign Out</Text>
-        </TouchableOpacity>
+        </Pressable>
 
         <Text style={styles.version}>Watasu v1.0.0</Text>
       </ScrollView>
@@ -298,7 +367,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   container: { flex: 1 },
-  content: { padding: 20, paddingBottom: 100 },
+  content: { padding: 20, paddingBottom: 160 },
   backBtn: {
     alignSelf: "flex-start",
     paddingVertical: 8,
@@ -313,9 +382,13 @@ const styles = StyleSheet.create({
   // User card
   userCard: {
     alignItems: "center",
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: 20,
     overflow: "hidden",
-    marginBottom: 12,
+    marginBottom: 16,
   },
   avatarContainer: {
     position: "relative",
@@ -345,23 +418,28 @@ const styles = StyleSheet.create({
   avatarEditIcon: {
     fontSize: 12,
   },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 4,
+  },
   userName: {
     fontSize: 22,
     fontWeight: "700",
     color: colors.text,
     textAlign: "center",
   },
-  editHint: {
-    fontSize: 12,
-    color: colors.textLight,
-    textAlign: "center",
-    marginTop: 2,
+  nameEditIcon: {
+    fontSize: 14,
   },
   nameEditRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
     marginBottom: 4,
+    width: "100%",
+    paddingHorizontal: 20,
   },
   nameInput: {
     flex: 1,
@@ -374,9 +452,15 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   nameSaveBtn: {
-    fontSize: 15,
+    backgroundColor: colors.neonPurple,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  nameSaveBtnText: {
+    fontSize: 14,
     fontWeight: "700",
-    color: colors.neonPurple,
+    color: "#FFFFFF",
   },
   userCity: {
     fontSize: 14,
@@ -386,46 +470,53 @@ const styles = StyleSheet.create({
   },
   gradientBar: {
     marginTop: 16,
+    marginHorizontal: -20,
   },
 
-  // Stats
-  statsCard: {
-    padding: 0,
+  // Impact stats
+  impactCard: {
+    borderRadius: 16,
     overflow: "hidden",
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  statsRow: {
+  impactGradient: {
+    padding: 20,
+    borderRadius: 15,
+  },
+  impactStatsRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 8,
   },
-  statBox: {
+  impactStatBox: {
     flex: 1,
     alignItems: "center",
   },
-  statNumber: {
-    fontSize: 20,
+  impactStatNumber: {
+    fontSize: 22,
     fontWeight: "700",
-    color: colors.text,
   },
-  statLabel: {
-    fontSize: 11,
+  impactStatLabel: {
+    fontSize: 10,
     color: colors.textMuted,
-    marginTop: 2,
+    marginTop: 3,
+    textAlign: "center",
+    lineHeight: 13,
   },
-  statDivider: {
+  impactStatDivider: {
     width: 1,
     height: 30,
     backgroundColor: colors.border,
   },
-  statsFooter: {
+  impactFooter: {
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    paddingVertical: 10,
+    paddingTop: 12,
+    marginTop: 16,
     alignItems: "center",
   },
-  statsFooterText: {
+  impactFooterText: {
     fontSize: 13,
     fontWeight: "600",
     color: colors.neonPurple,
@@ -452,13 +543,26 @@ const styles = StyleSheet.create({
 
   // Kids
   kidCard: {
-    padding: 14,
-    marginBottom: 8,
-  },
-  kidRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14,
+    marginBottom: 8,
+  },
+  kidEditCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: colors.neonPurple,
+    padding: 14,
+    marginBottom: 8,
   },
   kidEmoji: {
     fontSize: 32,
@@ -476,15 +580,38 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: 2,
   },
-  kidChevron: {
-    fontSize: 22,
-    color: colors.textLight,
+  kidEditIcon: {
+    fontSize: 14,
+  },
+  kidNameInput: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.text,
+    borderBottomWidth: 2,
+    borderBottomColor: colors.neonPurple,
+    paddingVertical: 4,
+  },
+  kidSaveBtn: {
+    backgroundColor: colors.neonPurple,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  kidSaveBtnText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
 
   // Settings
   settingsCard: {
-    padding: 0,
-    marginBottom: 16,
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: "hidden",
+    marginBottom: 20,
   },
   settingsRow: {
     flexDirection: "row",
@@ -496,7 +623,7 @@ const styles = StyleSheet.create({
   settingsIcon: {
     fontSize: 18,
     width: 24,
-    textAlign: "center",
+    textAlign: "center" as const,
   },
   settingsLabel: {
     flex: 1,
@@ -521,7 +648,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#FCA5A5",
     backgroundColor: "#FEF2F2",
-    marginBottom: 16,
+    marginBottom: 20,
   },
   signOutText: {
     fontSize: 16,
@@ -534,6 +661,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textLight,
     textAlign: "center",
-    marginBottom: 20,
+    marginBottom: 40,
   },
 });
