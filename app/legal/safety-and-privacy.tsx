@@ -76,7 +76,7 @@ export default function SafetyAndPrivacyScreen() {
 
         <SafetyCard
           emoji={"\u{1F476}"}
-          title="Your kids\u2019 info is minimal"
+          title="Your kids' info is minimal"
           bullets={[
             "We ask for your child\u2019s name, birthday, and an emoji \u2014 that\u2019s all. No photos of your kids are ever required.",
             "This info is used only to figure out what size your kid is outgrowing so we can match items to friends with younger kids.",
@@ -109,7 +109,7 @@ export default function SafetyAndPrivacyScreen() {
           title="Friends first, strangers never"
           bullets={[
             "Watasu is built on your real contacts \u2014 people you actually know.",
-            "The Nearby feature shows items from verified Watasu parents in your area, but your address is never shared until YOU choose to share it in a private chat.",
+            "The Nearby feature shows items from verified Watasu users in your area, but your address is never shared until YOU choose to share it in a private chat.",
             "Every user verifies their phone number or email. No anonymous accounts, no bots.",
           ]}
         />
