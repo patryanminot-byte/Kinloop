@@ -699,7 +699,7 @@ export default function AddItemModal({
                         }}
                         activeOpacity={0.6}
                       >
-                        <Text style={styles.browseItemEmoji}>{entry.emoji}</Text>
+                        <Text style={styles.browseItemEmoji}>{browsingSubCategory?.emoji ?? CATEGORY_INFO[browsingCategory!]?.emoji ?? entry.emoji}</Text>
                         <Text style={styles.browseItemName} numberOfLines={1}>
                           {entry.brand ? `${entry.brand} ${entry.name}` : entry.name}
                         </Text>
@@ -762,7 +762,7 @@ export default function AddItemModal({
                           }}
                           activeOpacity={0.6}
                         >
-                          <Text style={styles.browseItemEmoji}>{entry.emoji}</Text>
+                          <Text style={styles.browseItemEmoji}>{browsingSubCategory?.emoji ?? CATEGORY_INFO[browsingCategory!]?.emoji ?? entry.emoji}</Text>
                           <Text style={styles.browseItemName} numberOfLines={1}>
                             {entry.brand ? `${entry.brand} ${entry.name}` : entry.name}
                           </Text>
@@ -862,7 +862,7 @@ export default function AddItemModal({
                           }}
                           activeOpacity={0.6}
                         >
-                          <Text style={styles.browseItemEmoji}>{entry.emoji}</Text>
+                          <Text style={styles.browseItemEmoji}>{browsingSubCategory?.emoji ?? CATEGORY_INFO[browsingCategory!]?.emoji ?? entry.emoji}</Text>
                           <Text style={styles.browseItemName} numberOfLines={1}>
                             {entry.brand ? `${entry.brand} ${entry.name}` : entry.name}
                           </Text>
@@ -1477,7 +1477,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   browseItemEmoji: {
-    fontSize: 22,
+    fontSize: 20,
+    width: 32,
+    textAlign: "center" as const,
   },
   browseItemName: {
     flex: 1,
