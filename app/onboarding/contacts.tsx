@@ -88,8 +88,8 @@ export default function ContactsScreen() {
       });
 
       if (matches) {
-        const matchMap = new Map(
-          matches.map((m: any) => [m.phone, m])
+        const matchMap = new Map<string, any>(
+          (matches as any[]).map((m) => [m.phone, m])
         );
         for (const entry of entries) {
           const normalized = normalize(entry.phone);

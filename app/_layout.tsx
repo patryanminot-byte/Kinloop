@@ -119,7 +119,7 @@ export default function RootLayout() {
     } else if (hasCompletedOnboarding) {
       // Signed in + onboarded -- go to tabs if still in onboarding
       // But allow add-child (used from profile to add more kids)
-      if (inOnboarding && segments[1] !== "add-child") {
+      if (inOnboarding && (segments as string[])[1] !== "add-child") {
         isNavigating.current = true;
         lastRedirectTime.current = now;
         router.replace("/(tabs)");

@@ -197,31 +197,35 @@ serve(async (req) => {
     const itemRange = parseAgeRange(item.age_range);
 
     // Get the giver's profile (including location for distance scoring)
-    const { data: giver } = await supabase
+    const { data: giver, error: giverError } = await supabase
       .from("profiles")
       .select("name, location_lat, location_lng")
       .eq("id", item.user_id)
       .single();
 
+    if (giverError || !giver) continue;
+
     // Find the owner's active friends
-    const { data: friendships } = await supabase
+    const { data: friendships, error: friendshipsError } = await supabase
       .from("friendships")
       .select("user_a, user_b")
       .eq("status", "active")
       .or(`user_a.eq.${item.user_id},user_b.eq.${item.user_id}`);
 
-    if (!friendships || friendships.length === 0) continue;
+    if (friendshipsError || !friendships || friendships.length === 0) continue;
 
     const friendIds = friendships.map((f) =>
       f.user_a === item.user_id ? f.user_b : f.user_a
     );
 
     for (const friendId of friendIds) {
-      const { data: friend } = await supabase
+      const { data: friend, error: friendError } = await supabase
         .from("profiles")
         .select("name, location_lat, location_lng")
         .eq("id", friendId)
         .single();
+
+      if (friendError || !friend) continue;
 
       // Calculate distance between giver and receiver
       let distanceMiles: number | null = null;
@@ -235,12 +239,12 @@ serve(async (req) => {
         );
       }
 
-      const { data: children } = await supabase
+      const { data: children, error: childrenError } = await supabase
         .from("children")
         .select("id, name, dob")
         .eq("user_id", friendId);
 
-      if (!children) continue;
+      if (childrenError || !children || children.length === 0) continue;
 
       for (const child of children) {
         const childAge = ageDays(child.dob);

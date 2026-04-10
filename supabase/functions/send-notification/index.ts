@@ -75,16 +75,30 @@ serve(async (req) => {
   }
 
   // Send via Expo Push API
-  const response = await fetch(EXPO_PUSH_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(messages),
-  });
+  try {
+    const response = await fetch(EXPO_PUSH_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(messages),
+    });
 
-  const result = await response.json();
+    if (!response.ok) {
+      const errorText = await response.text();
+      return new Response(
+        JSON.stringify({ sent: 0, error: `Expo API error: ${response.status}`, details: errorText }),
+        { status: 502, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
-  return new Response(
-    JSON.stringify({ sent: messages.length, result }),
-    { headers: { "Content-Type": "application/json" } }
-  );
+    const result = await response.json();
+    return new Response(
+      JSON.stringify({ sent: messages.length, result }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    );
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ sent: 0, error: "Failed to reach Expo Push API" }),
+      { status: 502, headers: { "Content-Type": "application/json" } }
+    );
+  }
 });
