@@ -153,8 +153,14 @@ export default function RootLayout() {
     return content;
   }
 
-  const { StripeProvider } = require("@stripe/stripe-react-native");
   const { STRIPE_PUBLISHABLE_KEY } = require("../lib/stripe");
+
+  // Skip StripeProvider if key isn't configured yet — avoids crash
+  if (!STRIPE_PUBLISHABLE_KEY) {
+    return content;
+  }
+
+  const { StripeProvider } = require("@stripe/stripe-react-native");
 
   return (
     <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
