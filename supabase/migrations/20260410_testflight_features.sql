@@ -205,3 +205,38 @@ LANGUAGE sql SECURITY DEFINER AS $$
   ORDER BY c.dist ASC
   LIMIT 20;
 $$;
+
+-- 12. RLS policies for matches table (receivers need to read and update their offers)
+CREATE POLICY "Receivers read own matches" ON matches FOR SELECT USING (
+  auth.uid() = receiver_id
+);
+CREATE POLICY "Receivers update own matches" ON matches FOR UPDATE USING (
+  auth.uid() = receiver_id
+) WITH CHECK (
+  auth.uid() = receiver_id
+);
+-- Givers can read and update their own matches
+CREATE POLICY "Givers read own matches" ON matches FOR SELECT USING (
+  auth.uid() = giver_id
+);
+CREATE POLICY "Givers update own matches" ON matches FOR UPDATE USING (
+  auth.uid() = giver_id
+) WITH CHECK (
+  auth.uid() = giver_id
+);
+
+-- 13. Storage bucket for avatars (run this in SQL or create via dashboard)
+INSERT INTO storage.buckets (id, name, public) VALUES ('avatars', 'avatars', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Allow users to upload their own avatar
+CREATE POLICY "Users upload own avatar" ON storage.objects FOR INSERT WITH CHECK (
+  bucket_id = 'avatars' AND (storage.foldername(name))[1] = auth.uid()::text
+);
+CREATE POLICY "Users update own avatar" ON storage.objects FOR UPDATE USING (
+  bucket_id = 'avatars' AND (storage.foldername(name))[1] = auth.uid()::text
+);
+-- Public read for avatars
+CREATE POLICY "Public avatar read" ON storage.objects FOR SELECT USING (
+  bucket_id = 'avatars'
+);
