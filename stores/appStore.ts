@@ -42,9 +42,9 @@ interface AppState {
   locationLng: number | null;
   setLocation: (lat: number, lng: number) => void;
 
-  // Item visibility: who can see your listings
-  itemVisibility: "circle" | "nearby" | "friends-only";
-  setItemVisibility: (v: "circle" | "nearby" | "friends-only") => void;
+  // Item visibility: "circle" = friends (default), "public" = everyone
+  itemVisibility: string;
+  setItemVisibility: (v: string) => void;
 
   // Onboarding
   hasCompletedOnboarding: boolean;
@@ -89,8 +89,8 @@ export const useAppStore = create<AppState>((set) => ({
   locationLng: null,
   setLocation: (lat, lng) => set({ locationLat: lat, locationLng: lng }),
 
-  itemVisibility: "circle", // default: friends + friends-of-friends
-  setItemVisibility: (v) => set({ itemVisibility: v }),
+  itemVisibility: "circle" as string, // "circle" = friends (default), "public" = everyone
+  setItemVisibility: (v: string) => set({ itemVisibility: v }),
 
   hasCompletedOnboarding: false,
   setOnboardingComplete: () => set({ hasCompletedOnboarding: true }),

@@ -140,6 +140,12 @@ export default function NearbyFriendsScreen() {
         <View style={styles.center}>
           <Text style={styles.emptyEmoji}>{"\u{1F4CD}"}</Text>
           <Text style={styles.emptyText}>{error}</Text>
+          <Button
+            variant="primary"
+            title="Try again"
+            onPress={loadNearby}
+            style={styles.inviteButton}
+          />
         </View>
       ) : families.length === 0 ? (
         <View style={styles.center}>

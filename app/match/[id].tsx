@@ -138,6 +138,7 @@ export default function MatchDetailScreen() {
   const [showNudgeComposer, setShowNudgeComposer] = useState(isNudgeFromHome);
   const [nudgeMessage, setNudgeMessage] = useState("");
   const [nudgeSent, setNudgeSent] = useState(false);
+  const [rating, setRating] = useState<"up" | "down" | null>(null);
   const [safetyTipDismissed, setSafetyTipDismissed] = useState(false);
 
   const handleAddPhoto = async () => {
@@ -185,6 +186,8 @@ export default function MatchDetailScreen() {
         return `Send to ${firstName} 💛`;
       case "set-price":
         return `Offer to ${firstName} for $${selectedPricing.amount ?? 0}`;
+      default:
+        return `Send to ${firstName}`;
     }
   };
 
@@ -197,6 +200,8 @@ export default function MatchDetailScreen() {
         return "💛 Give what you can — no pressure either way";
       case "set-price":
         return `🏷️ Asking $${selectedPricing.amount ?? 0}`;
+      default:
+        return null;
     }
   };
 
@@ -209,6 +214,8 @@ export default function MatchDetailScreen() {
         return "Sent — they'll give what feels right!";
       case "set-price":
         return `Offered for $${selectedPricing.amount ?? 0}!`;
+      default:
+        return "Sent!";
     }
   };
 
@@ -236,6 +243,8 @@ export default function MatchDetailScreen() {
         return "💛 GWUC";
       case "set-price":
         return `🏷️ $${p.amount ?? 0}`;
+      default:
+        return null;
     }
   })();
 
@@ -347,6 +356,19 @@ export default function MatchDetailScreen() {
                   <Text style={styles.acceptedTitle}>You're getting this!</Text>
                   <Text style={styles.acceptedSub}>
                     {fromFirstName} will arrange the handoff. Sit tight!
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* Declined */}
+            {match.status === "declined" && (
+              <View style={styles.section}>
+                <View style={styles.acceptedConfirm}>
+                  <Text style={styles.acceptedEmoji}>{"\u{1F44B}"}</Text>
+                  <Text style={styles.acceptedTitle}>Passed on this one</Text>
+                  <Text style={styles.acceptedSub}>
+                    No worries — it'll find a great home with someone else.
                   </Text>
                 </View>
               </View>
@@ -585,7 +607,25 @@ export default function MatchDetailScreen() {
                     variant="primary"
                     size="md"
                     title={`Send nudge to ${firstName} 👋`}
-                    onPress={() => {
+                    onPress={async () => {
+                      // Send actual push notification to receiver
+                      const { data: matchData } = await supabase
+                        .from("matches")
+                        .select("receiver_id")
+                        .eq("id", id)
+                        .single();
+
+                      if (matchData?.receiver_id) {
+                        await supabase.functions.invoke("send-notification", {
+                          body: {
+                            user_id: matchData.receiver_id,
+                            title: `${fromFirstName} is checking in...`,
+                            body: nudgeMessage,
+                            data: { matchId: id },
+                          },
+                        }).catch(() => {});
+                      }
+
                       setNudgeSent(true);
                       setShowNudgeComposer(false);
                       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -609,8 +649,13 @@ export default function MatchDetailScreen() {
             <HandoffScheduler
               friendName={firstName}
               itemName={match.item}
-              onConfirm={(plan) => {
+              onConfirm={async (plan) => {
                 setHandoffPlan(plan);
+                // Save handoff plan to DB and update status
+                await supabase
+                  .from("matches")
+                  .update({ handoff: plan, status: "scheduled" })
+                  .eq("id", id);
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               }}
             />
@@ -717,14 +762,34 @@ export default function MatchDetailScreen() {
             </Text>
             <View style={styles.ratingRow}>
               <Text style={styles.ratingLabel}>How did it go?</Text>
-              <View style={styles.ratingBtns}>
-                <TouchableOpacity style={styles.ratingBtn} activeOpacity={0.7}>
-                  <Text style={styles.ratingBtnText}>👍</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.ratingBtn} activeOpacity={0.7}>
-                  <Text style={styles.ratingBtnText}>👎</Text>
-                </TouchableOpacity>
-              </View>
+              {rating ? (
+                <Text style={styles.ratingThanks}>Thanks for the feedback!</Text>
+              ) : (
+                <View style={styles.ratingBtns}>
+                  <TouchableOpacity
+                    style={styles.ratingBtn}
+                    activeOpacity={0.7}
+                    onPress={async () => {
+                      setRating("up");
+                      await supabase.from("matches").update({ rating: "up" }).eq("id", id);
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    }}
+                  >
+                    <Text style={styles.ratingBtnText}>👍</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.ratingBtn}
+                    activeOpacity={0.7}
+                    onPress={async () => {
+                      setRating("down");
+                      await supabase.from("matches").update({ rating: "down" }).eq("id", id);
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                    }}
+                  >
+                    <Text style={styles.ratingBtnText}>👎</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           </View>
         )}
@@ -1057,6 +1122,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: colors.text,
+  },
+  ratingThanks: {
+    fontSize: 14,
+    color: colors.neonPurple,
+    fontWeight: "600",
   },
   ratingBtns: {
     flexDirection: "row",

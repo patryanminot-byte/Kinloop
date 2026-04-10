@@ -20,7 +20,6 @@ import Badge from "../../components/ui/Badge";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import SectionHeader from "../../components/ui/SectionHeader";
-import MatchCelebration from "../../components/MatchCelebration";
 import { useAuth } from "../../hooks/useAuth";
 import { useMatches } from "../../hooks/useMatches";
 import { useInventory } from "../../hooks/useInventory";
@@ -155,8 +154,6 @@ function firstName(fullName: string): string {
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [showCelebration, setShowCelebration] = useState(false);
-  const [celebrationMatch, setCelebrationMatch] = useState<Match | null>(null);
   const [timedOut, setTimedOut] = useState(false);
 
   // ---- Real data from Supabase ----
@@ -219,18 +216,8 @@ export default function HomeScreen() {
     handedOffItems.length > 0 ? realImpact : MOCK_IMPACT;
 
   const handleSend = (match: Match) => {
-    setCelebrationMatch(match);
-    setShowCelebration(true);
-  };
-
-  const handleCelebrationSend = () => {
-    setShowCelebration(false);
-    setCelebrationMatch(null);
-  };
-
-  const handleCelebrationDismiss = () => {
-    setShowCelebration(false);
-    setCelebrationMatch(null);
+    // Navigate to match detail where user picks pricing and sends
+    router.push(`/match/${match.id}` as `/${string}`);
   };
 
   const readyMatches = displayMatches.filter(
@@ -632,18 +619,6 @@ export default function HomeScreen() {
         <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      {/* ---- Celebration overlay ---- */}
-      {celebrationMatch && (
-        <MatchCelebration
-          visible={showCelebration}
-          item={celebrationMatch.item}
-          itemEmoji={celebrationMatch.itemEmoji}
-          friendName={firstName(celebrationMatch.to)}
-          kidName={celebrationMatch.toKid}
-          onSend={handleCelebrationSend}
-          onDismiss={handleCelebrationDismiss}
-        />
-      )}
     </SafeAreaView>
   );
 }

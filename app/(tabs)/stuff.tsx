@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors, gradientColors } from "../../lib/colors";
 import type { Item } from "../../lib/types";
@@ -90,12 +91,12 @@ function CategoryPill({
   );
 }
 
-function ItemRow({ item }: { item: Item }) {
+function ItemRow({ item, onPress }: { item: Item; onPress: () => void }) {
   const { label, color } = badgeFor(item);
   const isHandedOff = item.status === "handed-off";
 
   return (
-    <Pressable style={[styles.itemRow, isHandedOff && styles.itemRowHandedOff]}>
+    <Pressable style={[styles.itemRow, isHandedOff && styles.itemRowHandedOff]} onPress={onPress}>
       {/* Emoji circle */}
       <LinearGradient
         colors={["#FFF0F3", "#F3E8FF"]}
@@ -167,6 +168,7 @@ function VisibilityRow({ userId }: { userId?: string }) {
 // ── Main Screen ────────────────────────────────────────────────────────
 
 export default function StuffScreen() {
+  const router = useRouter();
   const [activeCategory, setActiveCategory] = useState("All");
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -195,12 +197,16 @@ export default function StuffScreen() {
       emoji: newItem.emoji,
       isBundle: newItem.isBundle,
       photoUri: newItem.photoUri,
+      condition: newItem.condition,
+      pricing: newItem.pricing,
     });
   }, [addItem]);
 
   const renderItem = useCallback(
-    ({ item }: { item: Item }) => <ItemRow item={item} />,
-    [],
+    ({ item }: { item: Item }) => (
+      <ItemRow item={item} onPress={() => router.push(`/item/${item.id}` as `/${string}`)} />
+    ),
+    [router],
   );
 
   return (

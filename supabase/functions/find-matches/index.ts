@@ -28,9 +28,9 @@ function parseAgeRange(ageRange: string): AgeRange {
   if (!parts) return { minDays: 0, maxDays: Infinity };
 
   const minVal = parseInt(parts[1], 10);
-  const minUnit = (parts[2] || parts[4]).toLowerCase();
+  const minUnit = (parts[2] || parts[4] || "mo").toLowerCase();
   const maxVal = parseInt(parts[3], 10);
-  const maxUnit = parts[4].toLowerCase();
+  const maxUnit = (parts[4] || "mo").toLowerCase();
 
   const toDays = (val: number, unit: string) =>
     unit === "y" ? val * 365 : val * 30;

@@ -10,9 +10,11 @@ import {
   Dimensions,
   TouchableOpacity,
   Modal,
+  Share,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import * as Clipboard from "expo-clipboard";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
   useSharedValue,
@@ -30,6 +32,7 @@ import GradientText from "../../components/ui/GradientText";
 import SectionHeader from "../../components/ui/SectionHeader";
 import { useAuth } from "../../hooks/useAuth";
 import { useFriends } from "../../hooks/useFriends";
+import { supabase } from "../../lib/supabase";
 
 const { height: SCREEN_H } = Dimensions.get("window");
 
@@ -173,8 +176,31 @@ export default function FriendsScreen() {
   const activeFriends = filtered.filter((f) => f.status === "active");
   const invitedFriends = filtered.filter((f) => f.status === "invited");
 
-  const handleCopyLink = () => {
+  const handleCopyLink = async () => {
+    if (!userId) return;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("invite_token")
+      .eq("id", userId)
+      .single();
+
+    const link = `https://watasu.app/invite/${profile?.invite_token ?? ""}`;
+    await Clipboard.setStringAsync(link);
     Alert.alert("Link Copied", "Invite link copied to clipboard!");
+  };
+
+  const handleInvite = async () => {
+    if (!userId) return;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("invite_token")
+      .eq("id", userId)
+      .single();
+
+    const link = `https://watasu.app/invite/${profile?.invite_token ?? ""}`;
+    Share.share({
+      message: `Join me on Watasu! We share kids' stuff with friends nearby. ${link}`,
+    });
   };
 
   const friendItems = selectedFriend
@@ -195,7 +221,7 @@ export default function FriendsScreen() {
             variant="secondary"
             size="sm"
             title="+ Invite"
-            onPress={() => {}}
+            onPress={handleInvite}
           />
         </View>
 
@@ -421,11 +447,9 @@ export default function FriendsScreen() {
                       variant="primary"
                       size="md"
                       title="Resend invite"
-                      onPress={() => {
-                        Alert.alert(
-                          "Invite Sent",
-                          `Reminder sent to ${selectedFriend.name}!`,
-                        );
+                      onPress={async () => {
+                        await handleInvite();
+                        setSelectedFriend(null);
                       }}
                       style={styles.resendBtn}
                     />

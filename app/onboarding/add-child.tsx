@@ -88,8 +88,8 @@ export default function AddChildScreen() {
     if (isPostOnboarding) {
       router.back();
     } else {
-      setOnboardingComplete();
-      router.replace("/(tabs)");
+      // Continue onboarding — don't mark complete yet (that happens in inventory-suggest)
+      router.push("/onboarding/contacts");
     }
   };
 
