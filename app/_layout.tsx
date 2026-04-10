@@ -12,8 +12,8 @@ import { supabase } from "../lib/supabase";
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  useNotifications();
   const { session, loading } = useAuth();
+  useNotifications(session?.user?.id);
   const router = useRouter();
   const segments = useSegments();
   const setUserId = useAppStore((s) => s.setUserId);
@@ -141,6 +141,7 @@ export default function RootLayout() {
           options={{ presentation: "modal" }}
         />
         <Stack.Screen name="shop/[id]" />
+        <Stack.Screen name="friends/nearby" />
         <Stack.Screen name="legal/privacy" />
         <Stack.Screen name="legal/terms" />
         <Stack.Screen name="legal/safety-and-privacy" />

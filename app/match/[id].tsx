@@ -27,6 +27,7 @@ import PricingPicker from "../../components/PricingPicker";
 import HandoffScheduler from "../../components/HandoffScheduler";
 import { useAuth } from "../../hooks/useAuth";
 import { useMatches } from "../../hooks/useMatches";
+import { supabase } from "../../lib/supabase";
 import type { HandoffPlan } from "../../lib/types";
 
 const MOCK_MATCHES: Record<string, Match & { toKidEmoji: string }> = {
@@ -519,7 +520,70 @@ export default function MatchDetailScreen() {
               variant="primary"
               size="lg"
               title="Mark as handed off ✅"
-              onPress={() => {
+              onPress={async () => {
+                // Update match status in Supabase
+                const now = new Date().toISOString();
+                await supabase
+                  .from("matches")
+                  .update({
+                    status: "handed-off",
+                    completed_at: now,
+                  })
+                  .eq("id", id);
+
+                // Smart sizing: update receiver child's current_size
+                // based on the item's age range (the item they just received)
+                if (match) {
+                  const { data: matchRow } = await supabase
+                    .from("matches")
+                    .select("receiver_child_id, item:items(age_range, category)")
+                    .eq("id", id)
+                    .single();
+
+                  if (matchRow?.receiver_child_id && matchRow?.item) {
+                    const item = matchRow.item as any;
+                    // For clothing, the age_range IS the size
+                    if (item.category?.toLowerCase() === "clothing" && item.age_range) {
+                      await supabase
+                        .from("children")
+                        .update({ current_size: item.age_range })
+                        .eq("id", matchRow.receiver_child_id);
+                    }
+                  }
+
+                  // Also update giver's child sizing from what they gave away
+                  // (they've outgrown this size, so their kid is bigger)
+                  const { data: giverMatch } = await supabase
+                    .from("matches")
+                    .select("giver_id, item:items(age_range, category)")
+                    .eq("id", id)
+                    .single();
+
+                  if (giverMatch?.item) {
+                    const giverItem = giverMatch.item as any;
+                    if (giverItem.category?.toLowerCase() === "clothing" && giverItem.age_range) {
+                      // Find giver's children and update the one closest in age
+                      const { data: giverChildren } = await supabase
+                        .from("children")
+                        .select("id, dob")
+                        .eq("user_id", giverMatch.giver_id);
+
+                      if (giverChildren && giverChildren.length > 0) {
+                        // Mark the item's size as "outgrown" — next size up
+                        // We store the outgrown size with a ">" prefix
+                        const eldest = giverChildren.sort(
+                          (a: any, b: any) =>
+                            new Date(a.dob).getTime() - new Date(b.dob).getTime()
+                        )[0];
+                        await supabase
+                          .from("children")
+                          .update({ current_size: `>${giverItem.age_range}` })
+                          .eq("id", eldest.id);
+                      }
+                    }
+                  }
+                }
+
                 setMarkedComplete(true);
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               }}

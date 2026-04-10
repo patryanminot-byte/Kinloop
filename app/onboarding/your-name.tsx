@@ -34,6 +34,7 @@ export default function YourNameScreen() {
   const { session } = useAuth();
   const setUserProfile = useAppStore((s) => s.setUserProfile);
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [selectedEmoji, setSelectedEmoji] = useState("");
 
@@ -48,6 +49,13 @@ export default function YourNameScreen() {
       setPhotoUri(result.assets[0].uri);
       setSelectedEmoji(""); // photo overrides emoji
     }
+  };
+
+  /** Normalize phone to digits-only, with leading 1 for US numbers. */
+  const normalizePhone = (raw: string): string => {
+    const digits = raw.replace(/\D/g, "");
+    if (digits.length === 10) return "1" + digits;
+    return digits;
   };
 
   const handleNext = async () => {
@@ -65,12 +73,17 @@ export default function YourNameScreen() {
     setUserProfile({ name: trimmed, initials: displayInitials });
 
     if (session?.user?.id) {
+      const updates: Record<string, string> = {
+        name: trimmed,
+        avatar_initials: displayInitials,
+      };
+      const phoneDigits = normalizePhone(phone);
+      if (phoneDigits.length >= 10) {
+        updates.phone = phoneDigits;
+      }
       await supabase
         .from("profiles")
-        .update({
-          name: trimmed,
-          avatar_initials: displayInitials,
-        })
+        .update(updates)
         .eq("id", session.user.id);
     }
 
@@ -143,6 +156,21 @@ export default function YourNameScreen() {
             autoFocus
             returnKeyType="done"
             onSubmitEditing={handleNext}
+          />
+
+          {/* Phone number */}
+          <Text style={styles.label}>Phone number</Text>
+          <Text style={styles.optionalHint}>
+            Optional — helps friends find you when they import contacts
+          </Text>
+          <TextInput
+            style={styles.input}
+            placeholder="(555) 123-4567"
+            placeholderTextColor={colors.textLight}
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+            returnKeyType="done"
           />
 
           {/* Optional emoji avatar */}

@@ -12,8 +12,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Contacts from "expo-contacts";
+import { Share } from "react-native";
 import Button from "../../components/ui/Button";
 import { colors, gradientColors } from "../../lib/colors";
+import { supabase } from "../../lib/supabase";
+import { useAuth } from "../../hooks/useAuth";
+import { useAppStore } from "../../stores/appStore";
+import { triggerMatchEngine } from "../../lib/matchTrigger";
 
 const SEGMENTS = 3;
 
@@ -22,16 +27,29 @@ interface ContactEntry {
   name: string;
   phone: string;
   last4: string;
+  watasuUserId?: string;
+  watasuName?: string;
+  watasuAvatar?: string;
 }
 
 export default function ContactsScreen() {
   const router = useRouter();
+  const { session } = useAuth();
+  const userName = useAppStore((s) => s.userName);
 
   const [permissionGranted, setPermissionGranted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [contacts, setContacts] = useState<ContactEntry[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
+  const [addedFriends, setAddedFriends] = useState<Set<string>>(new Set());
+
+  /** Normalize phone to digits-only with leading 1 for US. */
+  const normalize = (raw: string): string => {
+    const digits = raw.replace(/\D/g, "");
+    if (digits.length === 10) return "1" + digits;
+    return digits;
+  };
 
   const requestContacts = async () => {
     setLoading(true);
@@ -47,17 +65,44 @@ export default function ContactsScreen() {
     });
 
     const entries: ContactEntry[] = [];
+    const normalizedPhones: string[] = [];
+
     for (const c of data) {
       const phone = c.phoneNumbers?.[0]?.number;
       if (!phone) continue;
-      const digits = phone.replace(/\D/g, "");
+      const digits = normalize(phone);
+      if (digits.length < 10) continue;
       entries.push({
         id: c.id ?? digits,
         name: c.name ?? "Unknown",
         phone,
         last4: digits.slice(-4),
       });
+      normalizedPhones.push(digits);
     }
+
+    // Check which contacts are already on Watasu
+    if (normalizedPhones.length > 0) {
+      const { data: matches } = await supabase.rpc("find_contacts_on_watasu", {
+        phone_numbers: normalizedPhones,
+      });
+
+      if (matches) {
+        const matchMap = new Map(
+          matches.map((m: any) => [m.phone, m])
+        );
+        for (const entry of entries) {
+          const normalized = normalize(entry.phone);
+          const match = matchMap.get(normalized);
+          if (match) {
+            entry.watasuUserId = match.user_id;
+            entry.watasuName = match.name;
+            entry.watasuAvatar = match.avatar_initials;
+          }
+        }
+      }
+    }
+
     entries.sort((a, b) => a.name.localeCompare(b.name));
     setContacts(entries);
     setLoading(false);
@@ -69,9 +114,8 @@ export default function ContactsScreen() {
     return contacts.filter((c) => c.name.toLowerCase().includes(q));
   }, [contacts, search]);
 
-  // For now, "Already on Watasu" is always empty
-  const onWatasu: ContactEntry[] = [];
-  const inviteList = filteredContacts;
+  const onWatasu = filteredContacts.filter((c) => c.watasuUserId);
+  const inviteList = filteredContacts.filter((c) => !c.watasuUserId);
 
   const sections = [
     { title: "Already on Watasu", data: onWatasu },
@@ -90,6 +134,35 @@ export default function ContactsScreen() {
     });
   };
 
+  /** Add a Watasu user as friend (instant, no invite needed). */
+  const handleAddFriend = async (contact: ContactEntry) => {
+    if (!contact.watasuUserId) return;
+    await supabase.rpc("create_friendship", { friend_id: contact.watasuUserId });
+    setAddedFriends((prev) => new Set(prev).add(contact.id));
+    // Trigger matching — new friend means new potential matches
+    if (session?.user?.id) {
+      triggerMatchEngine({ user_id: session.user.id });
+    }
+  };
+
+  /** Invite selected contacts via native share sheet. */
+  const handleInviteSelected = async () => {
+    // Get the user's invite token
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("invite_token")
+      .eq("id", session?.user?.id)
+      .single();
+
+    const token = profile?.invite_token ?? "";
+    const link = `https://watasu.app/invite/${token}`;
+    const firstName = userName.split(" ")[0] || "A friend";
+
+    await Share.share({
+      message: `${firstName} invited you to Watasu — the easy way to pass along kids' stuff to friends. Join here: ${link}`,
+    });
+  };
+
   const handleNext = () => {
     router.push("/onboarding/inventory-suggest");
   };
@@ -100,11 +173,37 @@ export default function ContactsScreen() {
 
   const renderContact = ({ item }: { item: ContactEntry }) => {
     const isSelected = selected.has(item.id);
-    const initial = item.name.charAt(0).toUpperCase();
+    const isOnWatasu = !!item.watasuUserId;
+    const isAdded = addedFriends.has(item.id);
+    const initial = item.watasuAvatar || item.name.charAt(0).toUpperCase();
+
+    if (isOnWatasu) {
+      return (
+        <View style={styles.contactRow}>
+          <View style={[styles.avatar, styles.avatarWatasu]}>
+            <Text style={styles.avatarText}>{initial}</Text>
+          </View>
+          <View style={styles.contactInfo}>
+            <Text style={styles.contactName} numberOfLines={1}>
+              {item.watasuName || item.name}
+            </Text>
+            <Text style={styles.contactPhoneOnWatasu}>Already on Watasu</Text>
+          </View>
+          {isAdded ? (
+            <Text style={styles.addedCheck}>{"\u2713"} Added</Text>
+          ) : (
+            <Pressable style={styles.addBtn} onPress={() => handleAddFriend(item)}>
+              <Text style={styles.addBtnText}>Add</Text>
+            </Pressable>
+          )}
+        </View>
+      );
+    }
+
     return (
       <Pressable style={styles.contactRow} onPress={() => toggleContact(item.id)}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{initial}</Text>
+          <Text style={styles.avatarText}>{item.name.charAt(0).toUpperCase()}</Text>
         </View>
         <View style={styles.contactInfo}>
           <Text style={styles.contactName} numberOfLines={1}>
@@ -113,7 +212,7 @@ export default function ContactsScreen() {
           <Text style={styles.contactPhone}>***-{item.last4}</Text>
         </View>
         <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-          {isSelected && <Text style={styles.checkmark}>✓</Text>}
+          {isSelected && <Text style={styles.checkmark}>{"\u2713"}</Text>}
         </View>
       </Pressable>
     );
@@ -157,9 +256,9 @@ export default function ContactsScreen() {
       {!permissionGranted ? (
         /* Pre-permission state */
         <View style={styles.content}>
-          <Text style={styles.title}>Find your people</Text>
+          <Text style={styles.title}>Who would you love to share with?</Text>
           <Text style={styles.subtitle}>
-            We check which of your contacts are already on Watasu. We never
+            We'll check which of your contacts are already on Watasu. We never
             store, share, or contact anyone without your permission.
           </Text>
 
@@ -198,10 +297,10 @@ export default function ContactsScreen() {
       ) : (
         /* Post-permission: contact list */
         <View style={styles.listContainer}>
-          <Text style={styles.title}>Find your people</Text>
+          <Text style={styles.title}>Who would you love to share with?</Text>
           <Text style={styles.subtitle}>
-            We check which of your contacts are already on Watasu. We never
-            store, share, or contact anyone without your permission.
+            We'll check who's already here. For everyone else, you can send
+            them an invite yourself.
           </Text>
 
           {/* Search */}
@@ -243,19 +342,30 @@ export default function ContactsScreen() {
 
       {/* Bottom buttons */}
       <View style={styles.bottom}>
+        {selected.size > 0 && permissionGranted ? (
+          <Button
+            variant="primary"
+            size="lg"
+            title={`Invite ${selected.size} friend${selected.size > 1 ? "s" : ""}`}
+            onPress={handleInviteSelected}
+            style={styles.button}
+          />
+        ) : null}
         <Button
-          variant="primary"
+          variant={selected.size > 0 ? "ghost" : "primary"}
           size="lg"
           title="Next"
           onPress={handleNext}
           style={styles.button}
         />
-        <Button
-          variant="ghost"
-          size="md"
-          title="Skip for now"
-          onPress={handleSkip}
-        />
+        {!permissionGranted && (
+          <Button
+            variant="ghost"
+            size="md"
+            title="Skip for now"
+            onPress={handleSkip}
+          />
+        )}
       </View>
     </SafeAreaView>
   );
@@ -407,6 +517,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#FFFFFF",
     fontWeight: "700",
+  },
+  avatarWatasu: {
+    backgroundColor: colors.neonPurple + "20",
+    borderWidth: 2,
+    borderColor: colors.neonPurple,
+  },
+  contactPhoneOnWatasu: {
+    fontSize: 13,
+    color: colors.neonPurple,
+    fontWeight: "500",
+    marginTop: 2,
+  },
+  addBtn: {
+    backgroundColor: colors.neonPurple,
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+  },
+  addBtnText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  addedCheck: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.neonPurple,
   },
   bottom: {
     paddingHorizontal: 20,

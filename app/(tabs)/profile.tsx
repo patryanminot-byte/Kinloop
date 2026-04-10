@@ -158,6 +158,19 @@ export default function ProfileScreen() {
   const [kidEmojiDraft, setKidEmojiDraft] = useState("");
   const [showKidDatePicker, setShowKidDatePicker] = useState(false);
 
+  // Load avatar URL from profile
+  useEffect(() => {
+    if (!userId) return;
+    supabase
+      .from("profiles")
+      .select("avatar_url")
+      .eq("id", userId)
+      .single()
+      .then(({ data }) => {
+        if (data?.avatar_url) setPhotoUri(data.avatar_url);
+      });
+  }, [userId]);
+
   useEffect(() => {
     if (!userId) return;
     supabase
@@ -191,6 +204,40 @@ export default function ProfileScreen() {
   const estimatedSaved = handedOff > 0 ? handedOff * 85 : 340;
   const lbsDiverted = handedOff > 0 ? handedOff * 7 : 28;
 
+  const uploadPhoto = async (uri: string) => {
+    if (!userId) return;
+    setPhotoUri(uri); // Show immediately
+
+    try {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      const ext = uri.split(".").pop() ?? "jpg";
+      const path = `${userId}/avatar.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(path, blob, { upsert: true, contentType: `image/${ext}` });
+
+      if (uploadError) {
+        console.warn("Avatar upload failed:", uploadError.message);
+        return;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(path);
+
+      if (urlData?.publicUrl) {
+        await supabase
+          .from("profiles")
+          .update({ avatar_url: urlData.publicUrl })
+          .eq("id", userId);
+      }
+    } catch (err) {
+      console.warn("Avatar upload error:", err);
+    }
+  };
+
   const handlePickPhoto = () => {
     Alert.alert("Profile Photo", "Choose an option", [
       {
@@ -207,7 +254,7 @@ export default function ProfileScreen() {
             quality: 0.7,
           });
           if (!result.canceled && result.assets?.[0]) {
-            setPhotoUri(result.assets[0].uri);
+            uploadPhoto(result.assets[0].uri);
           }
         },
       },
@@ -221,7 +268,7 @@ export default function ProfileScreen() {
             quality: 0.7,
           });
           if (!result.canceled && result.assets?.[0]) {
-            setPhotoUri(result.assets[0].uri);
+            uploadPhoto(result.assets[0].uri);
           }
         },
       },

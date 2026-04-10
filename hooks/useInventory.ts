@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import type { Item } from "../lib/types";
 import { categoryEmojis } from "../lib/utils";
+import { triggerMatchEngine } from "../lib/matchTrigger";
 
 export function useInventory(userId: string | undefined) {
   const [items, setItems] = useState<Item[]>([]);
@@ -71,6 +72,8 @@ export function useInventory(userId: string | undefined) {
 
     if (!error && data) {
       await fetch();
+      // Trigger matching for this new item
+      triggerMatchEngine({ item_id: data.id });
       return data;
     }
     return null;

@@ -21,6 +21,7 @@ export function useMatches(userId: string | undefined) {
       `
       )
       .eq("giver_id", userId)
+      .order("score", { ascending: false })
       .order("created_at", { ascending: false });
 
     if (!error && data) {

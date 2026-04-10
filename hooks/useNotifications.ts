@@ -3,6 +3,7 @@ import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import type { EventSubscription } from "expo-modules-core";
 import { useRouter } from "expo-router";
+import { supabase } from "../lib/supabase";
 
 /** Configure how notifications are presented when the app is foregrounded. */
 Notifications.setNotificationHandler({
@@ -16,17 +17,20 @@ Notifications.setNotificationHandler({
 
 /**
  * Sets up push notifications: requests permission, retrieves the Expo push
- * token, and registers a response handler that deep-links into the app.
+ * token, saves it to the user's profile, and registers a response handler
+ * that deep-links into the app.
  *
  * Call once in RootLayout.
  */
-export function useNotifications() {
+export function useNotifications(userId?: string | null) {
   const router = useRouter();
   const responseListener = useRef<EventSubscription | null>(null);
 
   useEffect(() => {
-    // Request permission & get token (fire-and-forget)
-    registerForPushNotificationsAsync();
+    // Request permission & get token, save to Supabase
+    if (userId) {
+      registerForPushNotificationsAsync(userId);
+    }
 
     // When user taps a notification, navigate to the relevant screen
     responseListener.current =
@@ -45,11 +49,13 @@ export function useNotifications() {
     return () => {
       responseListener.current?.remove();
     };
-  }, [router]);
+  }, [router, userId]);
 }
 
-/** Request permission and retrieve the Expo push token. */
-async function registerForPushNotificationsAsync(): Promise<string | null> {
+/** Request permission, retrieve the Expo push token, and save to profile. */
+async function registerForPushNotificationsAsync(
+  userId: string
+): Promise<string | null> {
   if (Platform.OS === "web") return null;
 
   const { status: existing } = await Notifications.getPermissionsAsync();
@@ -74,7 +80,15 @@ async function registerForPushNotificationsAsync(): Promise<string | null> {
 
   try {
     const tokenData = await Notifications.getExpoPushTokenAsync();
-    return tokenData.data;
+    const token = tokenData.data;
+
+    // Save push token to user's profile
+    await supabase
+      .from("profiles")
+      .update({ push_token: token })
+      .eq("id", userId);
+
+    return token;
   } catch {
     return null;
   }

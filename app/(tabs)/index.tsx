@@ -30,6 +30,7 @@ import {
   getCurrentSeasonalPrompt,
   getNextMilestone,
 } from "../../lib/milestones";
+import { getActiveNudge, type Nudge } from "../../lib/nudges";
 
 // --------------- Mock data ---------------
 
@@ -167,13 +168,25 @@ export default function HomeScreen() {
   const userInitials = useAppStore((s) => s.userInitials) || "\u{1F331}";
   const children = useAppStore((s) => s.children);
 
-  // Seasonal / milestone prompt
+  // Nudge from backend (priority) or seasonal/milestone fallback
   const [promptDismissed, setPromptDismissed] = useState(false);
+  const [activeNudge, setActiveNudge] = useState<Nudge | null>(null);
   const seasonalPrompt = getCurrentSeasonalPrompt();
   const firstChild = children[0];
   const nextMilestone = firstChild?.dob
     ? getNextMilestone(firstChild.dob)
     : null;
+
+  // Fetch nudge on mount
+  React.useEffect(() => {
+    if (!userId || children.length === 0) return;
+    const childData = children.map((c) => ({
+      id: c.id,
+      name: c.name,
+      dob: c.dob,
+    }));
+    getActiveNudge(userId, childData).then(setActiveNudge);
+  }, [userId, children]);
 
   const isLoading = (matchesLoading || itemsLoading || friendsLoading) && !timedOut;
 
@@ -249,8 +262,8 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        {/* ---- Seasonal / Milestone prompt ---- */}
-        {!promptDismissed && (seasonalPrompt || nextMilestone) && (
+        {/* ---- Nudge / Seasonal / Milestone prompt ---- */}
+        {!promptDismissed && (activeNudge || seasonalPrompt || nextMilestone) && (
           <View style={styles.section}>
             <Card style={styles.promptCard}>
               <Pressable
@@ -260,7 +273,21 @@ export default function HomeScreen() {
               >
                 <Text style={styles.promptDismissText}>{"\u2715"}</Text>
               </Pressable>
-              {nextMilestone ? (
+              {activeNudge ? (
+                <>
+                  <Text style={styles.promptEmoji}>{activeNudge.emoji}</Text>
+                  <Text style={styles.promptTitle}>{activeNudge.title}</Text>
+                  <Text style={styles.promptMessage}>{activeNudge.message}</Text>
+                  <Pressable
+                    style={styles.promptAction}
+                    onPress={() => router.push(activeNudge.actionRoute as `/${string}`)}
+                  >
+                    <Text style={styles.promptActionText}>
+                      {activeNudge.actionLabel} {"\u2192"}
+                    </Text>
+                  </Pressable>
+                </>
+              ) : nextMilestone ? (
                 <>
                   <Text style={styles.promptEmoji}>{"\u{1F382}"}</Text>
                   <Text style={styles.promptTitle}>
@@ -464,6 +491,22 @@ export default function HomeScreen() {
                 {displayFriends.length} friends in your circle
               </Text>
             </View>
+          </Card>
+          <View style={styles.sectionGap} />
+          <Card
+            onPress={() => router.push("/friends/nearby" as `/${string}`)}
+            style={styles.finderCard}
+          >
+            <Text style={styles.finderEmoji}>{"\u{1F30D}"}</Text>
+            <View style={styles.finderText}>
+              <Text style={styles.finderTitle}>
+                Families nearby with similar-age kids?
+              </Text>
+              <Text style={styles.finderSub}>
+                You might make a friend {"\u{1F49C}"}
+              </Text>
+            </View>
+            <Text style={styles.finderArrow}>{"\u2192"}</Text>
           </Card>
         </View>
 
@@ -705,6 +748,34 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.text,
     flex: 1,
+  },
+
+  // Friend finder
+  finderCard: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  finderEmoji: {
+    fontSize: 28,
+    marginRight: 12,
+  },
+  finderText: {
+    flex: 1,
+  },
+  finderTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.text,
+  },
+  finderSub: {
+    fontSize: 13,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  finderArrow: {
+    fontSize: 18,
+    color: colors.neonPurple,
+    fontWeight: "600",
   },
 
   // Impact
