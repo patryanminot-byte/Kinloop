@@ -254,9 +254,357 @@ export const BUNDLE_CATEGORIES: Category[] = [
 
 // ─── Condition Options ───────────────────────────────────────────────────────
 
-export const CONDITION_OPTIONS = ["Like new", "Great", "Good", "Fair"] as const;
+export const CONDITION_OPTIONS = ["Fair", "Good", "Great", "Like new"] as const;
 
-// ─── Item Catalog ────────────────────────────────────────────────────────────
+// ─── Smart Search: Brands + Product Types ───────────────────────────────────
+// For "soft goods" (clothes, shoes, toys…) search shows Brand + ProductType.
+// For "hard goods" (strollers, car seats, gear…) search shows Brand + Model.
+
+/** Categories where specific model names matter in search. */
+export const MODEL_CATEGORIES: Category[] = [
+  "Strollers",
+  "Car Seats",
+  "Gear",
+  "Furniture",
+  "Electronics",
+  "Appliances",
+  "Home Furniture",
+  "Auto & Moto",
+  "Gaming",
+  "Instruments",
+];
+
+/** Generic product types per category — used for soft-good brand searches. */
+export const PRODUCT_TYPES: Partial<Record<Category, { name: string; emoji: string }[]>> = {
+  Clothing: [
+    { name: "Shirt", emoji: "👕" },
+    { name: "Pants", emoji: "👖" },
+    { name: "Leggings", emoji: "👖" },
+    { name: "Dress", emoji: "👗" },
+    { name: "Pajamas", emoji: "🌙" },
+    { name: "Onesie", emoji: "👶" },
+    { name: "Romper", emoji: "👶" },
+    { name: "Set", emoji: "👔" },
+    { name: "Sweater", emoji: "🧶" },
+    { name: "Hoodie", emoji: "🧶" },
+    { name: "Shorts", emoji: "🩳" },
+    { name: "Swimsuit", emoji: "🩱" },
+    { name: "Skirt", emoji: "💃" },
+  ],
+  Shoes: [
+    { name: "Sneakers", emoji: "👟" },
+    { name: "Boots", emoji: "🥾" },
+    { name: "Sandals", emoji: "🩴" },
+    { name: "Slip-ons", emoji: "🩰" },
+    { name: "Dress Shoes", emoji: "👞" },
+  ],
+  Outerwear: [
+    { name: "Fleece", emoji: "🧤" },
+    { name: "Down Jacket", emoji: "🧥" },
+    { name: "Rain Jacket", emoji: "🌧️" },
+    { name: "Snow Suit", emoji: "❄️" },
+    { name: "Light Jacket", emoji: "🧢" },
+    { name: "Vest", emoji: "🦺" },
+  ],
+  Toys: [
+    { name: "Building Set", emoji: "🧱" },
+    { name: "Doll / Plush", emoji: "🧸" },
+    { name: "Ride-On", emoji: "🚗" },
+    { name: "Puzzle", emoji: "🧩" },
+    { name: "Play Set", emoji: "🎭" },
+    { name: "Learning Toy", emoji: "🔬" },
+    { name: "Art Supplies", emoji: "🎨" },
+  ],
+  Books: [
+    { name: "Board Book", emoji: "📕" },
+    { name: "Picture Book", emoji: "📖" },
+    { name: "Chapter Book", emoji: "📚" },
+    { name: "Activity Book", emoji: "✏️" },
+  ],
+  Feeding: [
+    { name: "High Chair", emoji: "🪑" },
+    { name: "Bottles", emoji: "🍼" },
+    { name: "Breast Pump", emoji: "🤱" },
+    { name: "Plates & Bowls", emoji: "🍽️" },
+    { name: "Cups", emoji: "🥤" },
+    { name: "Bibs & Utensils", emoji: "🥄" },
+    { name: "Lunch Box", emoji: "🍱" },
+  ],
+  Sleep: [
+    { name: "Sleep Sack", emoji: "😴" },
+    { name: "Swaddle", emoji: "👶" },
+    { name: "Crib Sheet", emoji: "🛏️" },
+    { name: "Blanket", emoji: "🧶" },
+    { name: "Sound Machine", emoji: "🌊" },
+  ],
+  Bath: [
+    { name: "Towel", emoji: "🛁" },
+    { name: "Bath Toy", emoji: "🦆" },
+    { name: "Baby Tub", emoji: "🛁" },
+  ],
+  Safety: [
+    { name: "Baby Gate", emoji: "🚧" },
+    { name: "Cabinet Lock", emoji: "🔒" },
+    { name: "Outlet Cover", emoji: "🔌" },
+    { name: "Monitor", emoji: "📹" },
+  ],
+  Outdoor: [
+    { name: "Bike", emoji: "🚲" },
+    { name: "Scooter", emoji: "🛴" },
+    { name: "Sand Toys", emoji: "🏖️" },
+    { name: "Water Table", emoji: "💧" },
+    { name: "Swing", emoji: "🎪" },
+    { name: "Climber", emoji: "🧗" },
+  ],
+  "Sports & Fitness": [
+    { name: "Treadmill", emoji: "🏃" },
+    { name: "Bike", emoji: "🚲" },
+    { name: "Weights", emoji: "🏋️" },
+    { name: "Yoga Mat", emoji: "🧘" },
+  ],
+  Fashion: [
+    { name: "Shirt", emoji: "👕" },
+    { name: "Pants", emoji: "👖" },
+    { name: "Dress", emoji: "👗" },
+    { name: "Jacket", emoji: "🧥" },
+    { name: "Shoes", emoji: "👟" },
+  ],
+  "Garden & Patio": [
+    { name: "Grill", emoji: "🔥" },
+    { name: "Patio Set", emoji: "🪑" },
+    { name: "Planter", emoji: "🌿" },
+    { name: "Mower", emoji: "🌱" },
+  ],
+  Tools: [
+    { name: "Drill", emoji: "🔧" },
+    { name: "Saw", emoji: "🪚" },
+    { name: "Tool Set", emoji: "🧰" },
+  ],
+  Office: [
+    { name: "Desk", emoji: "🖥️" },
+    { name: "Chair", emoji: "🪑" },
+    { name: "Monitor", emoji: "🖥️" },
+  ],
+  "Home Decor": [
+    { name: "Lamp", emoji: "💡" },
+    { name: "Rug", emoji: "🟫" },
+    { name: "Mirror", emoji: "🪞" },
+    { name: "Art", emoji: "🖼️" },
+  ],
+  "Free Stuff": [
+    { name: "Free Item", emoji: "🆓" },
+  ],
+};
+
+/** Brand info — for model categories, `models` lists specific product names. */
+export interface BrandInfo {
+  name: string;
+  categories: Category[];
+  keywords: string[];
+  models?: Partial<Record<Category, string[]>>;
+}
+
+export const BRANDS: BrandInfo[] = [
+  // ── Kids Clothing ──
+  { name: "Carter's", categories: ["Clothing"], keywords: ["carters", "simple joys", "just one you"] },
+  { name: "Cat & Jack", categories: ["Clothing"], keywords: ["cat and jack", "target"] },
+  { name: "Primary", categories: ["Clothing"], keywords: ["primary"] },
+  { name: "Hanna Andersson", categories: ["Clothing"], keywords: ["hanna", "hannas", "hannah"] },
+  { name: "Old Navy Kids", categories: ["Clothing"], keywords: ["old navy"] },
+  { name: "Gap Kids", categories: ["Clothing"], keywords: ["gap"] },
+  { name: "H&M Kids", categories: ["Clothing"], keywords: ["h&m", "hm", "h and m"] },
+  { name: "Zara Kids", categories: ["Clothing"], keywords: ["zara"] },
+  { name: "Tea Collection", categories: ["Clothing"], keywords: ["tea"] },
+  { name: "Mini Boden", categories: ["Clothing"], keywords: ["boden"] },
+  { name: "The Children's Place", categories: ["Clothing"], keywords: ["childrens place", "tcp"] },
+  { name: "Gymboree", categories: ["Clothing"], keywords: ["gymboree"] },
+  { name: "Gerber", categories: ["Clothing"], keywords: ["gerber"] },
+  { name: "Janie and Jack", categories: ["Clothing"], keywords: ["janie", "janie and jack"] },
+
+  // ── Multi-category athletic brands ──
+  { name: "Nike", categories: ["Clothing", "Shoes", "Outerwear"], keywords: ["nike", "just do it", "dri-fit", "dri fit"] },
+  { name: "Adidas", categories: ["Clothing", "Shoes", "Outerwear"], keywords: ["adidas"] },
+  { name: "Under Armour", categories: ["Clothing", "Shoes"], keywords: ["under armour", "ua"] },
+  { name: "Puma", categories: ["Clothing", "Shoes"], keywords: ["puma"] },
+  { name: "New Balance", categories: ["Clothing", "Shoes"], keywords: ["new balance", "nb"] },
+  { name: "Converse", categories: ["Shoes"], keywords: ["converse", "chuck taylor", "chucks"] },
+  { name: "Vans", categories: ["Shoes"], keywords: ["vans"] },
+
+  // ── Kids Shoes ──
+  { name: "Stride Rite", categories: ["Shoes"], keywords: ["stride rite"] },
+  { name: "See Kai Run", categories: ["Shoes"], keywords: ["see kai run"] },
+  { name: "Native Shoes", categories: ["Shoes"], keywords: ["native", "native shoes"] },
+  { name: "Keen Kids", categories: ["Shoes"], keywords: ["keen"] },
+  { name: "Crocs", categories: ["Shoes"], keywords: ["crocs"] },
+  { name: "UGG", categories: ["Shoes"], keywords: ["ugg", "uggs"] },
+  { name: "Merrell Kids", categories: ["Shoes"], keywords: ["merrell"] },
+
+  // ── Outerwear ──
+  { name: "Patagonia", categories: ["Outerwear", "Clothing"], keywords: ["patagonia", "patty", "retro-x", "nano puff"] },
+  { name: "The North Face", categories: ["Outerwear"], keywords: ["north face", "tnf", "northface"] },
+  { name: "Columbia", categories: ["Outerwear"], keywords: ["columbia"] },
+  { name: "REI Co-op", categories: ["Outerwear"], keywords: ["rei"] },
+  { name: "L.L.Bean", categories: ["Outerwear", "Clothing"], keywords: ["ll bean", "llbean", "l.l. bean"] },
+  { name: "Canada Goose", categories: ["Outerwear"], keywords: ["canada goose"] },
+
+  // ── Strollers (hard good — models) ──
+  { name: "UPPAbaby", categories: ["Strollers", "Car Seats"], keywords: ["uppababy", "uppa"], models: {
+    Strollers: ["Vista V2", "Cruz V2", "Minu V2", "Ridge"],
+    "Car Seats": ["Mesa V2", "Mesa Max"],
+  }},
+  { name: "Bugaboo", categories: ["Strollers"], keywords: ["bugaboo"], models: {
+    Strollers: ["Fox 5", "Butterfly", "Donkey 5", "Dragonfly"],
+  }},
+  { name: "Baby Jogger", categories: ["Strollers"], keywords: ["baby jogger"], models: {
+    Strollers: ["City Mini GT2", "City Select 2", "City Sights", "City Tour 2"],
+  }},
+  { name: "Nuna", categories: ["Strollers", "Car Seats", "Gear"], keywords: ["nuna"], models: {
+    Strollers: ["MIXX Next", "TRVL", "Demi Next"],
+    "Car Seats": ["RAVA", "PIPA RX", "PIPA Lite", "EXEC"],
+    Gear: ["LEAF Grow", "ZAAZ High Chair"],
+  }},
+  { name: "Cybex", categories: ["Strollers", "Car Seats"], keywords: ["cybex"], models: {
+    Strollers: ["Priam", "Mios", "Gazelle S", "Libelle"],
+    "Car Seats": ["Sirona S", "Aton 2", "Cloud G"],
+  }},
+  { name: "Doona", categories: ["Strollers", "Car Seats"], keywords: ["doona"], models: {
+    Strollers: ["Car Seat & Stroller"],
+    "Car Seats": ["Car Seat & Stroller"],
+  }},
+  { name: "Babyzen", categories: ["Strollers"], keywords: ["babyzen", "yoyo"], models: {
+    Strollers: ["YOYO2"],
+  }},
+  { name: "BOB", categories: ["Strollers"], keywords: ["bob"], models: {
+    Strollers: ["Alterrain Pro", "Wayfinder"],
+  }},
+  { name: "Thule", categories: ["Strollers"], keywords: ["thule"], models: {
+    Strollers: ["Urban Glide 2", "Spring", "Sleek"],
+  }},
+
+  // ── Car Seats (hard good — models) ──
+  { name: "Britax", categories: ["Car Seats"], keywords: ["britax"], models: {
+    "Car Seats": ["Boulevard", "Marathon", "Advocate", "One4Life", "Willow"],
+  }},
+  { name: "Graco", categories: ["Car Seats", "Strollers", "Gear"], keywords: ["graco"], models: {
+    "Car Seats": ["4Ever DLX", "Extend2Fit", "SnugRide", "Slimfit3", "Turn2Me"],
+    Strollers: ["Modes Nest", "FastAction Fold"],
+    Gear: ["Pack 'n Play", "DuetConnect", "Sense2Soothe"],
+  }},
+  { name: "Chicco", categories: ["Car Seats", "Strollers"], keywords: ["chicco"], models: {
+    "Car Seats": ["KeyFit 35", "NextFit Max", "Fit4"],
+    Strollers: ["Bravo", "Viaro"],
+  }},
+  { name: "Clek", categories: ["Car Seats"], keywords: ["clek"], models: {
+    "Car Seats": ["Fllo", "Foonf", "Liing"],
+  }},
+  { name: "Maxi-Cosi", categories: ["Car Seats"], keywords: ["maxi cosi", "maxi-cosi", "maxicosi"], models: {
+    "Car Seats": ["Mico Luxe", "Pria Max", "Coral XP"],
+  }},
+
+  // ── Gear (hard good — models) ──
+  { name: "Ergobaby", categories: ["Gear"], keywords: ["ergo", "ergobaby"], models: {
+    Gear: ["Omni 360", "Omni Breeze", "Embrace", "Aerloom"],
+  }},
+  { name: "Baby Bjorn", categories: ["Gear"], keywords: ["babybjorn", "baby bjorn", "bjorn"], models: {
+    Gear: ["Carrier Mini", "Carrier One", "Bouncer Bliss", "Travel Crib"],
+  }},
+  { name: "Lillebaby", categories: ["Gear"], keywords: ["lillebaby", "lille"], models: {
+    Gear: ["Complete All Seasons", "Complete Airflow"],
+  }},
+  { name: "4moms", categories: ["Gear"], keywords: ["4moms", "four moms"], models: {
+    Gear: ["MamaRoo", "Breeze Plus Playard", "Connect High Chair"],
+  }},
+  { name: "Nanit", categories: ["Gear"], keywords: ["nanit"], models: {
+    Gear: ["Pro Camera", "Pro Flex Stand"],
+  }},
+  { name: "Owlet", categories: ["Gear"], keywords: ["owlet"], models: {
+    Gear: ["Dream Sock", "Cam 2"],
+  }},
+  { name: "Hatch", categories: ["Gear"], keywords: ["hatch"], models: {
+    Gear: ["Rest+", "Rest Mini", "Grow"],
+  }},
+  { name: "Infant Optics", categories: ["Gear"], keywords: ["infant optics"], models: {
+    Gear: ["DXR-8 Pro", "DXR-8"],
+  }},
+  { name: "Snoo", categories: ["Gear"], keywords: ["snoo", "happiest baby"], models: {
+    Gear: ["Smart Sleeper"],
+  }},
+
+  // ── Toys ──
+  { name: "Lovevery", categories: ["Toys"], keywords: ["lovevery"] },
+  { name: "Melissa & Doug", categories: ["Toys"], keywords: ["melissa and doug", "melissa & doug", "melissa doug"] },
+  { name: "Fisher-Price", categories: ["Toys"], keywords: ["fisher price", "fisher-price"] },
+  { name: "Lego", categories: ["Toys"], keywords: ["lego", "duplo"] },
+  { name: "Magna-Tiles", categories: ["Toys"], keywords: ["magna tiles", "magnatiles", "magna-tiles"] },
+  { name: "VTech", categories: ["Toys"], keywords: ["vtech"] },
+  { name: "Hape", categories: ["Toys"], keywords: ["hape"] },
+  { name: "Fat Brain Toys", categories: ["Toys"], keywords: ["fat brain"] },
+  { name: "Tonies", categories: ["Toys"], keywords: ["tonies", "toniebox"] },
+  { name: "Nugget", categories: ["Toys"], keywords: ["nugget", "play couch"] },
+
+  // ── Feeding ──
+  { name: "Stokke", categories: ["Feeding", "Furniture"], keywords: ["stokke"], models: {
+    Feeding: ["Tripp Trapp"],
+    Furniture: ["Sleepi Crib", "Flexi Bath"],
+  }},
+  { name: "OXO Tot", categories: ["Feeding"], keywords: ["oxo", "oxo tot"] },
+  { name: "ezpz", categories: ["Feeding"], keywords: ["ezpz", "ez pz"] },
+  { name: "Dr. Brown's", categories: ["Feeding"], keywords: ["dr brown", "dr. brown"] },
+  { name: "Philips Avent", categories: ["Feeding"], keywords: ["avent", "philips avent"] },
+  { name: "Munchkin", categories: ["Feeding"], keywords: ["munchkin"] },
+  { name: "Comotomo", categories: ["Feeding"], keywords: ["comotomo"] },
+  { name: "Bumbo", categories: ["Feeding"], keywords: ["bumbo"], models: { Feeding: ["Floor Seat"] } },
+  { name: "Spectra", categories: ["Feeding"], keywords: ["spectra"], models: { Feeding: ["S1 Plus", "S2 Plus", "Synergy Gold"] } },
+  { name: "Medela", categories: ["Feeding"], keywords: ["medela"], models: { Feeding: ["Pump in Style", "Freestyle Flex", "Harmony"] } },
+  { name: "Elvie", categories: ["Feeding"], keywords: ["elvie"], models: { Feeding: ["Pump", "Stride"] } },
+
+  // ── Sleep ──
+  { name: "Halo", categories: ["Sleep"], keywords: ["halo"] },
+  { name: "Kyte Baby", categories: ["Sleep", "Clothing"], keywords: ["kyte", "kyte baby"] },
+  { name: "Nested Bean", categories: ["Sleep"], keywords: ["nested bean"] },
+  { name: "Love to Dream", categories: ["Sleep"], keywords: ["love to dream"] },
+  { name: "Woolino", categories: ["Sleep"], keywords: ["woolino"] },
+
+  // ── Furniture (hard good — models) ──
+  { name: "IKEA", categories: ["Furniture", "Home Furniture"], keywords: ["ikea"], models: {
+    Furniture: ["SNIGLAR Crib", "SUNDVIK Crib", "STUVA Changing Table"],
+    "Home Furniture": ["KALLAX", "MALM", "BILLY", "HEMNES"],
+  }},
+  { name: "babyletto", categories: ["Furniture"], keywords: ["babyletto"], models: {
+    Furniture: ["Hudson Crib", "Lolly Crib", "Gelato Crib", "Kiwi Glider"],
+  }},
+  { name: "DaVinci", categories: ["Furniture"], keywords: ["davinci"], models: {
+    Furniture: ["Kalani Crib", "Jenny Lind Crib", "Olive Glider"],
+  }},
+  { name: "Pottery Barn Kids", categories: ["Furniture"], keywords: ["pottery barn", "pbk"] },
+  { name: "Newton", categories: ["Furniture"], keywords: ["newton"], models: {
+    Furniture: ["Crib Mattress", "Toddler Mattress"],
+  }},
+
+  // ── Electronics (hard good — models) ──
+  { name: "Apple", categories: ["Electronics"], keywords: ["apple", "iphone", "ipad", "macbook"], models: {
+    Electronics: ["iPhone", "iPad", "MacBook Air", "MacBook Pro", "AirPods", "Apple Watch", "Apple TV"],
+  }},
+  { name: "Samsung", categories: ["Electronics"], keywords: ["samsung", "galaxy"], models: {
+    Electronics: ["Galaxy Phone", "Galaxy Tab", "Galaxy Watch"],
+  }},
+  { name: "Nintendo", categories: ["Gaming"], keywords: ["nintendo"], models: {
+    Gaming: ["Switch", "Switch Lite", "Switch OLED"],
+  }},
+  { name: "Sony", categories: ["Gaming"], keywords: ["sony", "playstation", "ps5"], models: {
+    Gaming: ["PlayStation 5", "PlayStation 4", "DualSense Controller"],
+  }},
+
+  // ── Garden & Patio / Grills ──
+  { name: "Weber", categories: ["Garden & Patio"], keywords: ["weber"], models: {
+    "Garden & Patio": ["Spirit II", "Genesis", "Kettle", "Smokey Mountain"],
+  }},
+  { name: "Traeger", categories: ["Garden & Patio"], keywords: ["traeger"], models: {
+    "Garden & Patio": ["Ironwood", "Pro 575", "Ranger"],
+  }},
+];
+
+// ─── Item Catalog (legacy — kept for fallback) ──────────────────────────────
 
 export const ITEM_CATALOG: CatalogEntry[] = [
   // ═══════════════════════════════════════════════════════════════════════════

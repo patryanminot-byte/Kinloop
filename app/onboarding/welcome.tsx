@@ -289,7 +289,7 @@ export default function WelcomeScreen() {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ScrollView
-          contentContainerStyle={{ flexGrow: 1 }}
+          contentContainerStyle={{ flexGrow: 1, justifyContent: "center" }}
           bounces={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -377,11 +377,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#F0F0ED",
   },
   center: {
-    flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 32,
-    paddingVertical: 32,
+    paddingVertical: 24,
   },
   emoji: {
     fontSize: 56,

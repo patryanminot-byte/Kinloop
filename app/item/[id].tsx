@@ -30,7 +30,7 @@ import Button from "../../components/ui/Button";
 import { useAuth } from "../../hooks/useAuth";
 import { useInventory } from "../../hooks/useInventory";
 
-// Mock aging items (same IDs as home screen)
+// Mock items (covers IDs from home screen and stuff screen)
 const MOCK_ITEMS: Record<string, Item> = {
   a1: {
     id: "a1",
@@ -61,6 +61,69 @@ const MOCK_ITEMS: Record<string, Item> = {
     matchedTo: null,
     emoji: "\u{1F634}",
     daysLeft: 12,
+  },
+  // Stuff screen mock IDs
+  "1": {
+    id: "1",
+    name: "3-6mo clothes bundle",
+    category: "Clothing",
+    ageRange: "3-6mo",
+    status: "aging-out",
+    matchedTo: null,
+    emoji: "\u{1F455}",
+    daysLeft: 0,
+    isBundle: true,
+    count: 12,
+  },
+  "2": {
+    id: "2",
+    name: "Bugaboo stroller",
+    category: "Stroller",
+    ageRange: "6-12mo",
+    status: "matched",
+    matchedTo: "Mike J.",
+    emoji: "\u{1F6BC}",
+  },
+  "3": {
+    id: "3",
+    name: "Winter jacket bundle",
+    category: "Clothing",
+    ageRange: "2-3y",
+    status: "aging-out",
+    matchedTo: null,
+    emoji: "\u{1F9E5}",
+    daysLeft: 5,
+    isBundle: true,
+    count: 3,
+  },
+  "4": {
+    id: "4",
+    name: "Board books set",
+    category: "Books",
+    ageRange: "12-18mo",
+    status: "available",
+    matchedTo: null,
+    emoji: "\u{1F4DA}",
+    isBundle: true,
+    count: 8,
+  },
+  "5": {
+    id: "5",
+    name: "Infant car seat",
+    category: "Car Seat",
+    ageRange: "0-12mo",
+    status: "handed-off",
+    matchedTo: "Sarah C.",
+    emoji: "\u{1F697}",
+  },
+  "6": {
+    id: "6",
+    name: "Play mat",
+    category: "Gear",
+    ageRange: "0-6mo",
+    status: "available",
+    matchedTo: null,
+    emoji: "\u{1F3AA}",
   },
   fi1: {
     id: "fi1",
@@ -136,8 +199,8 @@ export default function ItemDetailScreen() {
 
   const { session } = useAuth();
   const userId = session?.user?.id;
-  const { items } = useInventory(userId);
-  const { searchCatalog } = useItemCatalog();
+  const { items, updateItem } = useInventory(userId);
+  const { searchSmart } = useItemCatalog();
 
   // Try real data first, fall back to mock
   const realItem = items.find((i) => i.id === id);
@@ -158,10 +221,32 @@ export default function ItemDetailScreen() {
   const [saved, setSaved] = useState(false);
   const searchInputRef = useRef<TextInput>(null);
 
+  // Bundle item editing
+  const [bundleItems, setBundleItems] = useState<{ name: string; emoji: string }[]>(
+    item?.bundleItems ?? []
+  );
+  const [bundleAddQuery, setBundleAddQuery] = useState("");
+  const bundleAddSuggestions = useMemo(() => {
+    if (bundleAddQuery.length < 2 || !item?.category) return [];
+    return searchSmart(bundleAddQuery, item.category as Category);
+  }, [bundleAddQuery, searchSmart, item?.category]);
+
+  const addBundleItem = (name: string, emoji: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setBundleItems((prev) => [...prev, { name, emoji }]);
+    setBundleAddQuery("");
+  };
+
+  const removeBundleItem = (index: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setBundleItems((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const editCategory = (editedCategory ?? item?.category ?? "Gear") as Category;
   const suggestions = useMemo(() => {
     if (editQuery.length < 2) return [];
-    return searchCatalog(editQuery);
-  }, [editQuery, searchCatalog]);
+    return searchSmart(editQuery, editCategory);
+  }, [editQuery, searchSmart, editCategory]);
 
   const startEditing = () => {
     setIsEditing(true);
@@ -205,9 +290,19 @@ export default function ItemDetailScreen() {
     setEditedSizeSystem(info?.sizeSystem ?? "age-range");
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!item || !id) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    // TODO: persist to Supabase
+    const updates: Record<string, any> = {};
+    if (editedName) updates.name = editedName;
+    if (editedEmoji) updates.emoji = editedEmoji;
+    if (editedCategory) updates.category = editedCategory;
+    if (editedSize) updates.ageRange = editedSize;
+    if (editedCondition) updates.condition = editedCondition;
+    if (item.isBundle && bundleItems.length > 0) {
+      updates.bundleItems = bundleItems;
+    }
+    await updateItem(id, updates);
     setSaved(true);
     setTimeout(() => {
       setIsEditing(false);
@@ -249,11 +344,7 @@ export default function ItemDetailScreen() {
   const statusBadge = () => {
     switch (item.status) {
       case "aging-out":
-        return item.daysLeft === 0 ? (
-          <Badge color="#FF6B9D">Ready now</Badge>
-        ) : (
-          <Badge color="#FB923C">{item.daysLeft} days left</Badge>
-        );
+        return <Badge color="#FB923C">Time to go?</Badge>;
       case "available":
         return <Badge color={colors.neonGreen}>Available</Badge>;
       case "matched":
@@ -277,29 +368,114 @@ export default function ItemDetailScreen() {
           <Text style={styles.backText}>{"\u2190"} Back</Text>
         </Pressable>
 
-        {/* Item header */}
-        <View style={styles.itemHeader}>
-          <Text style={styles.itemEmoji}>{displayEmoji}</Text>
-          <Text style={styles.itemName}>{displayName}</Text>
-          {item.isBundle && item.count && (
-            <Text style={styles.bundleCount}>Bundle of {item.count}</Text>
-          )}
-          <View style={styles.metaRow}>
-            <Text style={styles.metaText}>{displayCategory}</Text>
-            <Text style={styles.metaDot}>{"\u00B7"}</Text>
-            <Text style={styles.metaText}>{displaySize}</Text>
-            {displayCondition && (
-              <>
-                <Text style={styles.metaDot}>{"\u00B7"}</Text>
-                <Text style={styles.metaText}>{displayCondition}</Text>
-              </>
-            )}
+        {/* Item header — compact when editing */}
+        {isEditing ? (
+          <View style={styles.itemHeaderCompact}>
+            <Text style={styles.itemEmojiCompact}>{displayEmoji}</Text>
+            <View style={styles.itemHeaderCompactInfo}>
+              <Text style={styles.itemNameCompact} numberOfLines={1}>{displayName}</Text>
+              <Text style={styles.metaTextCompact}>
+                {displayCategory} {"\u00B7"} {displaySize}
+                {displayCondition ? ` \u00B7 ${displayCondition}` : ""}
+              </Text>
+            </View>
+            {statusBadge()}
           </View>
-          <View style={styles.badgeRow}>{statusBadge()}</View>
-        </View>
+        ) : (
+          <View style={styles.itemHeader}>
+            <Text style={styles.itemEmoji}>{displayEmoji}</Text>
+            <Text style={styles.itemName}>{displayName}</Text>
+            {item.isBundle && item.count && (
+              <Text style={styles.bundleCount}>Bundle of {item.count}</Text>
+            )}
+            <View style={styles.metaRow}>
+              <Text style={styles.metaText}>{displayCategory}</Text>
+              <Text style={styles.metaDot}>{"\u00B7"}</Text>
+              <Text style={styles.metaText}>{displaySize}</Text>
+              {displayCondition && (
+                <>
+                  <Text style={styles.metaDot}>{"\u00B7"}</Text>
+                  <Text style={styles.metaText}>{displayCondition}</Text>
+                </>
+              )}
+            </View>
+            <View style={styles.badgeRow}>{statusBadge()}</View>
+          </View>
+        )}
+
+        {/* ── Bundle items list ── */}
+        {item.isBundle && bundleItems.length > 0 && !isEditing && (
+          <Card style={styles.bundleCard}>
+            <Text style={styles.bundleCardTitle}>
+              What's in this bundle ({bundleItems.length})
+            </Text>
+            {bundleItems.map((bi, idx) => (
+              <View key={idx} style={styles.bundleListRow}>
+                <Text style={styles.bundleListEmoji}>{bi.emoji}</Text>
+                <Text style={styles.bundleListName} numberOfLines={1}>{bi.name}</Text>
+                <TouchableOpacity onPress={() => removeBundleItem(idx)} style={styles.bundleListRemove}>
+                  <Text style={styles.bundleListRemoveText}>{"\u2715"}</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+
+            {/* Add more items inline */}
+            <View style={styles.bundleAddRow}>
+              <TextInput
+                style={styles.bundleAddInput}
+                placeholder="Add an item..."
+                placeholderTextColor={colors.textLight}
+                value={bundleAddQuery}
+                onChangeText={setBundleAddQuery}
+                autoCapitalize="words"
+              />
+            </View>
+            {bundleAddQuery.length >= 2 && (
+              <View style={styles.bundleAddSuggestions}>
+                <TouchableOpacity
+                  style={styles.bundleAddSuggestionRow}
+                  onPress={() => addBundleItem(bundleAddQuery, item.emoji)}
+                  activeOpacity={0.6}
+                >
+                  <Text style={{ fontSize: 16 }}>{"\u2795"}</Text>
+                  <Text style={styles.bundleAddSuggestionText}>Add "{bundleAddQuery}"</Text>
+                </TouchableOpacity>
+                {bundleAddSuggestions.map((entry, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={styles.bundleAddSuggestionRow}
+                    onPress={() => addBundleItem(
+                      entry.brand ? `${entry.brand} ${entry.name}` : entry.name,
+                      entry.emoji
+                    )}
+                    activeOpacity={0.6}
+                  >
+                    <Text style={{ fontSize: 16 }}>{entry.emoji}</Text>
+                    <Text style={styles.bundleAddSuggestionText} numberOfLines={1}>
+                      {entry.brand ? `${entry.brand} ` : ""}{entry.name}
+                    </Text>
+                    <Text style={{ fontSize: 16, color: colors.neonGreen }}>+</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Save bundle changes */}
+            <TouchableOpacity
+              style={styles.bundleSaveBtn}
+              onPress={async () => {
+                await updateItem(id!, { bundleItems });
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.bundleSaveBtnText}>Save changes</Text>
+            </TouchableOpacity>
+          </Card>
+        )}
 
         {/* ── Edit / Smart Search Section ── */}
-        {item.status === "aging-out" && !isEditing && (
+        {!isEditing && (
           <TouchableOpacity
             style={styles.editBtnRow}
             onPress={startEditing}
@@ -360,6 +536,17 @@ export default function ItemDetailScreen() {
                 {/* Suggestions dropdown */}
                 {showSuggestions && editQuery.length >= 2 && (
                   <View style={styles.suggestionsBox}>
+                    {/* Custom name — always first */}
+                    <TouchableOpacity
+                      style={[styles.suggestionRow, styles.customRow]}
+                      onPress={handleUseCustomName}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.suggestionEmoji}>{"\u2795"}</Text>
+                      <Text style={styles.customText}>
+                        Use "{editQuery}" as name
+                      </Text>
+                    </TouchableOpacity>
                     {suggestions.map((entry, idx) => (
                       <TouchableOpacity
                         key={idx}
@@ -376,17 +563,6 @@ export default function ItemDetailScreen() {
                         </View>
                       </TouchableOpacity>
                     ))}
-                    {/* Custom name fallback */}
-                    <TouchableOpacity
-                      style={[styles.suggestionRow, styles.customRow]}
-                      onPress={handleUseCustomName}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.suggestionEmoji}>{"\u2795"}</Text>
-                      <Text style={styles.customText}>
-                        Use "{editQuery}" as name
-                      </Text>
-                    </TouchableOpacity>
                   </View>
                 )}
 
@@ -504,37 +680,35 @@ export default function ItemDetailScreen() {
           </Card>
         )}
 
-        {/* Photo */}
-        <View style={styles.photoSection}>
-          {photo ? (
-            <TouchableOpacity onPress={handleAddPhoto} activeOpacity={0.8}>
-              <Image source={{ uri: photo }} style={styles.photoPreview} />
-              <Text style={styles.photoChangeText}>Change photo</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={styles.addPhotoBtn}
-              onPress={handleAddPhoto}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.addPhotoIcon}>{"\u{1F4F7}"}</Text>
-              <Text style={styles.addPhotoText}>Add a photo</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        {/* Photo — hidden when editing to save space */}
+        {!isEditing && (
+          <View style={styles.photoSection}>
+            {photo ? (
+              <TouchableOpacity onPress={handleAddPhoto} activeOpacity={0.8}>
+                <Image source={{ uri: photo }} style={styles.photoPreview} />
+                <Text style={styles.photoChangeText}>Change photo</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.addPhotoBtn}
+                onPress={handleAddPhoto}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.addPhotoIcon}>{"\u{1F4F7}"}</Text>
+                <Text style={styles.addPhotoText}>Add a photo</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         {/* Status-specific content */}
         {item.status === "aging-out" && (
           <Card style={styles.statusCard}>
             <Text style={styles.statusTitle}>
-              {item.daysLeft === 0
-                ? "Your kiddo has outgrown this!"
-                : `Aging out in ${item.daysLeft} days`}
+              Ready to pass this along?
             </Text>
             <Text style={styles.statusSub}>
-              {item.daysLeft === 0
-                ? "We're looking for a match in your circle. Sit tight!"
-                : "We'll find a match when the time comes. You can also share it now."}
+              If your little one has moved on, we can find it a new home in your circle.
             </Text>
             <Button
               variant="primary"
@@ -602,7 +776,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  // Item header
+  // Item header — full
   itemHeader: {
     alignItems: "center",
     marginBottom: 20,
@@ -616,6 +790,35 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginTop: 8,
     textAlign: "center",
+  },
+
+  // Item header — compact (when editing)
+  itemHeaderCompact: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 12,
+    padding: 10,
+    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  itemEmojiCompact: {
+    fontSize: 28,
+  },
+  itemHeaderCompactInfo: {
+    flex: 1,
+  },
+  itemNameCompact: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  metaTextCompact: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
   },
   bundleCount: {
     fontSize: 14,
@@ -881,5 +1084,91 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     marginTop: 8,
+  },
+
+  // Bundle items
+  bundleCard: {
+    marginBottom: 16,
+    gap: 4,
+  },
+  bundleCardTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: colors.text,
+    marginBottom: 8,
+  },
+  bundleListRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    gap: 8,
+  },
+  bundleListEmoji: {
+    fontSize: 18,
+  },
+  bundleListName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "500",
+    color: colors.text,
+  },
+  bundleListRemove: {
+    padding: 4,
+  },
+  bundleListRemoveText: {
+    fontSize: 14,
+    color: colors.textLight,
+  },
+  bundleAddRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    backgroundColor: colors.bg,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 12,
+  },
+  bundleAddInput: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    paddingVertical: 10,
+  },
+  bundleAddSuggestions: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: "hidden",
+    marginTop: 4,
+  },
+  bundleAddSuggestionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 10,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  bundleAddSuggestionText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "500",
+    color: colors.text,
+  },
+  bundleSaveBtn: {
+    alignSelf: "center",
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    backgroundColor: colors.neonPurple,
+  },
+  bundleSaveBtnText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
 });

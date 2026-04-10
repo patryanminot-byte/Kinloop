@@ -132,7 +132,7 @@ function getPricingBadgeInfo(item: Item) {
     case "free":
       return { label: "\uD83C\uDF81 Free", color: colors.neonGreen };
     case "give-what-you-can":
-      return { label: "\uD83D\uDC9B Open", color: colors.neonOrange };
+      return { label: "\uD83D\uDC9B You decide", color: colors.neonOrange };
     case "set-price":
       return { label: `$${pricing.amount ?? 0}`, color: colors.neonPurple };
     default:
@@ -164,6 +164,7 @@ export default function ShopItemDetailScreen() {
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [showPayment, setShowPayment] = useState(false);
   const [addedToMine, setAddedToMine] = useState(false);
+  const [requested, setRequested] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportNote, setReportNote] = useState("");
@@ -480,11 +481,30 @@ export default function ShopItemDetailScreen() {
         <Button
           variant="primary"
           size="lg"
-          title={getActionLabel(item)}
-          onPress={() => {
+          title={requested ? "Requested! \u2714" : getActionLabel(item)}
+          disabled={requested}
+          onPress={async () => {
             if (item.pricing?.type === "set-price") {
               setShowPayment(true);
+              return;
             }
+            // Free or GWUC — create a match request
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            if (userId) {
+              await supabase.from("matches").insert({
+                item_id: item.id,
+                receiver_id: userId,
+                giver_id: null, // will be filled by seller
+                status: "offered",
+                pricing_type: item.pricing?.type ?? "free",
+                pricing_amount: isGWYC ? selectedAmount : null,
+              });
+            }
+            setRequested(true);
+            Alert.alert(
+              "Request sent!",
+              `The owner of ${item.name} will be notified.`,
+            );
           }}
           style={styles.actionButton}
         />

@@ -18,7 +18,7 @@ function getPricingBadge(item: Item) {
     case "free":
       return { label: "\uD83C\uDF81 Free", color: colors.neonGreen };
     case "give-what-you-can":
-      return { label: "\uD83D\uDC9B Open", color: colors.neonOrange };
+      return { label: "\uD83D\uDC9B You decide", color: colors.neonOrange };
     case "set-price":
       return {
         label: `$${pricing.amount ?? 0}`,
@@ -52,11 +52,14 @@ export default function ShopItemCard({ item }: ShopItemCardProps) {
 
       <Text style={styles.ageRange}>{item.ageRange}</Text>
 
-      {pricingBadge ? (
-        <View style={styles.badgeWrap}>
+      <View style={styles.badgeWrap}>
+        {item.condition ? (
+          <Badge color={colors.neonGreen}>{item.condition}</Badge>
+        ) : null}
+        {pricingBadge ? (
           <Badge color={pricingBadge.color}>{pricingBadge.label}</Badge>
-        </View>
-      ) : null}
+        ) : null}
+      </View>
 
       {item.fromAvatar && item.from ? (
         <View style={styles.seller}>
@@ -101,6 +104,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   badgeWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 4,
     marginBottom: 8,
   },
   seller: {

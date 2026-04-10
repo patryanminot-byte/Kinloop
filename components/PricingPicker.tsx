@@ -9,7 +9,6 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { colors, gradientColors } from "../lib/colors";
 import { Pricing } from "../lib/types";
-import { watasuFee } from "../lib/utils";
 
 interface PricingPickerProps {
   selected: Pricing | null;
@@ -29,13 +28,13 @@ const OPTIONS: OptionConfig[] = [
   {
     type: "free",
     emoji: "🎁",
-    label: "Pass it on free",
+    label: "Free",
     subtitle: "Just pass it along",
   },
   {
     type: "give-what-you-can",
     emoji: "💛",
-    label: "Give what you can",
+    label: "You decide",
     subtitle: "They choose what feels right",
   },
   {
@@ -135,11 +134,8 @@ export default function PricingPicker({
           </View>
           {priceText.length > 0 && !isNaN(parseInt(priceText, 10)) && parseInt(priceText, 10) > 0 && (
             <View style={styles.feeInfo}>
-              <Text style={styles.feeText}>
-                Flat ${watasuFee(parseInt(priceText, 10))} fee included
-              </Text>
               <Text style={styles.receiveText}>
-                You'll receive ${parseInt(priceText, 10) - watasuFee(parseInt(priceText, 10))}
+                You'll receive ${(Math.round(parseInt(priceText, 10) * 0.90 * 100) / 100).toFixed(2)}
               </Text>
             </View>
           )}

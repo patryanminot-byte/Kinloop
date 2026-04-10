@@ -117,7 +117,7 @@ export default function MatchDetailScreen() {
   const isReceiver = match?.role === "receiver";
 
   const [selectedPricing, setSelectedPricing] = useState<Pricing | null>(
-    match?.pricing ?? null
+    match?.pricing ?? { type: "give-what-you-can" }
   );
   const [personalLine, setPersonalLine] = useState(
     match?.personalLine ?? ""
@@ -197,9 +197,14 @@ export default function MatchDetailScreen() {
       case "free":
         return "🎁 This one's free — enjoy!";
       case "give-what-you-can":
-        return "💛 Give what you can — no pressure either way";
-      case "set-price":
-        return `🏷️ Asking $${selectedPricing.amount ?? 0}`;
+        return "💛 Pay what feels fair — or nothing at all";
+      case "set-price": {
+        const amount = selectedPricing.amount ?? 0;
+        const youReceive = (Math.round(amount * 0.90 * 100) / 100).toFixed(2);
+        return amount > 0
+          ? `🏷️ Asking $${amount} · You'll receive $${youReceive}`
+          : null;
+      }
       default:
         return null;
     }
@@ -240,7 +245,7 @@ export default function MatchDetailScreen() {
       case "free":
         return "🎁 Free";
       case "give-what-you-can":
-        return "💛 GWUC";
+        return "💛 You decide";
       case "set-price":
         return `🏷️ $${p.amount ?? 0}`;
       default:
@@ -445,30 +450,6 @@ export default function MatchDetailScreen() {
           </View>
         </Card>
 
-        {/* Handoff safety tip — shown once per match */}
-        {!safetyTipDismissed && (
-          <View style={styles.safetyTip}>
-            <View style={styles.safetyTipHeader}>
-              <Text style={styles.safetyTipIcon}>
-                {match.ring === "nearby" ? "\u{1F6E1}\uFE0F" : "\u{1F4A1}"}
-              </Text>
-              <Text style={styles.safetyTipTitle}>
-                {match.ring === "nearby" ? "Meeting someone new?" : "Handoff tip"}
-              </Text>
-              <Pressable
-                onPress={() => setSafetyTipDismissed(true)}
-                hitSlop={12}
-              >
-                <Text style={styles.safetyTipDismiss}>{"\u2715"}</Text>
-              </Pressable>
-            </View>
-            <Text style={styles.safetyTipText}>
-              {match.ring === "nearby"
-                ? "Meet in a public, well-lit spot. Tell a friend where you're going. Inspect the item before completing the transaction."
-                : "Inspect the item together and share any quirks you've noticed. Pass along the manual if you have it!"}
-            </Text>
-          </View>
-        )}
 
         {/* Pricing picker */}
         {isReady && (

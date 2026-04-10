@@ -1,5 +1,7 @@
 import { create } from "zustand";
-import type { Child, Item, Friend, Match } from "../lib/types";
+import { persist, createJSONStorage } from "zustand/middleware";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { Child, Item, Friend, Match, ToGoItem } from "../lib/types";
 
 interface AppState {
   // Auth
@@ -49,49 +51,81 @@ interface AppState {
   // Onboarding
   hasCompletedOnboarding: boolean;
   setOnboardingComplete: () => void;
+
+  // To-Go session (persisted)
+  toGoItems: ToGoItem[];
+  addToGoItem: (item: ToGoItem) => void;
+  removeToGoItem: (localId: string) => void;
+  updateToGoItem: (localId: string, updates: Partial<ToGoItem>) => void;
+  clearToGo: () => void;
 }
 
-export const useAppStore = create<AppState>((set) => ({
-  userId: null,
-  setUserId: (id) => set({ userId: id }),
+export const useAppStore = create<AppState>()(
+  persist(
+    (set) => ({
+      userId: null,
+      setUserId: (id) => set({ userId: id }),
 
-  userName: "",
-  userInitials: "",
-  locationCity: "",
-  locationZip: "",
-  setUserProfile: (profile) =>
-    set({
-      userName: profile.name,
-      userInitials: profile.initials,
-      locationCity: profile.city ?? "",
-      locationZip: profile.zip ?? "",
+      userName: "",
+      userInitials: "",
+      locationCity: "",
+      locationZip: "",
+      setUserProfile: (profile) =>
+        set({
+          userName: profile.name,
+          userInitials: profile.initials,
+          locationCity: profile.city ?? "",
+          locationZip: profile.zip ?? "",
+        }),
+
+      children: [],
+      setChildren: (children) => set({ children }),
+      addChild: (child) => set((s) => ({ children: [...s.children, child] })),
+
+      items: [],
+      setItems: (items) => set({ items }),
+      addItem: (item) => set((s) => ({ items: [item, ...s.items] })),
+      updateItem: (id, updates) =>
+        set((s) => ({
+          items: s.items.map((i) => (i.id === id ? { ...i, ...updates } : i)),
+        })),
+
+      friends: [],
+      setFriends: (friends) => set({ friends }),
+
+      matches: [],
+      setMatches: (matches) => set({ matches }),
+
+      locationLat: null,
+      locationLng: null,
+      setLocation: (lat, lng) => set({ locationLat: lat, locationLng: lng }),
+
+      itemVisibility: "circle" as string,
+      setItemVisibility: (v: string) => set({ itemVisibility: v }),
+
+      hasCompletedOnboarding: false,
+      setOnboardingComplete: () => set({ hasCompletedOnboarding: true }),
+
+      // To-Go session
+      toGoItems: [],
+      addToGoItem: (item) =>
+        set((s) => ({ toGoItems: [...s.toGoItems, item] })),
+      removeToGoItem: (localId) =>
+        set((s) => ({
+          toGoItems: s.toGoItems.filter((i) => i.localId !== localId),
+        })),
+      updateToGoItem: (localId, updates) =>
+        set((s) => ({
+          toGoItems: s.toGoItems.map((i) =>
+            i.localId === localId ? { ...i, ...updates } : i
+          ),
+        })),
+      clearToGo: () => set({ toGoItems: [] }),
     }),
-
-  children: [],
-  setChildren: (children) => set({ children }),
-  addChild: (child) => set((s) => ({ children: [...s.children, child] })),
-
-  items: [],
-  setItems: (items) => set({ items }),
-  addItem: (item) => set((s) => ({ items: [item, ...s.items] })),
-  updateItem: (id, updates) =>
-    set((s) => ({
-      items: s.items.map((i) => (i.id === id ? { ...i, ...updates } : i)),
-    })),
-
-  friends: [],
-  setFriends: (friends) => set({ friends }),
-
-  matches: [],
-  setMatches: (matches) => set({ matches }),
-
-  locationLat: null,
-  locationLng: null,
-  setLocation: (lat, lng) => set({ locationLat: lat, locationLng: lng }),
-
-  itemVisibility: "circle" as string, // "circle" = friends (default), "public" = everyone
-  setItemVisibility: (v: string) => set({ itemVisibility: v }),
-
-  hasCompletedOnboarding: false,
-  setOnboardingComplete: () => set({ hasCompletedOnboarding: true }),
-}));
+    {
+      name: "watasu-app-store",
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({ toGoItems: state.toGoItems }),
+    }
+  )
+);

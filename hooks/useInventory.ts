@@ -77,6 +77,7 @@ export function useInventory(userId: string | undefined) {
               ? { type: row.pricing_type, amount: row.pricing_amount }
               : null,
             condition: row.condition,
+            bundleItems: row.bundle_items ?? undefined,
           };
         })
       );
@@ -94,6 +95,8 @@ export function useInventory(userId: string | undefined) {
     ageRange: string;
     emoji: string;
     isBundle?: boolean;
+    count?: number;
+    bundleItems?: { name: string; emoji: string }[];
     photoUri?: string;
     condition?: string;
     pricing?: { type: string; amount?: number | null } | null;
@@ -108,6 +111,8 @@ export function useInventory(userId: string | undefined) {
         age_range: item.ageRange,
         emoji: item.emoji || categoryEmojis[item.category] || "📦",
         is_bundle: item.isBundle ?? false,
+        bundle_count: item.isBundle ? (item.count ?? null) : null,
+        bundle_items: item.isBundle ? (item.bundleItems ?? null) : null,
         has_photo: !!item.photoUri,
         photo_url: item.photoUri || null,
         condition: item.condition || null,
@@ -119,12 +124,49 @@ export function useInventory(userId: string | undefined) {
 
     if (!error && data) {
       await fetch();
-      // Trigger matching for this new item
       triggerMatchEngine({ item_id: data.id });
       return data;
     }
     return null;
   };
 
-  return { items, loading, refresh: fetch, addItem };
+  const updateItem = async (
+    itemId: string,
+    updates: {
+      name?: string;
+      category?: string;
+      ageRange?: string;
+      emoji?: string;
+      condition?: string;
+      bundleItems?: { name: string; emoji: string }[];
+      count?: number;
+    }
+  ) => {
+    if (!userId) return false;
+    const dbUpdates: Record<string, any> = {};
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.category !== undefined) dbUpdates.category = updates.category;
+    if (updates.ageRange !== undefined) dbUpdates.age_range = updates.ageRange;
+    if (updates.emoji !== undefined) dbUpdates.emoji = updates.emoji;
+    if (updates.condition !== undefined) dbUpdates.condition = updates.condition;
+    if (updates.bundleItems !== undefined) {
+      dbUpdates.bundle_items = updates.bundleItems;
+      dbUpdates.bundle_count = updates.bundleItems.length;
+    }
+    if (updates.count !== undefined) dbUpdates.bundle_count = updates.count;
+
+    const { error } = await supabase
+      .from("items")
+      .update(dbUpdates)
+      .eq("id", itemId)
+      .eq("user_id", userId);
+
+    if (!error) {
+      await fetch();
+      return true;
+    }
+    return false;
+  };
+
+  return { items, loading, refresh: fetch, addItem, updateItem };
 }

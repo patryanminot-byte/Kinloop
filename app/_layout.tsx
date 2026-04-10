@@ -19,6 +19,7 @@ export default function RootLayout() {
   const setUserId = useAppStore((s) => s.setUserId);
   const setUserProfile = useAppStore((s) => s.setUserProfile);
   const setOnboardingComplete = useAppStore((s) => s.setOnboardingComplete);
+  const setLocation = useAppStore((s) => s.setLocation);
   const hasCompletedOnboarding = useAppStore((s) => s.hasCompletedOnboarding);
 
   // Guard against rapid-fire redirects
@@ -53,7 +54,7 @@ export default function RootLayout() {
       // Load profile
       supabase
         .from("profiles")
-        .select("name, avatar_initials, location_city, location_zip")
+        .select("name, avatar_initials, location_city, location_zip, location_lat, location_lng")
         .eq("id", session.user.id)
         .single()
         .then(({ data }) => {
@@ -77,6 +78,10 @@ export default function RootLayout() {
               city: data.location_city ?? "",
               zip: data.location_zip ?? "",
             });
+            // Restore location from DB
+            if (data.location_lat && data.location_lng) {
+              setLocation(data.location_lat, data.location_lng);
+            }
           }
         });
       // Check if they have a profile with a name (onboarding complete)
@@ -164,7 +169,10 @@ export default function RootLayout() {
           name="match/[id]"
           options={{ presentation: "modal" }}
         />
+        <Stack.Screen name="item/[id]" />
         <Stack.Screen name="shop/[id]" />
+        <Stack.Screen name="add-item" />
+        <Stack.Screen name="to-go" />
         <Stack.Screen name="friends/nearby" />
         <Stack.Screen name="legal/privacy" />
         <Stack.Screen name="legal/terms" />

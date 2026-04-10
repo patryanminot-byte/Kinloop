@@ -2,7 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   ITEM_CATALOG,
+  CATEGORY_INFO,
   SUB_CATEGORIES,
+  BRANDS,
+  PRODUCT_TYPES,
+  MODEL_CATEGORIES,
   type CatalogEntry,
   type Category,
   type SubCategory,
@@ -11,7 +15,7 @@ import { supabase } from "../lib/supabase";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const CACHE_KEY = "catalog_cache";
+const CACHE_KEY = "catalog_cache_v2"; // v2: emoji sanitization
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -24,6 +28,8 @@ interface CatalogCache {
 interface UseItemCatalogResult {
   catalog: CatalogEntry[];
   searchCatalog: (query: string) => CatalogEntry[];
+  /** New brand-aware search: pass the selected category for smarter results. */
+  searchSmart: (query: string, category: Category) => CatalogEntry[];
   browseCategory: (category: string, limit?: number) => CatalogEntry[];
   browseSubCategory: (category: string, subCategory: SubCategory, limit?: number) => CatalogEntry[];
   loading: boolean;
@@ -45,16 +51,52 @@ interface CatalogRow {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+// Validate that an emoji string contains actual emoji (not garbled encoding).
+// Garbled strings often contain Apple logo / replacement chars / control chars.
+const EMOJI_REGEX = /\p{Emoji_Presentation}|\p{Emoji}\uFE0F/u;
+function isValidEmoji(s: string | null | undefined): boolean {
+  if (!s || s.length === 0) return false;
+  return EMOJI_REGEX.test(s);
+}
+
+// Build a lookup from the static catalog for emoji fallback
+const STATIC_EMOJI_LOOKUP = new Map<string, string>();
+for (const entry of ITEM_CATALOG) {
+  const key = `${(entry.brand ?? "").toLowerCase()}|${entry.name.toLowerCase()}`;
+  STATIC_EMOJI_LOOKUP.set(key, entry.emoji);
+}
+
+/** Fix garbled emoji on any catalog entry, using static catalog as fallback. */
+function fixEmoji(entry: { brand?: string | null; name: string; category: string; emoji: string }): string {
+  if (isValidEmoji(entry.emoji)) return entry.emoji;
+  const key = `${(entry.brand ?? "").toLowerCase()}|${entry.name.toLowerCase()}`;
+  return STATIC_EMOJI_LOOKUP.get(key) ?? CATEGORY_INFO[entry.category as Category]?.emoji ?? "\u{1F4E6}";
+}
+
 function mapRowToEntry(row: CatalogRow): CatalogEntry {
   return {
     brand: row.brand ?? undefined,
     name: row.name,
     category: row.category as CatalogEntry["category"],
-    emoji: row.emoji,
+    emoji: fixEmoji(row),
     sizeSystem: row.size_system as CatalogEntry["sizeSystem"],
     keywords: row.keywords ?? [],
     popularity: row.popularity ?? 0,
   };
+}
+
+/** Sanitize emoji on cached entries that may have been stored with garbled data. */
+function sanitizeCachedEntries(entries: CatalogEntry[]): CatalogEntry[] {
+  let anyFixed = false;
+  const fixed = entries.map((e) => {
+    const good = fixEmoji(e);
+    if (good !== e.emoji) {
+      anyFixed = true;
+      return { ...e, emoji: good };
+    }
+    return e;
+  });
+  return anyFixed ? fixed : entries;
 }
 
 function searchCatalogEntries(
@@ -101,6 +143,117 @@ function searchCatalogEntries(
   }
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, 8).map((s) => s.entry);
+}
+
+// ─── Brand-aware smart search ────────────────────────────────────────────────
+
+const MODEL_SET = new Set(MODEL_CATEGORIES);
+
+function searchBrandProducts(query: string, category: Category): CatalogEntry[] {
+  if (!query || query.trim().length < 2) return [];
+  const q = query.toLowerCase().trim();
+  const sizeSystem = CATEGORY_INFO[category]?.sizeSystem ?? "age-range";
+  const categoryEmoji = CATEGORY_INFO[category]?.emoji ?? "\u{1F4E6}";
+  const isModelCat = MODEL_SET.has(category);
+  const types = PRODUCT_TYPES[category] ?? [];
+
+  const results: CatalogEntry[] = [];
+  const seen = new Set<string>(); // dedupe key: "brand|name"
+
+  const addResult = (brand: string | undefined, name: string, emoji: string) => {
+    const key = `${(brand ?? "").toLowerCase()}|${name.toLowerCase()}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    results.push({
+      brand,
+      name,
+      category,
+      emoji,
+      sizeSystem,
+      keywords: [],
+    });
+  };
+
+  // 1. Find brands matching the query that participate in this category
+  const matchingBrands = BRANDS.filter((b) => {
+    if (!b.categories.includes(category)) return false;
+    const haystack = [b.name, ...b.keywords].join(" ").toLowerCase();
+    return haystack.includes(q);
+  });
+
+  // 2. For each matching brand, generate results
+  for (const brand of matchingBrands) {
+    if (isModelCat && brand.models?.[category]) {
+      // Hard good: show specific models
+      for (const model of brand.models[category]!) {
+        addResult(brand.name, model, categoryEmoji);
+      }
+    } else {
+      // Soft good: show brand + product types
+      for (const type of types) {
+        addResult(brand.name, type.name, type.emoji);
+      }
+    }
+  }
+
+  // 3. Check if query matches a product type name (e.g., "fleece", "shirt")
+  const matchingTypes = types.filter((t) => t.name.toLowerCase().includes(q));
+  if (matchingTypes.length > 0) {
+    for (const type of matchingTypes) {
+      // Generic (no brand)
+      addResult(undefined, type.name, type.emoji);
+      // Top brands for this category that aren't already shown
+      const brandsInCat = BRANDS.filter(
+        (b) => b.categories.includes(category) && !matchingBrands.includes(b)
+      );
+      for (const brand of brandsInCat.slice(0, 4)) {
+        if (isModelCat && brand.models?.[category]) {
+          // For model categories, filter models that match the type query
+          for (const model of brand.models[category]!) {
+            if (model.toLowerCase().includes(q)) {
+              addResult(brand.name, model, categoryEmoji);
+            }
+          }
+        } else {
+          addResult(brand.name, type.name, type.emoji);
+        }
+      }
+    }
+  }
+
+  // 4. If no brand or type matches, check if query matches any model names
+  if (results.length === 0 && isModelCat) {
+    for (const brand of BRANDS) {
+      if (!brand.categories.includes(category)) continue;
+      const models = brand.models?.[category];
+      if (!models) continue;
+      for (const model of models) {
+        if (model.toLowerCase().includes(q)) {
+          addResult(brand.name, model, categoryEmoji);
+        }
+      }
+    }
+  }
+
+  // 5. If still nothing, search keywords across all brands in this category
+  if (results.length === 0) {
+    for (const brand of BRANDS) {
+      if (!brand.categories.includes(category)) continue;
+      const matches = brand.keywords.some((k) => k.includes(q) || q.includes(k));
+      if (!matches) continue;
+      if (isModelCat && brand.models?.[category]) {
+        for (const model of brand.models[category]!) {
+          addResult(brand.name, model, categoryEmoji);
+        }
+      } else {
+        for (const type of types) {
+          addResult(brand.name, type.name, type.emoji);
+        }
+      }
+    }
+  }
+
+  return results.slice(0, 8);
 }
 
 async function readCache(): Promise<CatalogCache | null> {
@@ -163,10 +316,15 @@ export function useItemCatalog(): UseItemCatalogResult {
 
       if (cache && cache.entries.length > 0) {
         const ageMs = Date.now() - cache.fetchedAt;
+        const cleanEntries = sanitizeCachedEntries(cache.entries);
         if (!cancelled) {
-          setCatalog(cache.entries);
+          setCatalog(cleanEntries);
           setIsLive(true);
           setLoading(false);
+        }
+        // Re-write cache if emoji were fixed
+        if (cleanEntries !== cache.entries) {
+          writeCache(cleanEntries);
         }
 
         if (ageMs >= CACHE_TTL_MS) {
@@ -202,6 +360,11 @@ export function useItemCatalog(): UseItemCatalogResult {
   const search = useCallback(
     (query: string) => searchCatalogEntries(query, catalog),
     [catalog]
+  );
+
+  const smartSearch = useCallback(
+    (query: string, category: Category) => searchBrandProducts(query, category),
+    []
   );
 
   /** Return top items in a category, sorted by popularity (most popular first). */
@@ -246,5 +409,5 @@ export function useItemCatalog(): UseItemCatalogResult {
     [catalog]
   );
 
-  return { catalog, searchCatalog: search, browseCategory, browseSubCategory, loading, isLive };
+  return { catalog, searchCatalog: search, searchSmart: smartSearch, browseCategory, browseSubCategory, loading, isLive };
 }

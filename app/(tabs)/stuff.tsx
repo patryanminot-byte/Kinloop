@@ -15,7 +15,6 @@ import { colors, gradientColors } from "../../lib/colors";
 import type { Item } from "../../lib/types";
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
-import AddItemModal from "../../components/AddItemModal";
 import { useAuth } from "../../hooks/useAuth";
 import { useInventory } from "../../hooks/useInventory";
 import { useAppStore } from "../../stores/appStore";
@@ -47,10 +46,8 @@ function sortItems(items: Item[]): Item[] {
 }
 
 function badgeFor(item: Item): { label: string; color: string } {
-  if (item.status === "aging-out" && item.daysLeft === 0)
-    return { label: "Now", color: "#FF6B9D" };
-  if (item.status === "aging-out" && item.daysLeft !== undefined && item.daysLeft > 0)
-    return { label: `${item.daysLeft}d`, color: "#FB923C" };
+  if (item.status === "aging-out")
+    return { label: "Time to go?", color: "#FB923C" };
   if (item.status === "available")
     return { label: "Available", color: "#22D3EE" };
   if (item.status === "handed-off")
@@ -150,17 +147,16 @@ function VisibilityRow({ userId }: { userId?: string }) {
   return (
     <View style={styles.visibilityContainer}>
       <Pressable onPress={toggle} style={styles.visibilityRow}>
-        <Text style={styles.visibilityEmoji}>{isPublic ? "\u{1F3D8}\uFE0F" : "\u{1F465}"}</Text>
-        <Text style={styles.visibilityLabel}>
-          {isPublic ? "Visible to everyone on Watasu" : "Visible to friends"}
+        <Text style={[styles.visibilityEndLabel, !isPublic && styles.visibilityEndLabelActive, !isPublic && styles.visibilityFriendsActive]}>
+          Friends only
         </Text>
         <View style={[styles.toggleTrack, isPublic && styles.toggleTrackOn]}>
           <View style={[styles.toggleThumb, isPublic && styles.toggleThumbOn]} />
         </View>
+        <Text style={[styles.visibilityEndLabel, isPublic && styles.visibilityEndLabelActive, isPublic && styles.visibilityPublicActive]}>
+          All of Watasu
+        </Text>
       </Pressable>
-      <Text style={styles.visibilityHint}>
-        Your items are shared with friends and their friends by default
-      </Text>
     </View>
   );
 }
@@ -170,12 +166,14 @@ function VisibilityRow({ userId }: { userId?: string }) {
 export default function StuffScreen() {
   const router = useRouter();
   const [activeCategory, setActiveCategory] = useState("All");
-  const [modalVisible, setModalVisible] = useState(false);
 
   // ---- Real data from Supabase ----
   const { session } = useAuth();
   const userId = session?.user?.id;
-  const { items: realItems, loading, addItem } = useInventory(userId);
+  const { items: realItems, loading } = useInventory(userId);
+
+  // To-go badge count
+  const toGoCount = useAppStore((s) => s.toGoItems.length);
 
   // Fallback to mock data when no real data and not loading
   const items = realItems.length > 0 ? realItems : loading ? [] : MOCK_ITEMS;
@@ -188,19 +186,6 @@ export default function StuffScreen() {
 
   const showClothingInfo =
     activeCategory === "All" || activeCategory === "Clothing";
-
-  const handleAddItem = useCallback(async (newItem: Omit<Item, "id" | "status" | "matchedTo">) => {
-    await addItem({
-      name: newItem.name,
-      category: newItem.category,
-      ageRange: newItem.ageRange,
-      emoji: newItem.emoji,
-      isBundle: newItem.isBundle,
-      photoUri: newItem.photoUri,
-      condition: newItem.condition,
-      pricing: newItem.pricing,
-    });
-  }, [addItem]);
 
   const renderItem = useCallback(
     ({ item }: { item: Item }) => (
@@ -215,12 +200,19 @@ export default function StuffScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Your stuff</Text>
-          <Button
-            variant="secondary"
-            size="sm"
-            title="+ Add"
-            onPress={() => setModalVisible(true)}
-          />
+          <View style={styles.headerActions}>
+            {toGoCount > 0 && (
+              <Pressable onPress={() => router.push("/to-go")} style={styles.toGoBadge}>
+                <Text style={styles.toGoBadgeText}>{toGoCount} to go</Text>
+              </Pressable>
+            )}
+            <Button
+              variant="secondary"
+              size="sm"
+              title="+ Add"
+              onPress={() => router.push("/add-item")}
+            />
+          </View>
         </View>
 
         {/* Category pills */}
@@ -271,11 +263,6 @@ export default function StuffScreen() {
         )}
       </View>
 
-      <AddItemModal
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        onAdd={handleAddItem}
-      />
     </SafeAreaView>
   );
 }
@@ -293,6 +280,20 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   title: { fontSize: 24, fontWeight: "700", color: colors.text },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 10 },
+  toGoBadge: {
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: colors.neonPurple + "20",
+    borderWidth: 1,
+    borderColor: colors.neonPurple,
+  },
+  toGoBadgeText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.neonPurple,
+  },
 
   // Pills
   pillScroll: { flexGrow: 0, marginBottom: 12 },
@@ -356,6 +357,8 @@ const styles = StyleSheet.create({
   visibilityRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
     backgroundColor: colors.card,
     borderRadius: 10,
     borderWidth: 1,
@@ -363,19 +366,35 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 14,
   },
-  visibilityEmoji: { fontSize: 16, marginRight: 8 },
-  visibilityLabel: { flex: 1, fontSize: 13, color: colors.text, fontWeight: "500" },
-  visibilityHint: { fontSize: 12, color: colors.textMuted, marginTop: 6, paddingHorizontal: 4 },
+  visibilityEndLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.textLight,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    overflow: "hidden",
+  },
+  visibilityEndLabelActive: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  visibilityFriendsActive: {
+    backgroundColor: colors.neonPurple,
+  },
+  visibilityPublicActive: {
+    backgroundColor: colors.neonGreen,
+  },
   toggleTrack: {
     width: 40,
     height: 24,
     borderRadius: 12,
-    backgroundColor: "#E5E5E3",
+    backgroundColor: colors.neonPurple,
     justifyContent: "center",
     paddingHorizontal: 2,
   },
   toggleTrackOn: {
-    backgroundColor: colors.neonPurple,
+    backgroundColor: colors.neonGreen,
   },
   toggleThumb: {
     width: 20,

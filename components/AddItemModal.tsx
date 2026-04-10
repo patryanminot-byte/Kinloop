@@ -95,6 +95,8 @@ export default function AddItemModal({
   const [bundleCondition, setBundleCondition] = useState<string | null>(null);
   const [bundlePricing, setBundlePricing] = useState<Pricing | null>(null);
   const [bundlePhotoUri, setBundlePhotoUri] = useState<string | null>(null);
+  const [bundleItemsList, setBundleItemsList] = useState<{ name: string; emoji: string }[]>([]);
+  const [bundleItemQuery, setBundleItemQuery] = useState("");
 
   // Success state
   const [justAdded, setJustAdded] = useState(false);
@@ -141,6 +143,8 @@ export default function AddItemModal({
     setBundleCondition(null);
     setBundlePricing(null);
     setBundlePhotoUri(null);
+    setBundleItemsList([]);
+    setBundleItemQuery("");
     setJustAdded(false);
     setAddedName("");
     setSafetyChecked(false);
@@ -169,6 +173,8 @@ export default function AddItemModal({
     setBundleCondition(null);
     setBundlePricing(null);
     setBundlePhotoUri(null);
+    setBundleItemsList([]);
+    setBundleItemQuery("");
     setJustAdded(false);
     setAddedName("");
   };
@@ -271,18 +277,31 @@ export default function AddItemModal({
     : "age-range";
   const bundleSizeOptions = SIZE_OPTIONS[bundleSizeSystem] ?? [];
 
-  const bundleAutoName = bundleCategory && bundleSize && bundleCount
-    ? `${bundleSize} ${bundleCategory.toLowerCase()} bundle (~${bundleCount} items)`
+  const bundleAutoName = bundleCategory && bundleSize
+    ? `${bundleSize} ${bundleCategory.toLowerCase()} bundle (${bundleItemsList.length} item${bundleItemsList.length !== 1 ? "s" : ""})`
     : "";
 
-  useEffect(() => {
-    if (bundleAutoName && !bundleName) {
-      setBundleName(bundleAutoName);
-    }
-  }, [bundleAutoName, bundleName]);
+  // Bundle item search
+  const bundleItemSuggestions = useMemo(() => {
+    if (bundleItemQuery.length < 2 || !bundleCategory) return [];
+    return searchCatalog(bundleItemQuery).filter(
+      (e) => e.category === bundleCategory
+    );
+  }, [bundleItemQuery, bundleCategory, searchCatalog]);
+
+  const addBundleItem = (name: string, emoji: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setBundleItemsList((prev) => [...prev, { name, emoji }]);
+    setBundleItemQuery("");
+  };
+
+  const removeBundleItem = (index: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setBundleItemsList((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const isBundleValid =
-    bundleCategory !== null && bundleSize !== null && bundleCount !== null;
+    bundleCategory !== null && bundleSize !== null && bundleItemsList.length > 0;
 
   const bundleEmoji = bundleCategory
     ? CATEGORY_INFO[bundleCategory]?.emoji ?? "\u{1F4E6}"
@@ -323,7 +342,7 @@ export default function AddItemModal({
   };
 
   const handleAddBundle = () => {
-    if (!isBundleValid || !bundleCategory) return;
+    if (!bundleCategory || bundleItemsList.length === 0) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const name = bundleName || bundleAutoName;
 
@@ -343,7 +362,8 @@ export default function AddItemModal({
       ageRange: bundleSize ?? "",
       emoji: bundleEmoji,
       isBundle: true,
-      count: bundleCount ?? undefined,
+      count: bundleItemsList.length,
+      bundleItems: bundleItemsList,
       condition: bundleCondition ?? undefined,
       pricing: bundlePricing ?? undefined,
       ...(bundlePhotoUri ? { hasPhoto: true, photoUri: bundlePhotoUri } : {}),
@@ -1246,42 +1266,110 @@ export default function AddItemModal({
                   </View>
                 )}
 
-                {/* Step 3: Count */}
+                {/* Step 3: Add items one at a time */}
                 {bundleStep === "count" && (
                   <View>
                     <Text style={styles.bundleStepLabel}>
-                      About how many items?
+                      Add items to your bundle
                     </Text>
-                    <View style={styles.countRow}>
-                      {COUNT_OPTIONS.map((opt) => (
-                        <TouchableOpacity
-                          key={opt.value}
-                          style={[
-                            styles.countChip,
-                            bundleCount === opt.value &&
-                              styles.countChipActive,
-                          ]}
-                          onPress={() => {
-                            setBundleCount(opt.value);
-                            setBundleName(
-                              `${bundleSize} ${(bundleCategory ?? "").toLowerCase()} bundle (~${opt.value} items)`,
-                            );
-                            setBundleStep("details");
-                          }}
-                          activeOpacity={0.7}
-                        >
-                          <Text
-                            style={[
-                              styles.countText,
-                              bundleCount === opt.value &&
-                                styles.countTextActive,
-                            ]}
-                          >
-                            {opt.label}
-                          </Text>
+
+                    {/* Search for items */}
+                    <View style={styles.searchContainer}>
+                      <Text style={styles.searchIcon}>{"\u{1F50D}"}</Text>
+                      <TextInput
+                        style={styles.searchInput}
+                        placeholder={`Search ${(bundleCategory ?? "").toLowerCase()}...`}
+                        placeholderTextColor={colors.textLight}
+                        value={bundleItemQuery}
+                        onChangeText={setBundleItemQuery}
+                        autoCapitalize="words"
+                        returnKeyType="done"
+                      />
+                      {bundleItemQuery.length > 0 && (
+                        <TouchableOpacity onPress={() => setBundleItemQuery("")}>
+                          <Text style={styles.searchClear}>{"\u2715"}</Text>
                         </TouchableOpacity>
-                      ))}
+                      )}
                     </View>
+
+                    {/* Suggestions */}
+                    {bundleItemQuery.length >= 2 && (
+                      <View style={styles.suggestionsBox}>
+                        {bundleItemSuggestions.map((entry, idx) => (
+                          <TouchableOpacity
+                            key={`${entry.brand ?? ""}-${entry.name}-${idx}`}
+                            style={styles.suggestionRow}
+                            onPress={() =>
+                              addBundleItem(
+                                entry.brand ? `${entry.brand} ${entry.name}` : entry.name,
+                                entry.emoji
+                              )
+                            }
+                            activeOpacity={0.6}
+                          >
+                            <Text style={styles.suggestionEmoji}>{entry.emoji}</Text>
+                            <View style={styles.suggestionInfo}>
+                              <Text style={styles.suggestionName}>
+                                {entry.brand ? `${entry.brand} ` : ""}
+                                {entry.name}
+                              </Text>
+                            </View>
+                            <Text style={{ fontSize: 18, color: colors.neonGreen }}>+</Text>
+                          </TouchableOpacity>
+                        ))}
+                        {bundleItemQuery.length >= 2 && (
+                          <TouchableOpacity
+                            style={styles.suggestionRow}
+                            onPress={() =>
+                              addBundleItem(bundleItemQuery, bundleEmoji)
+                            }
+                            activeOpacity={0.6}
+                          >
+                            <Text style={styles.suggestionEmoji}>{"\u2795"}</Text>
+                            <View style={styles.suggestionInfo}>
+                              <Text style={styles.suggestionName}>
+                                Add "{bundleItemQuery}"
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    )}
+
+                    {/* Current bundle items list */}
+                    {bundleItemsList.length > 0 && (
+                      <View style={styles.bundleItemsListContainer}>
+                        <Text style={styles.bundleItemsCount}>
+                          {bundleItemsList.length} item{bundleItemsList.length !== 1 ? "s" : ""} in bundle
+                        </Text>
+                        {bundleItemsList.map((bi, idx) => (
+                          <View key={idx} style={styles.bundleItemRow}>
+                            <Text style={styles.bundleItemEmoji}>{bi.emoji}</Text>
+                            <Text style={styles.bundleItemName} numberOfLines={1}>{bi.name}</Text>
+                            <TouchableOpacity onPress={() => removeBundleItem(idx)} style={styles.bundleItemRemove}>
+                              <Text style={styles.bundleItemRemoveText}>{"\u2715"}</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+
+                    {/* Continue to details when items added */}
+                    {bundleItemsList.length > 0 && (
+                      <Button
+                        variant="primary"
+                        size="lg"
+                        title={`Continue with ${bundleItemsList.length} item${bundleItemsList.length !== 1 ? "s" : ""}`}
+                        onPress={() => {
+                          setBundleCount(bundleItemsList.length);
+                          setBundleName(
+                            `${bundleSize} ${(bundleCategory ?? "").toLowerCase()} bundle (${bundleItemsList.length} items)`
+                          );
+                          setBundleStep("details");
+                        }}
+                        style={styles.addButton}
+                      />
+                    )}
                   </View>
                 )}
 
@@ -1291,6 +1379,15 @@ export default function AddItemModal({
                     <Text style={styles.bundlePreviewName}>
                       {bundleEmoji} {bundleName}
                     </Text>
+
+                    {/* Bundle items summary */}
+                    <View style={styles.bundleItemsSummary}>
+                      {bundleItemsList.map((bi, idx) => (
+                        <View key={idx} style={styles.bundleItemPill}>
+                          <Text style={styles.bundleItemPillText}>{bi.emoji} {bi.name}</Text>
+                        </View>
+                      ))}
+                    </View>
 
                     {/* Editable name */}
                     <Text style={styles.fieldLabel}>
@@ -1344,9 +1441,9 @@ export default function AddItemModal({
                     <Button
                       variant="primary"
                       size="lg"
-                      title={`Add ${bundleEmoji} ${bundleName.slice(0, 30)}${bundleName.length > 30 ? "..." : ""}`}
+                      title={`Add ${bundleEmoji} ${bundleItemsList.length} items`}
                       onPress={handleAddBundle}
-                      disabled={!isBundleValid}
+                      disabled={bundleItemsList.length === 0}
                       style={styles.addButton}
                     />
                   </View>
@@ -1875,6 +1972,59 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: colors.text,
     marginBottom: 16,
+  },
+  bundleItemsListContainer: {
+    marginTop: 12,
+    marginBottom: 12,
+    gap: 2,
+  },
+  bundleItemsCount: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.textMuted,
+    marginBottom: 6,
+  },
+  bundleItemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    gap: 8,
+  },
+  bundleItemEmoji: {
+    fontSize: 18,
+  },
+  bundleItemName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "500",
+    color: colors.text,
+  },
+  bundleItemRemove: {
+    padding: 4,
+  },
+  bundleItemRemoveText: {
+    fontSize: 14,
+    color: colors.textLight,
+  },
+  bundleItemsSummary: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginBottom: 16,
+  },
+  bundleItemPill: {
+    backgroundColor: "#F0F0ED",
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+  },
+  bundleItemPillText: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: colors.textMuted,
   },
 
   // Buttons

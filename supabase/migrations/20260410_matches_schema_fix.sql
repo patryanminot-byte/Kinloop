@@ -12,6 +12,7 @@ ALTER TABLE matches ADD COLUMN IF NOT EXISTS completed_at timestamptz;
 ALTER TABLE matches ADD COLUMN IF NOT EXISTS pricing_type text;
 ALTER TABLE matches ADD COLUMN IF NOT EXISTS pricing_amount numeric;
 ALTER TABLE matches ADD COLUMN IF NOT EXISTS watasu_fee numeric;
+ALTER TABLE matches ADD COLUMN IF NOT EXISTS stripe_fee numeric;
 
 -- Handoff tracking
 ALTER TABLE matches ADD COLUMN IF NOT EXISTS handoff jsonb;

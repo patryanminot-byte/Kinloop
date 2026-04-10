@@ -118,13 +118,10 @@ export function useMatches(userId: string | undefined) {
     pricingAmount: number | null,
     personalLine: string
   ) => {
+    // 10% total fee (includes processing). Watasu keeps ~7.1%, Stripe gets ~2.9%+$0.30
     const fee =
       pricingType === "set-price" && pricingAmount
-        ? pricingAmount < 50
-          ? 2
-          : pricingAmount <= 150
-            ? 5
-            : 8
+        ? Math.round(pricingAmount * 0.10 * 100) / 100
         : null;
 
     const { error } = await supabase

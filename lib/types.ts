@@ -25,6 +25,7 @@ export interface Item {
   daysLeft?: number;
   isBundle?: boolean;
   count?: number;
+  bundleItems?: { name: string; emoji: string }[];
   hasPhoto?: boolean;
   photoUri?: string;
   pricing?: Pricing | null;
@@ -40,6 +41,17 @@ export interface Item {
 export interface Pricing {
   type: "free" | "give-what-you-can" | "set-price";
   amount?: number | null;
+}
+
+export interface ToGoItem {
+  localId: string;
+  name: string;
+  emoji: string;
+  category: string;
+  ageRange: string;
+  condition: string;
+  wantsBundle: boolean;
+  description?: string;
 }
 
 export type HandoffMethod = "porch" | "meetup" | "school" | "ship";
