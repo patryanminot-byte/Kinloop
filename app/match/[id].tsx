@@ -173,6 +173,7 @@ export default function MatchDetailScreen() {
   }
 
   const firstName = match.to.split(" ")[0];
+  const fromFirstName = match.from?.split(" ")[0] ?? "Someone";
   const isReady = match.status === "ready" && !sent;
 
   const getButtonTitle = () => {
@@ -267,7 +268,7 @@ export default function MatchDetailScreen() {
               )}
               <View style={styles.badgeRow}>
                 {match.status === "offered" && (
-                  <Badge color={colors.neonPurple}>Offer from {firstName(match.from)}</Badge>
+                  <Badge color={colors.neonPurple}>Offer from {fromFirstName}</Badge>
                 )}
                 {match.status === "accepted" && (
                   <Badge color="#34D399">You accepted!</Badge>
@@ -303,7 +304,7 @@ export default function MatchDetailScreen() {
                   end={{ x: 1, y: 1 }}
                   style={styles.messageCard}
                 >
-                  <Text style={styles.messageLabel}>MESSAGE FROM {firstName(match.from).toUpperCase()}</Text>
+                  <Text style={styles.messageLabel}>MESSAGE FROM {fromFirstName.toUpperCase()}</Text>
                   <Text style={styles.receiverMessageText}>{match.message}</Text>
                   {match.personalLine ? (
                     <Text style={styles.receiverPersonalLine}>{match.personalLine}</Text>
@@ -345,7 +346,7 @@ export default function MatchDetailScreen() {
                   <Text style={styles.acceptedEmoji}>{"\u{1F389}"}</Text>
                   <Text style={styles.acceptedTitle}>You're getting this!</Text>
                   <Text style={styles.acceptedSub}>
-                    {firstName(match.from)} will arrange the handoff. Sit tight!
+                    {fromFirstName} will arrange the handoff. Sit tight!
                   </Text>
                 </View>
               </View>

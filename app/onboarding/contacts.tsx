@@ -148,10 +148,11 @@ export default function ContactsScreen() {
   /** Invite selected contacts via native share sheet. */
   const handleInviteSelected = async () => {
     // Get the user's invite token
+    if (!session?.user?.id) return;
     const { data: profile } = await supabase
       .from("profiles")
       .select("invite_token")
-      .eq("id", session?.user?.id)
+      .eq("id", session.user.id)
       .single();
 
     const token = profile?.invite_token ?? "";

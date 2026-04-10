@@ -529,7 +529,7 @@ export default function HomeScreen() {
           <SectionHeader
             title="Aging out soon"
             actionLabel="See all"
-            onAction={() => {}}
+            onAction={() => router.push("/(tabs)/stuff" as `/${string}`)}
           />
           <View style={styles.sectionGap} />
           <FlatList
@@ -566,7 +566,7 @@ export default function HomeScreen() {
           <SectionHeader
             title="Your network"
             actionLabel="Invite"
-            onAction={() => {}}
+            onAction={() => router.push("/(tabs)/friends" as `/${string}`)}
           />
           <View style={styles.sectionGap} />
           <Card onPress={() => router.push("/(tabs)/friends" as `/${string}`)}>

@@ -97,7 +97,7 @@ export default function NearbyFriendsScreen() {
     });
     if (!error) {
       setConnected((prev) => new Set([...prev, family.user_id]));
-      triggerMatchEngine({ user_id: session?.user?.id });
+      if (session?.user?.id) triggerMatchEngine({ user_id: session.user.id });
     }
     setConnecting(null);
   }
