@@ -13,13 +13,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
 import GradientText from "../../components/ui/GradientText";
 import Button from "../../components/ui/Button";
 import { useAuth } from "../../hooks/useAuth";
-import { colors, gradientColors } from "../../lib/colors";
-
-const SEGMENTS = 3;
+import { colors } from "../../lib/colors";
 
 type AuthMode = "main" | "email-otp" | "magic-link";
 
@@ -51,7 +48,6 @@ export default function WelcomeScreen() {
       await createProfile(userId, identifier, name);
       router.push("/onboarding/consent");
     } else {
-      // Returning user — go straight to tabs
       router.replace("/(tabs)");
     }
   };
@@ -198,26 +194,10 @@ export default function WelcomeScreen() {
         style={styles.button}
       />
 
-      {/* Magic link option */}
-      <TouchableOpacity
-        onPress={handleSendMagicLink}
-        disabled={loading || !email.trim()}
-        activeOpacity={0.7}
-      >
-        <Text
-          style={[
-            styles.linkText,
-            (!email.trim() || loading) && { opacity: 0.4 },
-          ]}
-        >
-          Or send me a magic link instead
-        </Text>
-      </TouchableOpacity>
-
       {loading && (
         <ActivityIndicator
           size="small"
-          color={colors.neonPurple}
+          color={colors.violet}
           style={{ marginTop: 12 }}
         />
       )}
@@ -256,7 +236,7 @@ export default function WelcomeScreen() {
         }}
         activeOpacity={0.7}
       >
-        <Text style={styles.linkText}>← Back</Text>
+        <Text style={styles.linkText}>{"\u2190"} Back</Text>
       </TouchableOpacity>
     </>
   );
@@ -264,7 +244,7 @@ export default function WelcomeScreen() {
   const renderMagicLink = () => (
     <>
       <View style={styles.magicLinkSent}>
-        <Text style={styles.magicEmoji}>✉️</Text>
+        <Text style={styles.magicEmoji}>{"\u2709\uFE0F"}</Text>
         <Text style={styles.magicTitle}>Check your email</Text>
         <Text style={styles.magicSubtitle}>
           We sent a sign-in link to {email}. Tap the link to continue.
@@ -277,7 +257,7 @@ export default function WelcomeScreen() {
         }}
         activeOpacity={0.7}
       >
-        <Text style={styles.linkText}>← Back</Text>
+        <Text style={styles.linkText}>{"\u2190"} Back</Text>
       </TouchableOpacity>
     </>
   );
@@ -293,33 +273,11 @@ export default function WelcomeScreen() {
           bounces={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Progress bar */}
-          <View style={styles.progressRow}>
-            {Array.from({ length: SEGMENTS }).map((_, i) => (
-              <View key={i} style={styles.segmentWrapper}>
-                {i === 0 ? (
-                  <LinearGradient
-                    colors={gradientColors.button}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.segment}
-                  />
-                ) : (
-                  <View style={[styles.segment, styles.segmentEmpty]} />
-                )}
-              </View>
-            ))}
-          </View>
-
-          {/* Center content */}
+          {/* Center content — brand + tagline */}
           <View style={styles.center}>
-            <Text style={styles.emoji}>🔄</Text>
             <GradientText style={styles.title}>Watasu</GradientText>
-            <Text style={styles.tagline}>Love it, then pass it on.</Text>
-            <Text style={styles.subtitle}>
-              Your kids outgrow things. Your friends' kids grow into them.{"\n"}
-              Sign in or create an account to get started.
-            </Text>
+            <Text style={styles.japanese}>{"\u6E21\u3059"} to pass along</Text>
+            <Text style={styles.tagline}>Love it, then watasu.</Text>
           </View>
 
           {/* Auth form */}
@@ -330,7 +288,7 @@ export default function WelcomeScreen() {
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
-            <Text style={styles.hint}>Takes 90 seconds</Text>
+            <Text style={styles.hint}>You'll be sharing in under 2 minutes</Text>
 
             <Text style={styles.legalText}>
               By continuing, you agree to our{" "}
@@ -360,48 +318,29 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  progressRow: {
-    flexDirection: "row",
-    gap: 6,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-  },
-  segmentWrapper: {
-    flex: 1,
-  },
-  segment: {
-    height: 4,
-    borderRadius: 2,
-  },
-  segmentEmpty: {
-    backgroundColor: "#F0F0ED",
-  },
   center: {
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 32,
-    paddingVertical: 24,
-  },
-  emoji: {
-    fontSize: 56,
-    marginBottom: 16,
+    paddingVertical: 32,
   },
   title: {
-    fontSize: 32,
+    fontSize: 38,
     fontWeight: "700",
   },
-  tagline: {
-    fontSize: 18,
-    color: "#8E8E93",
-    marginTop: 12,
-    textAlign: "center",
-  },
-  subtitle: {
+  japanese: {
     fontSize: 14,
-    color: "#AEAEB2",
-    marginTop: 10,
+    color: colors.textMuted,
+    marginTop: 8,
+    fontStyle: "italic",
+    letterSpacing: 1,
+  },
+  tagline: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: colors.text,
+    marginTop: 16,
     textAlign: "center",
-    lineHeight: 20,
   },
   bottom: {
     paddingHorizontal: 20,
@@ -409,34 +348,36 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  // Social buttons
+  // Social buttons — light style
   socialButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     width: "100%",
     paddingVertical: 16,
-    borderRadius: 12,
-    backgroundColor: "#000",
+    borderRadius: 14,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
     marginBottom: 10,
   },
   appleIcon: {
     fontSize: 20,
     fontWeight: "700",
     marginRight: 10,
-    color: "#FFF",
+    color: colors.text,
   },
   googleIcon: {
     fontSize: 20,
     fontWeight: "700",
     marginRight: 10,
-    color: "#FFF",
+    color: colors.text,
     fontFamily: Platform.OS === "ios" ? "System" : "sans-serif",
   },
   socialText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#FFF",
+    color: colors.text,
   },
 
   // Divider
@@ -462,7 +403,7 @@ const styles = StyleSheet.create({
     width: "100%",
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
     fontSize: 16,
     color: colors.text,
@@ -473,7 +414,7 @@ const styles = StyleSheet.create({
     width: "100%",
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
     fontSize: 28,
     fontWeight: "700",
@@ -494,7 +435,7 @@ const styles = StyleSheet.create({
   },
   linkText: {
     fontSize: 14,
-    color: colors.neonPurple,
+    color: colors.violet,
     fontWeight: "600",
     marginTop: 14,
     textAlign: "center",
@@ -529,19 +470,19 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   hint: {
-    fontSize: 12,
-    color: "#AEAEB2",
-    marginTop: 10,
+    fontSize: 13,
+    color: colors.textMuted,
+    marginTop: 14,
   },
   legalText: {
     fontSize: 11,
-    color: "#AEAEB2",
+    color: colors.textLight,
     marginTop: 16,
     textAlign: "center",
     lineHeight: 16,
   },
   legalLink: {
-    color: colors.neonPurple,
+    color: colors.violet,
     fontWeight: "500",
   },
 });

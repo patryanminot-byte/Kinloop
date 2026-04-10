@@ -418,7 +418,7 @@ export default function ShopScreen() {
           style={styles.safetyLink}
         >
           <Text style={styles.safetyLinkText}>
-            {"\u{1F6E1}\uFE0F"} Learn how we keep you safe {"\u203A"}
+            {"\u{1F6E1}\uFE0F"} How we keep you safe
           </Text>
         </Pressable>
 
@@ -549,7 +549,7 @@ const styles = StyleSheet.create({
   },
   safetyLinkText: {
     fontSize: 13,
-    color: colors.neonPurple,
+    color: colors.textMuted,
     fontWeight: "500",
   },
 

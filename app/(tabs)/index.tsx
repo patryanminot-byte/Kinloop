@@ -244,7 +244,7 @@ export default function HomeScreen() {
         {/* ---- Header ---- */}
         <View style={styles.headerRow}>
           <GradientText style={styles.logo}>Watasu</GradientText>
-          <Pressable onPress={() => router.push("/profile")}>
+          <Pressable onPress={() => router.push("/(tabs)/profile" as `/${string}`)}>
             <Avatar initials={userInitials} size={40} gradient />
           </Pressable>
         </View>
@@ -336,9 +336,9 @@ export default function HomeScreen() {
                     <View style={styles.offerItemInfo}>
                       <Text style={styles.offerItemName}>{offer.item}</Text>
                       {offer.pricing?.type === "free" ? (
-                        <Badge color="#34D399">Free</Badge>
+                        <Badge color={colors.eucalyptus}>Free</Badge>
                       ) : offer.pricing?.amount ? (
-                        <Badge color="#60A5FA">${offer.pricing.amount}</Badge>
+                        <Badge color={colors.blue}>${offer.pricing.amount}</Badge>
                       ) : null}
                     </View>
                   </View>
@@ -397,10 +397,10 @@ export default function HomeScreen() {
                   </View>
                   <View style={styles.badgeRow}>
                     {offer.status === "accepted" && (
-                      <Badge color="#C084FC">Accepted — arranging handoff</Badge>
+                      <Badge color={colors.violet}>Accepted — arranging handoff</Badge>
                     )}
                     {offer.status === "scheduled" && (
-                      <Badge color="#FB923C">Handoff planned</Badge>
+                      <Badge color={colors.coral}>Handoff planned</Badge>
                     )}
                   </View>
                 </Card>
@@ -443,23 +443,23 @@ export default function HomeScreen() {
                 {/* Badge */}
                 <View style={styles.badgeRow}>
                   {match.status === "ready" && (
-                    <Badge color="#34D399">Match found!</Badge>
+                    <Badge color={colors.eucalyptus}>Match found!</Badge>
                   )}
                   {match.status === "offered" && (
                     <>
-                      <Badge color="#60A5FA">Offer out! 🎉</Badge>
+                      <Badge color={colors.blue}>Offer out! 🎉</Badge>
                       {match.sentAt && (Date.now() - new Date(match.sentAt).getTime()) > 48 * 3600000 && (
                         <Pressable onPress={() => router.push(`/match/${match.id}?nudge=true` as `/${string}`)}>
-                          <Badge color="#FB923C">👋 Nudge {firstName(match.to)}</Badge>
+                          <Badge color={colors.coral}>👋 Nudge {firstName(match.to)}</Badge>
                         </Pressable>
                       )}
                     </>
                   )}
                   {match.status === "accepted" && (
-                    <Badge color="#C084FC">Offer accepted! 🙌</Badge>
+                    <Badge color={colors.violet}>Offer accepted! 🙌</Badge>
                   )}
                   {match.status === "scheduled" && (
-                    <Badge color="#FB923C">Handoff planned</Badge>
+                    <Badge color={colors.coral}>Handoff planned</Badge>
                   )}
                 </View>
 
@@ -537,9 +537,9 @@ export default function HomeScreen() {
                   <Text style={styles.agingAge}>{item.ageRange}</Text>
                   <View style={styles.agingBadge}>
                     {item.daysLeft === 0 ? (
-                      <Badge color="#FF6B9D">Ready now</Badge>
+                      <Badge color={colors.coral}>Ready now</Badge>
                     ) : (
-                      <Badge color="#FB923C">{item.daysLeft} days</Badge>
+                      <Badge color={colors.coral}>{item.daysLeft} days</Badge>
                     )}
                   </View>
                 </Card>
@@ -595,24 +595,16 @@ export default function HomeScreen() {
           </Card>
         </View>
 
-        {/* ---- Impact card ---- */}
+        {/* ---- Impact teaser ---- */}
         <View style={styles.section}>
-          <Card style={styles.impactCardOuter} onPress={() => router.push("/(tabs)/impact" as `/${string}`)}>
-            <LinearGradient
-              colors={gradientColors.subtle}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.impactGradient}
-            >
-              <Text style={styles.impactLabel}>Your circle's impact</Text>
-              <GradientText style={styles.impactNumber}>
-                {displayImpact.itemCount} items
-              </GradientText>
-              <Text style={styles.impactSub}>
-                kept out of landfills, worth ~${displayImpact.estimatedValue}
-              </Text>
-            </LinearGradient>
-          </Card>
+          <Pressable
+            style={styles.impactTeaser}
+            onPress={() => router.push("/(tabs)/profile" as `/${string}`)}
+          >
+            <Text style={styles.impactTeaserText}>
+              {displayImpact.itemCount} items passed along {"\u00B7"} ~${displayImpact.estimatedValue} saved
+            </Text>
+          </Pressable>
         </View>
 
         {/* bottom spacer */}
@@ -921,29 +913,15 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  // Impact
-  impactCardOuter: {
-    padding: 0,
-    overflow: "hidden",
-  },
-  impactGradient: {
-    padding: 24,
+  // Impact teaser
+  impactTeaser: {
+    paddingVertical: 12,
     alignItems: "center",
   },
-  impactLabel: {
+  impactTeaserText: {
     fontSize: 14,
     fontWeight: "600",
-    color: colors.neonPurple,
-    marginBottom: 8,
-  },
-  impactNumber: {
-    fontSize: 32,
-    marginBottom: 4,
-  },
-  impactSub: {
-    fontSize: 14,
-    color: colors.textMuted,
-    textAlign: "center",
+    color: colors.eucalyptus,
   },
 
   bottomSpacer: {

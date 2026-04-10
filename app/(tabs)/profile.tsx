@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
@@ -16,28 +16,17 @@ import DateTimePicker, {
 } from "@react-native-community/datetimepicker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
-import { colors, gradientColors } from "../../lib/colors";
+import { colors } from "../../lib/colors";
 import { Child } from "../../lib/types";
 import Avatar from "../../components/ui/Avatar";
 import GradientText from "../../components/ui/GradientText";
-import GradientBar from "../../components/ui/GradientBar";
 import { useAuth } from "../../hooks/useAuth";
 import { useAppStore } from "../../stores/appStore";
 import { useInventory } from "../../hooks/useInventory";
 import { useFriends } from "../../hooks/useFriends";
 import { supabase } from "../../lib/supabase";
 
-const MOCK_USER = {
-  name: "Pat Ryan",
-  initials: "PR",
-  city: "Madison, WI",
-};
-
-const MOCK_KIDS: Child[] = [
-  { id: "1", name: "Maya", dob: "2023-03-15", emoji: "\u{1F467}\u{1F3FD}" },
-  { id: "2", name: "Leo", dob: "2024-11-02", emoji: "\u{1F476}\u{1F3FC}" },
-];
+// ── Helpers ──────────────────────────────────────────────────────────
 
 function formatDob(dob: string): string {
   const date = new Date(dob + "T00:00:00");
@@ -55,17 +44,47 @@ function childAge(dob: string): string {
   return `${years}y`;
 }
 
+function getRankTitle(itemCount: number): { title: string; emoji: string } {
+  if (itemCount >= 20) return { title: "Circulation Legend", emoji: "\u{1F451}" };
+  if (itemCount >= 10) return { title: "Neighborhood Hero", emoji: "\u{1F3C6}" };
+  if (itemCount >= 5) return { title: "Gear Guardian", emoji: "\u{1F6E1}" };
+  if (itemCount >= 1) return { title: "Kind Starter", emoji: "\u{1F331}" };
+  return { title: "Getting Started", emoji: "\u{1F44B}" };
+}
+
+// ── Milestones ──────────────────────────────────────────────────────
+
+interface MilestoneData {
+  id: string;
+  emoji: string;
+  title: string;
+  description: string;
+  unlocked: boolean;
+  progress?: string;
+}
+
+const MOCK_MILESTONES: MilestoneData[] = [
+  { id: "m1", emoji: "\u{1F381}", title: "First Pass", description: "Passed along your first item", unlocked: true },
+  { id: "m2", emoji: "\u{1F91D}", title: "Circle Starter", description: "Invited 3 friends", unlocked: true },
+  { id: "m3", emoji: "\u{1F4E6}", title: "Bundle of Joy", description: "Sent a bundle of 3+ items", unlocked: true },
+  { id: "m4", emoji: "\u{1F504}", title: "Full Circle", description: "Received an item AND passed one along", unlocked: false, progress: "Receive your first item to unlock" },
+  { id: "m5", emoji: "\u{1F3C6}", title: "Neighborhood Hero", description: "10 items circulated", unlocked: false, progress: "6 more to go!" },
+  { id: "m6", emoji: "\u{1F30D}", title: "Planet Protector", description: "50 lbs kept out of landfills", unlocked: false, progress: "22 lbs to go!" },
+];
+
+// ── Settings ────────────────────────────────────────────────────────
+
 const SETTINGS_ROWS = [
-  { label: "How we keep you safe", icon: "\u{1F6E1}\uFE0F", route: "/legal/safety-and-privacy" },
   { label: "Notifications", icon: "\u{1F514}", route: null },
-  { label: "Privacy", icon: "\u{1F512}", route: null },
   { label: "Privacy Policy", icon: "\u{1F4DC}", route: "/legal/privacy" },
   { label: "Terms of Service", icon: "\u{1F4CB}", route: "/legal/terms" },
   { label: "Help & Support", icon: "\u{1F4AC}", route: null },
   { label: "About Watasu", icon: "\u{2728}", route: null },
 ];
 
-function VisibilityPicker() {
+// ── Visibility toggle ───────────────────────────────────────────────
+
+function VisibilityRow() {
   const visibility = useAppStore((s) => s.itemVisibility);
   const setVisibility = useAppStore((s) => s.setItemVisibility);
   const userId = useAuth().session?.user?.id;
@@ -83,24 +102,43 @@ function VisibilityPicker() {
   };
 
   return (
-    <View style={styles.visibilityCard}>
-      <Pressable style={styles.visibilityOption} onPress={toggle}>
-        <Text style={styles.visibilityEmoji}>{isPublic ? "\u{1F3D8}\uFE0F" : "\u{1F465}"}</Text>
-        <View style={styles.visibilityText}>
-          <Text style={styles.visibilityLabel}>
-            {isPublic ? "Visible to everyone on Watasu" : "Visible to friends"}
-          </Text>
-          <Text style={styles.visibilityDesc}>
-            Friends and their friends can always see your items
-          </Text>
-        </View>
-        <View style={[styles.toggleTrack, isPublic && styles.toggleTrackOn]}>
-          <View style={[styles.toggleThumb, isPublic && styles.toggleThumbOn]} />
-        </View>
-      </Pressable>
-    </View>
+    <Pressable style={styles.settingsRow} onPress={toggle}>
+      <Text style={styles.settingsIcon}>{isPublic ? "\u{1F3D8}\uFE0F" : "\u{1F465}"}</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.settingsLabel}>
+          {isPublic ? "Visible to everyone" : "Visible to friends"}
+        </Text>
+      </View>
+      <View style={[styles.toggleTrack, isPublic && styles.toggleTrackOn]}>
+        <View style={[styles.toggleThumb, isPublic && styles.toggleThumbOn]} />
+      </View>
+    </Pressable>
   );
 }
+
+// ── Kid emoji options ───────────────────────────────────────────────
+
+const KID_EMOJIS = [
+  "\u{1F476}", "\u{1F476}\u{1F3FB}", "\u{1F476}\u{1F3FC}",
+  "\u{1F476}\u{1F3FD}", "\u{1F476}\u{1F3FE}", "\u{1F476}\u{1F3FF}",
+  "\u{1F9D2}", "\u{1F9D2}\u{1F3FB}", "\u{1F9D2}\u{1F3FC}",
+  "\u{1F9D2}\u{1F3FD}", "\u{1F9D2}\u{1F3FE}", "\u{1F9D2}\u{1F3FF}",
+  "\u{1F466}", "\u{1F466}\u{1F3FC}", "\u{1F466}\u{1F3FE}",
+  "\u{1F467}", "\u{1F467}\u{1F3FC}", "\u{1F467}\u{1F3FE}",
+  "\u{1F9D1}", "\u{1F9D1}\u{1F3FB}", "\u{1F9D1}\u{1F3FC}",
+  "\u{1F9D1}\u{1F3FD}", "\u{1F9D1}\u{1F3FE}", "\u{1F9D1}\u{1F3FF}",
+  "\u{1F60A}", "\u{1F604}", "\u{1F970}", "\u{1F60E}",
+  "\u{1F929}", "\u{1F607}", "\u{1F973}", "\u{1F60B}",
+  "\u{1F917}", "\u{1F61C}", "\u{1F643}",
+  "\u{1F43B}", "\u{1F98A}", "\u{1F430}", "\u{1F431}",
+  "\u{1F981}", "\u{1F43C}", "\u{1F428}", "\u{1F984}",
+  "\u{1F42C}", "\u{1F98B}", "\u{1F422}", "\u{1F41D}",
+  "\u{1F31F}", "\u{1F308}", "\u{1F33B}", "\u{1F338}",
+  "\u{1F340}", "\u{1F331}", "\u{1F30A}", "\u{2728}",
+  "\u{1F680}", "\u{1F388}", "\u{1F3A8}", "\u{1F996}",
+];
+
+// ── Screen ──────────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -109,7 +147,6 @@ export default function ProfileScreen() {
   const { userName, userInitials, locationCity } = useAppStore();
   const { items } = useInventory(userId);
   const { friends } = useFriends(userId);
-
 
   const [kids, setKids] = useState<Child[]>([]);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
@@ -120,85 +157,65 @@ export default function ProfileScreen() {
   const [kidDobDraft, setKidDobDraft] = useState("");
   const [kidEmojiDraft, setKidEmojiDraft] = useState("");
   const [showKidDatePicker, setShowKidDatePicker] = useState(false);
+  const [showAllMilestones, setShowAllMilestones] = useState(false);
 
-  // Load avatar URL from profile
+  // Load avatar URL
   useEffect(() => {
     if (!userId) return;
-    supabase
-      .from("profiles")
-      .select("avatar_url")
-      .eq("id", userId)
-      .single()
-      .then(({ data }) => {
-        if (data?.avatar_url) setPhotoUri(data.avatar_url);
-      });
+    supabase.from("profiles").select("avatar_url").eq("id", userId).single()
+      .then(({ data }) => { if (data?.avatar_url) setPhotoUri(data.avatar_url); });
   }, [userId]);
 
+  // Load children
   useEffect(() => {
     if (!userId) return;
-    supabase
-      .from("children")
-      .select("*")
-      .eq("user_id", userId)
+    supabase.from("children").select("*").eq("user_id", userId)
       .then(({ data }) => {
-        if (data)
-          setKids(
-            data.map((k: any) => ({
-              id: k.id,
-              name: k.name,
-              dob: k.dob,
-              emoji: k.emoji,
-            })),
-          );
+        if (data) setKids(data.map((k: any) => ({ id: k.id, name: k.name, dob: k.dob, emoji: k.emoji })));
       });
   }, [userId]);
 
   const hasRealUser = userName.length > 0;
   const displayUser = hasRealUser
     ? { name: userName, initials: userInitials, city: locationCity }
-    : MOCK_USER;
+    : { name: "Pat Ryan", initials: "PR", city: "Madison, WI" };
 
-  const displayKids = kids;
+  // ── Impact stats (absorbed from Impact screen) ────────────────────
+  const impact = useMemo(() => {
+    const given = items.filter((i) => i.status === "handed-off").length;
+    const valueShared = items
+      .filter((i) => i.status === "handed-off")
+      .reduce((sum, i) => sum + (i.pricing?.amount ?? 85), 0);
+    return { given, received: 0, valueShared, lbsDiverted: given * 7 };
+  }, [items]);
 
-  // Real impact stats
-  const handedOff = items.filter((i) => i.status === "handed-off").length;
-  const totalItems = items.length;
-  const friendCount = friends.length > 0 ? friends.length : 4;
-  const estimatedSaved = handedOff > 0 ? handedOff * 85 : 340;
-  const lbsDiverted = handedOff > 0 ? handedOff * 7 : 28;
+  const displayImpact = impact.given > 0
+    ? impact
+    : { given: 4, received: 2, valueShared: 340, lbsDiverted: 28 };
+  const totalCirculated = displayImpact.given + displayImpact.received;
+  const rank = getRankTitle(totalCirculated);
 
+  const visibleMilestones = showAllMilestones
+    ? MOCK_MILESTONES
+    : MOCK_MILESTONES.slice(0, 3);
+
+  // ── Photo upload ──────────────────────────────────────────────────
   const uploadPhoto = async (uri: string) => {
     if (!userId) return;
-    setPhotoUri(uri); // Show immediately
-
+    setPhotoUri(uri);
     try {
       const response = await fetch(uri);
       const blob = await response.blob();
       const ext = uri.split(".").pop() ?? "jpg";
       const path = `${userId}/avatar.${ext}`;
-
       const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(path, blob, { upsert: true, contentType: `image/${ext}` });
-
-      if (uploadError) {
-        console.warn("Avatar upload failed:", uploadError.message);
-        return;
-      }
-
-      const { data: urlData } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(path);
-
+        .from("avatars").upload(path, blob, { upsert: true, contentType: `image/${ext}` });
+      if (uploadError) { console.warn("Avatar upload failed:", uploadError.message); return; }
+      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
       if (urlData?.publicUrl) {
-        await supabase
-          .from("profiles")
-          .update({ avatar_url: urlData.publicUrl })
-          .eq("id", userId);
+        await supabase.from("profiles").update({ avatar_url: urlData.publicUrl }).eq("id", userId);
       }
-    } catch (err) {
-      console.warn("Avatar upload error:", err);
-    }
+    } catch (err) { console.warn("Avatar upload error:", err); }
   };
 
   const handlePickPhoto = () => {
@@ -207,96 +224,41 @@ export default function ProfileScreen() {
         text: "Take Photo",
         onPress: async () => {
           const { status } = await ImagePicker.requestCameraPermissionsAsync();
-          if (status !== "granted") {
-            Alert.alert("Permission needed", "Camera access is required to take a photo.");
-            return;
-          }
-          const result = await ImagePicker.launchCameraAsync({
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.7,
-          });
-          if (!result.canceled && result.assets?.[0]) {
-            uploadPhoto(result.assets[0].uri);
-          }
+          if (status !== "granted") { Alert.alert("Permission needed", "Camera access is required."); return; }
+          const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.7 });
+          if (!result.canceled && result.assets?.[0]) uploadPhoto(result.assets[0].uri);
         },
       },
       {
         text: "Choose from Library",
         onPress: async () => {
           const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.7,
+            mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.7,
           });
-          if (!result.canceled && result.assets?.[0]) {
-            uploadPhoto(result.assets[0].uri);
-          }
+          if (!result.canceled && result.assets?.[0]) uploadPhoto(result.assets[0].uri);
         },
       },
       { text: "Cancel", style: "cancel" },
     ]);
   };
 
-  const handleEditName = () => {
-    setNameDraft(displayUser.name);
-    setEditingName(true);
-  };
-
+  // ── Name editing ──────────────────────────────────────────────────
+  const handleEditName = () => { setNameDraft(displayUser.name); setEditingName(true); };
   const handleSaveName = async () => {
     if (userId && nameDraft.trim().length > 0) {
-      await supabase
-        .from("profiles")
-        .update({ name: nameDraft.trim() })
-        .eq("id", userId);
+      await supabase.from("profiles").update({ name: nameDraft.trim() }).eq("id", userId);
       useAppStore.getState().setUserProfile({
         name: nameDraft.trim(),
-        initials: nameDraft
-          .trim()
-          .split(" ")
-          .map((w) => w[0])
-          .join("")
-          .toUpperCase()
-          .slice(0, 2),
+        initials: nameDraft.trim().split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2),
         city: locationCity,
       });
     }
     setEditingName(false);
   };
 
-  const KID_EMOJIS = [
-    // Baby
-    "\u{1F476}", "\u{1F476}\u{1F3FB}", "\u{1F476}\u{1F3FC}",
-    "\u{1F476}\u{1F3FD}", "\u{1F476}\u{1F3FE}", "\u{1F476}\u{1F3FF}",
-    // Child
-    "\u{1F9D2}", "\u{1F9D2}\u{1F3FB}", "\u{1F9D2}\u{1F3FC}",
-    "\u{1F9D2}\u{1F3FD}", "\u{1F9D2}\u{1F3FE}", "\u{1F9D2}\u{1F3FF}",
-    // Boy / Girl
-    "\u{1F466}", "\u{1F466}\u{1F3FC}", "\u{1F466}\u{1F3FE}",
-    "\u{1F467}", "\u{1F467}\u{1F3FC}", "\u{1F467}\u{1F3FE}",
-    // Teen/Adult
-    "\u{1F9D1}", "\u{1F9D1}\u{1F3FB}", "\u{1F9D1}\u{1F3FC}",
-    "\u{1F9D1}\u{1F3FD}", "\u{1F9D1}\u{1F3FE}", "\u{1F9D1}\u{1F3FF}",
-    // Expressive faces
-    "\u{1F60A}", "\u{1F604}", "\u{1F970}", "\u{1F60E}",
-    "\u{1F929}", "\u{1F607}", "\u{1F973}", "\u{1F60B}",
-    "\u{1F917}", "\u{1F61C}", "\u{1F643}",
-    // Animals
-    "\u{1F43B}", "\u{1F98A}", "\u{1F430}", "\u{1F431}",
-    "\u{1F981}", "\u{1F43C}", "\u{1F428}", "\u{1F984}",
-    "\u{1F42C}", "\u{1F98B}", "\u{1F422}", "\u{1F41D}",
-    // Nature & fun
-    "\u{1F31F}", "\u{1F308}", "\u{1F33B}", "\u{1F338}",
-    "\u{1F340}", "\u{1F331}", "\u{1F30A}", "\u{2728}",
-    "\u{1F680}", "\u{1F388}", "\u{1F3A8}", "\u{1F996}",
-  ];
-
+  // ── Kid editing ───────────────────────────────────────────────────
   const handleEditKid = (kid: Child) => {
-    setEditingKidId(kid.id);
-    setKidNameDraft(kid.name);
-    setKidDobDraft(kid.dob);
-    setKidEmojiDraft(kid.emoji);
+    setEditingKidId(kid.id); setKidNameDraft(kid.name); setKidDobDraft(kid.dob); setKidEmojiDraft(kid.emoji);
     setShowKidDatePicker(false);
   };
 
@@ -306,9 +268,7 @@ export default function ProfileScreen() {
 
   const handleKidDateChange = (_event: DateTimePickerEvent, date?: Date) => {
     if (Platform.OS === "android") setShowKidDatePicker(false);
-    if (date) {
-      setKidDobDraft(date.toISOString().split("T")[0]);
-    }
+    if (date) setKidDobDraft(date.toISOString().split("T")[0]);
   };
 
   const formatKidDobLabel = (dob: string) => {
@@ -321,49 +281,26 @@ export default function ProfileScreen() {
       const updates: Record<string, string> = { name: kidNameDraft.trim() };
       if (kidDobDraft) updates.dob = kidDobDraft;
       if (kidEmojiDraft) updates.emoji = kidEmojiDraft;
-      await supabase
-        .from("children")
-        .update(updates)
-        .eq("id", editingKidId);
-      setKids((prev) =>
-        prev.map((k) =>
-          k.id === editingKidId
-            ? {
-                ...k,
-                name: kidNameDraft.trim(),
-                dob: kidDobDraft || k.dob,
-                emoji: kidEmojiDraft || k.emoji,
-              }
-            : k,
-        ),
-      );
+      await supabase.from("children").update(updates).eq("id", editingKidId);
+      setKids((prev) => prev.map((k) =>
+        k.id === editingKidId
+          ? { ...k, name: kidNameDraft.trim(), dob: kidDobDraft || k.dob, emoji: kidEmojiDraft || k.emoji }
+          : k,
+      ));
     }
     setEditingKidId(null);
   };
 
   const handleSignOut = async () => {
-    try {
-      await signOut();
-    } catch {
-      Alert.alert("Error", "Failed to sign out");
-    }
+    try { await signOut(); } catch { Alert.alert("Error", "Failed to sign out"); }
   };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Back button */}
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>{"\u2190"} Back</Text>
-        </Pressable>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
-        {/* ── User Card ── */}
-        <View style={styles.userCard}>
-          {/* Avatar — tappable to add/change photo */}
+        {/* ── Header: Avatar + Name ── */}
+        <View style={styles.headerSection}>
           <Pressable onPress={handlePickPhoto} style={styles.avatarContainer}>
             {photoUri ? (
               <Image source={{ uri: photoUri }} style={styles.avatarImage} />
@@ -375,16 +312,13 @@ export default function ProfileScreen() {
             </View>
           </Pressable>
 
-          {/* Name — tappable to edit */}
           {editingName ? (
             <View style={styles.nameEditRow}>
               <TextInput
                 style={styles.nameInput}
                 value={nameDraft}
                 onChangeText={setNameDraft}
-                autoFocus
-                autoCapitalize="words"
-                returnKeyType="done"
+                autoFocus autoCapitalize="words" returnKeyType="done"
                 onSubmitEditing={handleSaveName}
               />
               <Pressable onPress={handleSaveName} style={styles.nameSaveBtn}>
@@ -394,207 +328,147 @@ export default function ProfileScreen() {
           ) : (
             <Pressable onPress={handleEditName} style={styles.nameRow}>
               <Text style={styles.userName}>{displayUser.name}</Text>
-              <Text style={styles.nameEditIcon}>{"\u270F\uFE0F"}</Text>
+              <Text style={styles.nameEditPencil}>{"\u270F\uFE0F"}</Text>
             </Pressable>
           )}
 
-          {/* Location — display only if set */}
           {displayUser.city ? (
-            <Text style={styles.userCity}>
-              {"\u{1F4CD}"} {displayUser.city}
-            </Text>
+            <Text style={styles.userCity}>{"\u{1F4CD}"} {displayUser.city}</Text>
           ) : null}
-
-          <GradientBar height={3} style={styles.gradientBar} />
         </View>
 
-        {/* ── Your Kids — each tappable to edit ── */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Your kids</Text>
-          <Pressable
-            onPress={() =>
-              router.push("/onboarding/add-child" as `/${string}`)
-            }
-          >
-            <Text style={styles.sectionAction}>+ Add</Text>
-          </Pressable>
+        {/* ── Impact Summary ── */}
+        <View style={styles.impactSummary}>
+          <Text style={styles.impactLine}>
+            <Text style={styles.impactNumber}>{displayImpact.given}</Text> passed along{" \u00B7 "}
+            <Text style={styles.impactNumber}>{displayImpact.received}</Text> received{" \u00B7 "}
+            <Text style={styles.impactNumber}>${displayImpact.valueShared}</Text> saved
+          </Text>
+          <Text style={styles.impactSubline}>
+            {displayImpact.lbsDiverted} lbs from landfill {"\u00B7"} {rank.emoji} {rank.title}
+          </Text>
         </View>
 
-        {displayKids.map((kid) =>
-          editingKidId === kid.id ? (
-            <View key={kid.id} style={styles.kidEditCard}>
-              {/* Emoji picker */}
-              <View style={styles.kidEditSection}>
-                <Text style={styles.kidEditLabel}>Avatar</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  style={styles.emojiScroll}
-                  contentContainerStyle={styles.emojiScrollContent}
-                >
-                  {KID_EMOJIS.map((e) => (
-                    <Pressable
-                      key={e}
-                      onPress={() => setKidEmojiDraft(e)}
-                      style={[
-                        styles.emojiOption,
-                        kidEmojiDraft === e && styles.emojiOptionSelected,
-                      ]}
-                    >
-                      <Text style={styles.emojiOptionText}>{e}</Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </View>
-
-              {/* Name */}
-              <View style={styles.kidEditSection}>
-                <Text style={styles.kidEditLabel}>Name</Text>
-                <TextInput
-                  style={styles.kidNameInput}
-                  value={kidNameDraft}
-                  onChangeText={setKidNameDraft}
-                  autoFocus
-                  autoCapitalize="words"
-                  returnKeyType="next"
-                />
-              </View>
-
-              {/* Birthday */}
-              <View style={styles.kidEditSection}>
-                <Text style={styles.kidEditLabel}>Birthday</Text>
-                <Pressable
-                  style={styles.kidDateBtn}
-                  onPress={() => setShowKidDatePicker(true)}
-                >
-                  <Text style={styles.kidDateBtnText}>
-                    {kidDobDraft
-                      ? `${formatKidDobLabel(kidDobDraft)}  ·  ${childAge(kidDobDraft)} old`
-                      : "Select birthday"}
-                  </Text>
-                </Pressable>
-                {showKidDatePicker && (
-                  <>
-                    <DateTimePicker
-                      value={kidDobDate}
-                      mode="date"
-                      display={Platform.OS === "ios" ? "spinner" : "default"}
-                      maximumDate={new Date()}
-                      minimumDate={new Date(new Date().getFullYear() - 18, 0, 1)}
-                      onChange={handleKidDateChange}
-                    />
-                    {Platform.OS === "ios" && (
-                      <Pressable
-                        onPress={() => setShowKidDatePicker(false)}
-                        style={styles.kidDateDoneBtn}
-                      >
-                        <Text style={styles.kidDateDoneText}>Done</Text>
-                      </Pressable>
-                    )}
-                  </>
-                )}
-              </View>
-
-              <Pressable onPress={handleSaveKid} style={styles.kidSaveBtn}>
-                <Text style={styles.kidSaveBtnText}>Save</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <Pressable key={kid.id} onPress={() => handleEditKid(kid)}>
-              <View style={styles.kidCard}>
-                <Text style={styles.kidEmoji}>{kid.emoji}</Text>
-                <View style={styles.kidInfo}>
-                  <Text style={styles.kidName}>{kid.name}</Text>
-                  <Text style={styles.kidDetail}>
-                    {childAge(kid.dob)} {"\u00B7"} Born {formatDob(kid.dob)}
-                  </Text>
-                </View>
-                <Text style={styles.kidEditIcon}>{"\u270F\uFE0F"}</Text>
-              </View>
-            </Pressable>
-          ),
-        )}
-
-        {/* ── Impact Stats — tappable to go to impact page ── */}
+        {/* ── My Items link ── */}
         <Pressable
-          onPress={() => router.push("/(tabs)/impact" as `/${string}`)}
+          style={styles.myItemsRow}
+          onPress={() => router.push("/(tabs)/stuff" as `/${string}`)}
         >
-          <View style={styles.impactCard}>
-            <LinearGradient
-              colors={gradientColors.subtle}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.impactGradient}
-            >
-              <View style={styles.impactStatsRow}>
-                <View style={styles.impactStatBox}>
-                  <GradientText style={styles.impactStatNumber}>
-                    {totalItems || 12}
-                  </GradientText>
-                  <Text style={styles.impactStatLabel}>items{"\n"}tracked</Text>
-                </View>
-                <View style={styles.impactStatDivider} />
-                <View style={styles.impactStatBox}>
-                  <GradientText style={styles.impactStatNumber}>
-                    {handedOff || 4}
-                  </GradientText>
-                  <Text style={styles.impactStatLabel}>passed{"\n"}along</Text>
-                </View>
-                <View style={styles.impactStatDivider} />
-                <View style={styles.impactStatBox}>
-                  <GradientText style={styles.impactStatNumber}>
-                    ${estimatedSaved}
-                  </GradientText>
-                  <Text style={styles.impactStatLabel}>saved</Text>
-                </View>
-                <View style={styles.impactStatDivider} />
-                <View style={styles.impactStatBox}>
-                  <GradientText style={styles.impactStatNumber}>
-                    {lbsDiverted}
-                  </GradientText>
-                  <Text style={styles.impactStatLabel}>lbs from{"\n"}landfill</Text>
-                </View>
-              </View>
-
-              <View style={styles.impactFooter}>
-                <Text style={styles.impactFooterText}>
-                  {friendCount} friends in your circle {"\u00B7"} See full
-                  impact {"\u203A"}
-                </Text>
-              </View>
-            </LinearGradient>
-          </View>
+          <Text style={styles.myItemsIcon}>{"\u25CE"}</Text>
+          <Text style={styles.myItemsLabel}>My Items</Text>
+          <Text style={styles.myItemsCount}>{items.length || 12}</Text>
+          <Text style={styles.chevron}>{"\u203A"}</Text>
         </Pressable>
 
-        {/* ── Who can see your items ── */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Who sees your items</Text>
+        {/* ── Milestones ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Milestones</Text>
+          {visibleMilestones.map((m) => (
+            <View key={m.id} style={[styles.milestoneRow, !m.unlocked && { opacity: 0.4 }]}>
+              <View style={[styles.milestoneCircle, m.unlocked ? styles.milestoneCircleUnlocked : styles.milestoneCircleLocked]}>
+                <Text style={styles.milestoneEmoji}>{m.emoji}</Text>
+              </View>
+              <View style={styles.milestoneInfo}>
+                <Text style={styles.milestoneName}>{m.title}</Text>
+                <Text style={styles.milestoneDesc}>{m.unlocked ? m.description : m.progress ?? m.description}</Text>
+              </View>
+              {m.unlocked && <Text style={styles.milestoneCheck}>{"\u2713"}</Text>}
+            </View>
+          ))}
+          {!showAllMilestones && MOCK_MILESTONES.length > 3 && (
+            <Pressable onPress={() => setShowAllMilestones(true)} style={styles.seeAllBtn}>
+              <Text style={styles.seeAllText}>See all milestones</Text>
+            </Pressable>
+          )}
         </View>
-        <VisibilityPicker />
+
+        {/* ── Your Kids ── */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Your kids</Text>
+            <Pressable onPress={() => router.push("/onboarding/add-child" as `/${string}`)}>
+              <Text style={styles.sectionAction}>+ Add</Text>
+            </Pressable>
+          </View>
+
+          {kids.map((kid) =>
+            editingKidId === kid.id ? (
+              <View key={kid.id} style={styles.kidEditCard}>
+                <View style={styles.kidEditSection}>
+                  <Text style={styles.kidEditLabel}>Avatar</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.emojiScroll} contentContainerStyle={styles.emojiScrollContent}>
+                    {KID_EMOJIS.map((e) => (
+                      <Pressable key={e} onPress={() => setKidEmojiDraft(e)} style={[styles.emojiOption, kidEmojiDraft === e && styles.emojiOptionSelected]}>
+                        <Text style={styles.emojiOptionText}>{e}</Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                </View>
+                <View style={styles.kidEditSection}>
+                  <Text style={styles.kidEditLabel}>Name</Text>
+                  <TextInput style={styles.kidNameInput} value={kidNameDraft} onChangeText={setKidNameDraft} autoFocus autoCapitalize="words" returnKeyType="next" />
+                </View>
+                <View style={styles.kidEditSection}>
+                  <Text style={styles.kidEditLabel}>Birthday</Text>
+                  <Pressable style={styles.kidDateBtn} onPress={() => setShowKidDatePicker(true)}>
+                    <Text style={styles.kidDateBtnText}>
+                      {kidDobDraft ? `${formatKidDobLabel(kidDobDraft)}  \u00B7  ${childAge(kidDobDraft)} old` : "Select birthday"}
+                    </Text>
+                  </Pressable>
+                  {showKidDatePicker && (
+                    <>
+                      <DateTimePicker
+                        value={kidDobDate} mode="date" display={Platform.OS === "ios" ? "spinner" : "default"}
+                        maximumDate={new Date()} minimumDate={new Date(new Date().getFullYear() - 18, 0, 1)}
+                        onChange={handleKidDateChange}
+                      />
+                      {Platform.OS === "ios" && (
+                        <Pressable onPress={() => setShowKidDatePicker(false)} style={styles.kidDateDoneBtn}>
+                          <Text style={styles.kidDateDoneText}>Done</Text>
+                        </Pressable>
+                      )}
+                    </>
+                  )}
+                </View>
+                <Pressable onPress={handleSaveKid} style={styles.kidSaveBtn}>
+                  <Text style={styles.kidSaveBtnText}>Save</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable key={kid.id} onPress={() => handleEditKid(kid)}>
+                <View style={styles.kidCard}>
+                  <Text style={styles.kidEmoji}>{kid.emoji}</Text>
+                  <View style={styles.kidInfo}>
+                    <Text style={styles.kidName}>{kid.name}</Text>
+                    <Text style={styles.kidDetail}>{childAge(kid.dob)} {"\u00B7"} Born {formatDob(kid.dob)}</Text>
+                  </View>
+                  <Text style={styles.kidEditIcon}>{"\u270F\uFE0F"}</Text>
+                </View>
+              </Pressable>
+            ),
+          )}
+        </View>
 
         {/* ── Settings ── */}
-        <View style={styles.sectionHeader}>
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>Settings</Text>
-        </View>
-
-        <View style={styles.settingsCard}>
-          {SETTINGS_ROWS.map((item, index) => (
-            <React.Fragment key={item.label}>
-              {index > 0 && <View style={styles.divider} />}
-              <Pressable
-                style={styles.settingsRow}
-                onPress={() =>
-                  item.route
-                    ? router.push(item.route as `/${string}`)
-                    : Alert.alert("Coming soon")
-                }
-              >
-                <Text style={styles.settingsIcon}>{item.icon}</Text>
-                <Text style={styles.settingsLabel}>{item.label}</Text>
-                <Text style={styles.settingsChevron}>{"\u203A"}</Text>
-              </Pressable>
-            </React.Fragment>
-          ))}
+          <View style={styles.settingsCard}>
+            <VisibilityRow />
+            <View style={styles.divider} />
+            {SETTINGS_ROWS.map((item, index) => (
+              <React.Fragment key={item.label}>
+                {index > 0 && <View style={styles.divider} />}
+                <Pressable
+                  style={styles.settingsRow}
+                  onPress={() => item.route ? router.push(item.route as `/${string}`) : Alert.alert("Coming soon")}
+                >
+                  <Text style={styles.settingsIcon}>{item.icon}</Text>
+                  <Text style={styles.settingsLabel}>{item.label}</Text>
+                  <Text style={styles.chevron}>{"\u203A"}</Text>
+                </Pressable>
+              </React.Fragment>
+            ))}
+          </View>
         </View>
 
         {/* ── Sign Out ── */}
@@ -602,37 +476,25 @@ export default function ProfileScreen() {
           <Text style={styles.signOutText}>Sign Out</Text>
         </Pressable>
 
-        <Text style={styles.version}>Watasu v1.0.0</Text>
+        <Text style={styles.version}>Watasu v3.0</Text>
+
+        <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+// ── Styles ──────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   container: { flex: 1 },
-  content: { padding: 20, paddingBottom: 160 },
-  backBtn: {
-    alignSelf: "flex-start",
-    paddingVertical: 8,
-    marginBottom: 8,
-  },
-  backText: {
-    fontSize: 16,
-    color: colors.neonPurple,
-    fontWeight: "600",
-  },
+  content: { padding: 20 },
 
-  // User card
-  userCard: {
+  // Header
+  headerSection: {
     alignItems: "center",
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 20,
-    overflow: "hidden",
-    marginBottom: 16,
+    marginBottom: 20,
   },
   avatarContainer: {
     position: "relative",
@@ -659,9 +521,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
   },
-  avatarEditIcon: {
-    fontSize: 12,
-  },
+  avatarEditIcon: { fontSize: 12 },
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -672,11 +532,8 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: "700",
     color: colors.text,
-    textAlign: "center",
   },
-  nameEditIcon: {
-    fontSize: 14,
-  },
+  nameEditPencil: { fontSize: 14 },
   nameEditRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -691,12 +548,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.text,
     borderBottomWidth: 2,
-    borderBottomColor: colors.neonPurple,
+    borderBottomColor: colors.violet,
     paddingVertical: 6,
     textAlign: "center",
   },
   nameSaveBtn: {
-    backgroundColor: colors.neonPurple,
+    backgroundColor: colors.violet,
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -710,79 +567,136 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textMuted,
     marginTop: 6,
-    textAlign: "center",
-  },
-  gradientBar: {
-    marginTop: 16,
-    marginHorizontal: -20,
   },
 
-  // Impact stats
-  impactCard: {
-    borderRadius: 16,
-    overflow: "hidden",
-    marginBottom: 16,
+  // Impact summary
+  impactSummary: {
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    backgroundColor: colors.card,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
+    marginBottom: 12,
   },
-  impactGradient: {
-    padding: 20,
-    borderRadius: 15,
-  },
-  impactStatsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  impactStatBox: {
-    flex: 1,
-    alignItems: "center",
-  },
-  impactStatNumber: {
-    fontSize: 22,
-    fontWeight: "700",
-  },
-  impactStatLabel: {
-    fontSize: 10,
+  impactLine: {
+    fontSize: 15,
     color: colors.textMuted,
-    marginTop: 3,
     textAlign: "center",
-    lineHeight: 13,
+    lineHeight: 22,
   },
-  impactStatDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: colors.border,
+  impactNumber: {
+    fontWeight: "700",
+    color: colors.text,
+    fontSize: 16,
   },
-  impactFooter: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: 12,
-    marginTop: 16,
-    alignItems: "center",
-  },
-  impactFooterText: {
+  impactSubline: {
     fontSize: 13,
+    color: colors.eucalyptus,
     fontWeight: "600",
-    color: colors.neonPurple,
+    marginTop: 6,
   },
 
-  // Section header
-  sectionHeader: {
+  // My Items row
+  myItemsRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 8,
-    marginTop: 4,
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
+    marginBottom: 20,
+    gap: 12,
+  },
+  myItemsIcon: {
+    fontSize: 20,
+    color: colors.violet,
+  },
+  myItemsLabel: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.text,
+  },
+  myItemsCount: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.violet,
+  },
+  chevron: {
+    fontSize: 20,
+    color: colors.textLight,
+  },
+
+  // Sections
+  section: {
+    marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 17,
     fontWeight: "700",
     color: colors.text,
+    marginBottom: 10,
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
   },
   sectionAction: {
     fontSize: 14,
     fontWeight: "600",
-    color: colors.neonPurple,
+    color: colors.violet,
+  },
+
+  // Milestones
+  milestoneRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    gap: 12,
+  },
+  milestoneCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  milestoneCircleUnlocked: {
+    backgroundColor: colors.eucalyptusLight,
+  },
+  milestoneCircleLocked: {
+    backgroundColor: colors.surface,
+  },
+  milestoneEmoji: { fontSize: 20 },
+  milestoneInfo: { flex: 1 },
+  milestoneName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.text,
+  },
+  milestoneDesc: {
+    fontSize: 13,
+    color: colors.textMuted,
+    marginTop: 1,
+  },
+  milestoneCheck: {
+    fontSize: 16,
+    color: colors.eucalyptus,
+    fontWeight: "700",
+  },
+  seeAllBtn: {
+    paddingVertical: 8,
+    alignItems: "center",
+  },
+  seeAllText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.violet,
   },
 
   // Kids
@@ -801,14 +715,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: 14,
     borderWidth: 2,
-    borderColor: colors.neonPurple,
+    borderColor: colors.violet,
     padding: 16,
     marginBottom: 8,
     gap: 12,
   },
-  kidEditSection: {
-    gap: 4,
-  },
+  kidEditSection: { gap: 4 },
   kidEditLabel: {
     fontSize: 12,
     fontWeight: "600",
@@ -816,14 +728,8 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-  emojiScroll: {
-    marginHorizontal: -4,
-  },
-  emojiScrollContent: {
-    gap: 6,
-    paddingHorizontal: 4,
-    paddingVertical: 4,
-  },
+  emojiScroll: { marginHorizontal: -4 },
+  emojiScrollContent: { gap: 6, paddingHorizontal: 4, paddingVertical: 4 },
   emojiOption: {
     width: 40,
     height: 40,
@@ -835,12 +741,10 @@ const styles = StyleSheet.create({
     borderColor: "transparent",
   },
   emojiOptionSelected: {
-    borderColor: colors.neonPurple,
-    backgroundColor: colors.neonPurple + "15",
+    borderColor: colors.violet,
+    backgroundColor: colors.violetLight,
   },
-  emojiOptionText: {
-    fontSize: 22,
-  },
+  emojiOptionText: { fontSize: 22 },
   kidDateBtn: {
     backgroundColor: colors.bg,
     borderRadius: 10,
@@ -849,116 +753,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  kidDateBtnText: {
-    fontSize: 15,
-    color: colors.text,
-    fontWeight: "500",
-  },
-  kidDateDoneBtn: {
-    alignSelf: "flex-end",
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  kidDateDoneText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: colors.neonPurple,
-  },
-  kidEmoji: {
-    fontSize: 32,
-  },
-  kidInfo: {
-    flex: 1,
-  },
-  kidName: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  kidDetail: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  kidEditIcon: {
-    fontSize: 14,
-  },
+  kidDateBtnText: { fontSize: 15, color: colors.text, fontWeight: "500" },
+  kidDateDoneBtn: { alignSelf: "flex-end", paddingVertical: 6, paddingHorizontal: 12 },
+  kidDateDoneText: { fontSize: 15, fontWeight: "600", color: colors.violet },
+  kidEmoji: { fontSize: 32 },
+  kidInfo: { flex: 1 },
+  kidName: { fontSize: 16, fontWeight: "700", color: colors.text },
+  kidDetail: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+  kidEditIcon: { fontSize: 14 },
   kidNameInput: {
     flex: 1,
     fontSize: 16,
     fontWeight: "600",
     color: colors.text,
     borderBottomWidth: 2,
-    borderBottomColor: colors.neonPurple,
+    borderBottomColor: colors.violet,
     paddingVertical: 4,
   },
   kidSaveBtn: {
-    backgroundColor: colors.neonPurple,
+    backgroundColor: colors.violet,
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: "center",
     marginTop: 4,
   },
-  kidSaveBtnText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-
-  // Visibility toggle
-  visibilityCard: {
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: "hidden",
-    marginBottom: 20,
-  },
-  visibilityOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  visibilityEmoji: {
-    fontSize: 20,
-    width: 28,
-    textAlign: "center" as const,
-  },
-  visibilityText: {
-    flex: 1,
-  },
-  visibilityLabel: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: colors.text,
-  },
-  visibilityDesc: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 1,
-  },
-  toggleTrack: {
-    width: 40,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#E5E5E3",
-    justifyContent: "center",
-    paddingHorizontal: 2,
-  },
-  toggleTrackOn: {
-    backgroundColor: colors.neonPurple,
-  },
-  toggleThumb: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "#FFFFFF",
-  },
-  toggleThumbOn: {
-    alignSelf: "flex-end" as const,
-  },
+  kidSaveBtnText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
 
   // Settings
   settingsCard: {
@@ -967,7 +786,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     overflow: "hidden",
-    marginBottom: 20,
   },
   settingsRow: {
     flexDirection: "row",
@@ -986,14 +804,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: colors.text,
   },
-  settingsChevron: {
-    fontSize: 20,
-    color: colors.textMuted,
-  },
   divider: {
     height: 1,
-    backgroundColor: "#F0F0ED",
+    backgroundColor: colors.border,
     marginHorizontal: 16,
+  },
+
+  // Toggle
+  toggleTrack: {
+    width: 40,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    justifyContent: "center",
+    paddingHorizontal: 2,
+  },
+  toggleTrackOn: {
+    backgroundColor: colors.violet,
+  },
+  toggleThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+  },
+  toggleThumbOn: {
+    alignSelf: "flex-end" as const,
   },
 
   // Sign out
@@ -1002,17 +838,16 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#FCA5A5",
-    backgroundColor: "#FEF2F2",
+    borderColor: colors.coral,
+    backgroundColor: colors.coralLight,
     marginBottom: 20,
   },
   signOutText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#EF4444",
+    color: colors.coral,
   },
 
-  // Version
   version: {
     fontSize: 12,
     color: colors.textLight,

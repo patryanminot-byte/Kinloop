@@ -13,12 +13,10 @@ import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors, gradientColors } from "../../lib/colors";
 import type { Item } from "../../lib/types";
-import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
 import { useAuth } from "../../hooks/useAuth";
 import { useInventory } from "../../hooks/useInventory";
 import { useAppStore } from "../../stores/appStore";
-import { supabase } from "../../lib/supabase";
 
 // ── Mock Data ──────────────────────────────────────────────────────────
 const MOCK_ITEMS: Item[] = [
@@ -45,15 +43,23 @@ function sortItems(items: Item[]): Item[] {
   return [...items].sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
 }
 
+function statusColor(status: Item["status"]): string {
+  switch (status) {
+    case "aging-out": return colors.coral;
+    case "available": return colors.eucalyptus;
+    case "matched": return colors.violet;
+    case "handed-off": return colors.textLight;
+  }
+}
+
 function badgeFor(item: Item): { label: string; color: string } {
   if (item.status === "aging-out")
-    return { label: "Time to go?", color: "#FB923C" };
+    return { label: "Time to go?", color: colors.coral };
   if (item.status === "available")
-    return { label: "Available", color: "#22D3EE" };
+    return { label: "Available", color: colors.eucalyptus };
   if (item.status === "handed-off")
-    return { label: "Done", color: "#34D399" };
-  // matched — no badge needed on right side, but provide a fallback
-  return { label: "Matched", color: colors.neonPurple };
+    return { label: "Done", color: colors.eucalyptus };
+  return { label: "Matched", color: colors.violet };
 }
 
 // ── Components ─────────────────────────────────────────────────────────
@@ -89,75 +95,35 @@ function CategoryPill({
 }
 
 function ItemRow({ item, onPress }: { item: Item; onPress: () => void }) {
-  const { label, color } = badgeFor(item);
   const isHandedOff = item.status === "handed-off";
+  const circleColor = statusColor(item.status);
 
   return (
     <Pressable style={[styles.itemRow, isHandedOff && styles.itemRowHandedOff]} onPress={onPress}>
-      {/* Emoji circle */}
-      <LinearGradient
-        colors={["#FFF0F3", "#F3E8FF"]}
-        style={styles.emojiCircle}
-      >
+      {/* Emoji circle — color = status */}
+      <View style={[styles.emojiCircle, { backgroundColor: circleColor + "15" }]}>
         <Text style={styles.emoji}>{item.emoji}</Text>
-      </LinearGradient>
+      </View>
 
       {/* Middle text */}
       <View style={styles.itemMiddle}>
         <Text style={styles.itemName}>
           {item.name}
-          {item.isBundle && item.count ? ` (×${item.count})` : ""}
-          {item.hasPhoto ? " 📸" : ""}
+          {item.isBundle && item.count ? ` (\u00D7${item.count})` : ""}
         </Text>
         {item.status === "handed-off" && item.matchedTo ? (
           <Text style={styles.itemSubHandedOff}>
-            Handed to {item.matchedTo} ✓
+            Handed to {item.matchedTo}
           </Text>
         ) : item.status === "matched" && item.matchedTo ? (
           <Text style={styles.itemSubMatched}>
-            Matched → {item.matchedTo}
+            Matched \u2192 {item.matchedTo}
           </Text>
         ) : (
           <Text style={styles.itemSubMuted}>{item.ageRange}</Text>
         )}
       </View>
-
-      {/* Badge */}
-      <Badge color={color}>{label}</Badge>
     </Pressable>
-  );
-}
-
-function VisibilityRow({ userId }: { userId?: string }) {
-  const visibility = useAppStore((s) => s.itemVisibility);
-  const setVisibility = useAppStore((s) => s.setItemVisibility);
-  const isPublic = visibility === "public";
-
-  const toggle = async () => {
-    const next = isPublic ? "circle" : "public";
-    setVisibility(next);
-    if (userId) {
-      await supabase
-        .from("profiles")
-        .update({ item_visibility: next })
-        .eq("id", userId);
-    }
-  };
-
-  return (
-    <View style={styles.visibilityContainer}>
-      <Pressable onPress={toggle} style={styles.visibilityRow}>
-        <Text style={[styles.visibilityEndLabel, !isPublic && styles.visibilityEndLabelActive, !isPublic && styles.visibilityFriendsActive]}>
-          Friends only
-        </Text>
-        <View style={[styles.toggleTrack, isPublic && styles.toggleTrackOn]}>
-          <View style={[styles.toggleThumb, isPublic && styles.toggleThumbOn]} />
-        </View>
-        <Text style={[styles.visibilityEndLabel, isPublic && styles.visibilityEndLabelActive, isPublic && styles.visibilityPublicActive]}>
-          All of Watasu
-        </Text>
-      </Pressable>
-    </View>
   );
 }
 
@@ -241,9 +207,6 @@ export default function StuffScreen() {
             </Text>
           </View>
         )}
-
-        {/* Visibility quick toggle */}
-        <VisibilityRow userId={userId} />
 
         {/* Item list */}
         {sorted.length > 0 ? (
@@ -350,59 +313,4 @@ const styles = StyleSheet.create({
   emptyTitle: { fontSize: 16, fontWeight: "600", color: colors.text, marginBottom: 4 },
   emptyHint: { fontSize: 14, color: colors.textLight },
 
-  // Visibility toggle
-  visibilityContainer: {
-    marginBottom: 12,
-  },
-  visibilityRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    backgroundColor: colors.card,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-  },
-  visibilityEndLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.textLight,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  visibilityEndLabelActive: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-  },
-  visibilityFriendsActive: {
-    backgroundColor: colors.neonPurple,
-  },
-  visibilityPublicActive: {
-    backgroundColor: colors.neonGreen,
-  },
-  toggleTrack: {
-    width: 40,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.neonPurple,
-    justifyContent: "center",
-    paddingHorizontal: 2,
-  },
-  toggleTrackOn: {
-    backgroundColor: colors.neonGreen,
-  },
-  toggleThumb: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "#FFFFFF",
-  },
-  toggleThumbOn: {
-    alignSelf: "flex-end",
-  },
 });

@@ -2,7 +2,6 @@ import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import Card from "./ui/Card";
-import Badge from "./ui/Badge";
 import Avatar from "./ui/Avatar";
 import { colors } from "../lib/colors";
 import type { Item } from "../lib/types";
@@ -11,26 +10,25 @@ interface ShopItemCardProps {
   item: Item;
 }
 
-function getPricingBadge(item: Item) {
+function getPricingLabel(item: Item): string | null {
   const pricing = item.pricing;
   if (!pricing) return null;
   switch (pricing.type) {
-    case "free":
-      return { label: "\uD83C\uDF81 Free", color: colors.neonGreen };
-    case "give-what-you-can":
-      return { label: "\uD83D\uDC9B You decide", color: colors.neonOrange };
-    case "set-price":
-      return {
-        label: `$${pricing.amount ?? 0}`,
-        color: colors.neonPurple,
-      };
-    default:
-      return null;
+    case "free": return "Free";
+    case "give-what-you-can": return "You decide";
+    case "set-price": return `$${pricing.amount ?? 0}`;
+    default: return null;
   }
 }
 
 export default function ShopItemCard({ item }: ShopItemCardProps) {
-  const pricingBadge = getPricingBadge(item);
+  const pricingLabel = getPricingLabel(item);
+
+  // Single metadata line: "6-12mo · Free" or "2-3y · $120"
+  const metaParts = [item.ageRange];
+  if (item.isBundle && item.count) metaParts.push(`${item.count} items`);
+  if (pricingLabel) metaParts.push(pricingLabel);
+  const metaLine = metaParts.join(" \u00B7 ");
 
   return (
     <Card
@@ -46,20 +44,7 @@ export default function ShopItemCard({ item }: ShopItemCardProps) {
         {item.name}
       </Text>
 
-      {item.isBundle && item.count ? (
-        <Text style={styles.bundleCount}>{item.count} items</Text>
-      ) : null}
-
-      <Text style={styles.ageRange}>{item.ageRange}</Text>
-
-      <View style={styles.badgeWrap}>
-        {item.condition ? (
-          <Badge color={colors.neonGreen}>{item.condition}</Badge>
-        ) : null}
-        {pricingBadge ? (
-          <Badge color={pricingBadge.color}>{pricingBadge.label}</Badge>
-        ) : null}
-      </View>
+      <Text style={styles.meta}>{metaLine}</Text>
 
       {item.fromAvatar && item.from ? (
         <View style={styles.seller}>
@@ -79,7 +64,7 @@ const styles = StyleSheet.create({
   },
   distance: {
     fontSize: 12,
-    color: colors.neonCyan,
+    color: colors.blue,
     fontWeight: "600",
     textAlign: "right",
     marginBottom: 4,
@@ -94,19 +79,9 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: 2,
   },
-  bundleCount: {
+  meta: {
     fontSize: 12,
     color: colors.textMuted,
-  },
-  ageRange: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginBottom: 8,
-  },
-  badgeWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 4,
     marginBottom: 8,
   },
   seller: {

@@ -275,25 +275,23 @@ export default function MatchDetailScreen() {
         {isReceiver ? (
           <>
             <View style={styles.itemSection}>
-              <Text style={styles.itemEmoji}>{match.itemEmoji}</Text>
-              <Text style={styles.itemName}>{match.item}</Text>
-              {match.isBundle && match.count && (
-                <Text style={styles.bundleCount}>Bundle of {match.count}</Text>
-              )}
-              <View style={styles.badgeRow}>
-                {match.status === "offered" && (
-                  <Badge color={colors.neonPurple}>Offer from {fromFirstName}</Badge>
-                )}
-                {match.status === "accepted" && (
-                  <Badge color="#34D399">You accepted!</Badge>
-                )}
-                {match.status === "handed-off" && (
-                  <Badge color="#34D399">Received</Badge>
-                )}
-                {pricingBadgeLabel && (
-                  <Badge color={colors.neonBlue}>{pricingBadgeLabel}</Badge>
-                )}
+              <View style={[styles.itemEmojiCircle, {
+                backgroundColor: match.status === "offered" ? colors.violetLight
+                  : match.status === "accepted" ? colors.goldenLight
+                  : colors.eucalyptusLight,
+              }]}>
+                <Text style={styles.itemEmojiCompact}>{match.itemEmoji}</Text>
               </View>
+              <Text style={styles.itemName}>
+                {match.item}
+                {match.isBundle && match.count ? ` (\u00D7${match.count})` : ""}
+              </Text>
+              <Text style={styles.bundleCount}>
+                {match.status === "offered" ? `Offer from ${fromFirstName}` : ""}
+                {match.status === "accepted" ? "You accepted!" : ""}
+                {match.status === "handed-off" ? "Received" : ""}
+                {pricingBadgeLabel ? ` \u00B7 ${pricingBadgeLabel}` : ""}
+              </Text>
             </View>
 
             {/* From card */}
@@ -395,27 +393,17 @@ export default function MatchDetailScreen() {
         ) : (
         <>
         {/* ---- GIVER VIEW (original) ---- */}
-        {/* Item display */}
+        {/* Item display — compact */}
         <View style={styles.itemSection}>
-          <Text style={styles.itemEmoji}>{match.itemEmoji}</Text>
-          <Text style={styles.itemName}>{match.item}</Text>
-          {match.isBundle && match.count && (
-            <Text style={styles.bundleCount}>Bundle of {match.count}</Text>
-          )}
-          <View style={styles.badgeRow}>
-            <Badge
-              color={
-                match.status === "ready"
-                  ? colors.neonGreen
-                  : colors.neonBlue
-              }
-            >
-              {match.status === "ready" ? "Ready" : "Offer sent"}
-            </Badge>
-            {pricingBadgeLabel && (
-              <Badge color={colors.neonPurple}>{pricingBadgeLabel}</Badge>
-            )}
+          <View style={[styles.itemEmojiCircle, {
+            backgroundColor: match.status === "ready" ? colors.eucalyptusLight : colors.violetLight,
+          }]}>
+            <Text style={styles.itemEmojiCompact}>{match.itemEmoji}</Text>
           </View>
+          <Text style={styles.itemName}>
+            {match.item}
+            {match.isBundle && match.count ? ` (\u00D7${match.count})` : ""}
+          </Text>
         </View>
 
         {/* Add photo */}
@@ -817,11 +805,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 20,
   },
-  itemEmoji: {
-    fontSize: 56,
+  itemEmojiCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  itemEmojiCompact: {
+    fontSize: 28,
   },
   itemName: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: "700",
     color: colors.text,
     marginTop: 8,
@@ -830,12 +825,8 @@ const styles = StyleSheet.create({
   bundleCount: {
     fontSize: 14,
     color: colors.textMuted,
-    marginTop: 2,
-  },
-  badgeRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 10,
+    marginTop: 4,
+    textAlign: "center",
   },
   friendCard: {
     marginBottom: 4,

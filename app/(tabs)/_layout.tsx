@@ -1,5 +1,5 @@
-import { Tabs } from "expo-router";
-import { Text, View, StyleSheet } from "react-native";
+import { Tabs, useRouter } from "expo-router";
+import { Text, View, StyleSheet, Pressable } from "react-native";
 import { BlurView } from "expo-blur";
 import { colors } from "../../lib/colors";
 
@@ -13,6 +13,20 @@ function TabIcon({ icon, label, focused }: { icon: string; label: string; focuse
         {label}
       </Text>
     </View>
+  );
+}
+
+function AddButton() {
+  const router = useRouter();
+  return (
+    <Pressable
+      onPress={() => router.push("/add-item")}
+      style={styles.addButton}
+    >
+      <View style={styles.addButtonInner}>
+        <Text style={styles.addButtonIcon}>+</Text>
+      </View>
+    </Pressable>
   );
 }
 
@@ -45,11 +59,14 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="stuff"
+        name="add"
         options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon icon="◎" label="My Stuff" focused={focused} />
-          ),
+          tabBarButton: () => <AddButton />,
+        }}
+        listeners={{
+          tabPress: (e) => {
+            e.preventDefault();
+          },
         }}
       />
       <Tabs.Screen
@@ -61,18 +78,21 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="impact"
+        name="profile"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon="✧" label="Impact" focused={focused} />
+            <TabIcon icon="○" label="Profile" focused={focused} />
           ),
         }}
       />
+      {/* Hidden tabs — still accessible via router.push but not in tab bar */}
       <Tabs.Screen
-        name="profile"
-        options={{
-          href: null,
-        }}
+        name="stuff"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="impact"
+        options={{ href: null }}
       />
     </Tabs>
   );
@@ -97,7 +117,7 @@ const styles = StyleSheet.create({
     color: colors.textLight,
   },
   tabIconActive: {
-    color: colors.neonPurple,
+    color: colors.violet,
   },
   tabLabel: {
     fontSize: 10,
@@ -105,7 +125,32 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   tabLabelActive: {
-    color: colors.neonPurple,
+    color: colors.violet,
     fontWeight: "700",
+  },
+  // Center (+) button
+  addButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    top: -8,
+  },
+  addButtonInner: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.violet,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: colors.violet,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  addButtonIcon: {
+    fontSize: 28,
+    fontWeight: "300",
+    color: "#FFFFFF",
+    marginTop: -1,
   },
 });

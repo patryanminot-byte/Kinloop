@@ -20,13 +20,11 @@ const CENTER_X = SCREEN_W / 2;
 const CENTER_Y = SCREEN_H * 0.35;
 
 const PARTICLE_COLORS = [
-  colors.neonPink,
-  colors.neonPurple,
-  colors.neonBlue,
-  colors.neonCyan,
-  colors.neonGreen,
-  colors.neonYellow,
-  colors.neonOrange,
+  colors.violet,
+  colors.golden,
+  colors.eucalyptus,
+  colors.coral,
+  colors.blue,
 ];
 
 const NUM_PARTICLES = 20;

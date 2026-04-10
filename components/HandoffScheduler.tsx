@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   methodLabelActive: {
-    color: colors.neonPurple,
+    color: colors.violet,
   },
 
   // Details
@@ -240,11 +240,11 @@ const styles = StyleSheet.create({
   },
   suggestionText: {
     fontSize: 14,
-    color: colors.neonPurple,
+    color: colors.violet,
     fontStyle: "italic",
     paddingVertical: 10,
     paddingHorizontal: 12,
-    backgroundColor: colors.neonPurple + "0D",
+    backgroundColor: colors.violet + "0D",
     borderRadius: 10,
     overflow: "hidden",
   },
