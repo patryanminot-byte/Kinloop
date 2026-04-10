@@ -22,7 +22,8 @@
         "NSContactsUsageDescription": "Watasu checks which of your contacts are already on the app by comparing phone number hashes. Your contacts are never uploaded, stored, or shared.",
         "NSLocationWhenInUseUsageDescription": "Watasu uses your approximate location to show how far away nearby items are. We never track your precise location.",
         "NSCameraUsageDescription": "Watasu uses your camera to take photos of items you want to share. Photos are optional.",
-        "NSPhotoLibraryUsageDescription": "Watasu accesses your photo library so you can add photos to item listings. Photos are optional."
+        "NSPhotoLibraryUsageDescription": "Watasu accesses your photo library so you can add photos to item listings. Photos are optional.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -35,7 +36,11 @@
       "package": "com.patrickminot.watasu",
       "permissions": [
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "android.permission.READ_CONTACTS",
+        "android.permission.WRITE_CONTACTS",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
     "web": {
@@ -61,12 +66,18 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Watasu uses your approximate location to show nearby items from community parents.",
+          "locationWhenInUsePermission": "Watasu uses your approximate location to show nearby items from other users.",
           "isAndroidBackgroundLocationEnabled": false
         }
       ],
       "expo-web-browser",
       "expo-apple-authentication"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "60b629d7-9b31-4c04-b45c-3125e2ef3b21"
+      }
+    }
   }
 }
