@@ -61,7 +61,7 @@ export interface Match {
   toAvatar: string;
   toKid: string;
   toKidAge: string;
-  status: "ready" | "offered" | "accepted" | "scheduled" | "completed";
+  status: "ready" | "offered" | "accepted" | "scheduled" | "completed" | "handed-off" | "declined";
   message: string;
   personalLine: string;
   pricing: Pricing | null;
@@ -69,4 +69,6 @@ export interface Match {
   sentAt?: string;
   handoff?: HandoffPlan | null;
   ring?: "friend" | "nearby";
+  role?: "giver" | "receiver";
+  fromAvatar?: string;
 }

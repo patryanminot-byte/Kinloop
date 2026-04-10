@@ -25,10 +25,31 @@ export default function RootLayout() {
   const lastRedirectTime = useRef(0);
   const isNavigating = useRef(false);
 
+  const setChildren = useAppStore((s) => s.setChildren);
+
   // Sync auth state to store
   useEffect(() => {
     if (session?.user) {
       setUserId(session.user.id);
+
+      // Load children from Supabase into app store
+      supabase
+        .from("children")
+        .select("id, name, dob, emoji")
+        .eq("user_id", session.user.id)
+        .then(({ data }) => {
+          if (data && data.length > 0) {
+            setChildren(
+              data.map((k: any) => ({
+                id: k.id,
+                name: k.name,
+                dob: k.dob,
+                emoji: k.emoji,
+              }))
+            );
+          }
+        });
+
       // Load profile
       supabase
         .from("profiles")
@@ -37,17 +58,19 @@ export default function RootLayout() {
         .single()
         .then(({ data }) => {
           if (data) {
-            // Derive initials from name if avatar_initials is empty
-            const initials =
-              data.avatar_initials ||
-              (data.name
-                ? data.name
-                    .split(" ")
-                    .map((w: string) => w[0])
-                    .join("")
-                    .toUpperCase()
-                    .slice(0, 2)
-                : "");
+            // Derive initials from name (first letter of each word)
+            const nameInitials = data.name
+              ? data.name
+                  .split(" ")
+                  .filter((w: string) => w.length > 0)
+                  .map((w: string) => w[0])
+                  .join("")
+                  .toUpperCase()
+                  .slice(0, 2)
+              : "";
+            // Use stored avatar_initials only if it's an emoji, otherwise derive from name
+            const storedIsEmoji = data.avatar_initials && !/^[A-Z]{1,2}$/i.test(data.avatar_initials);
+            const initials = storedIsEmoji ? data.avatar_initials : (nameInitials || data.avatar_initials || "");
             setUserProfile({
               name: data.name,
               initials,
@@ -95,7 +118,8 @@ export default function RootLayout() {
       }
     } else if (hasCompletedOnboarding) {
       // Signed in + onboarded -- go to tabs if still in onboarding
-      if (inOnboarding) {
+      // But allow add-child (used from profile to add more kids)
+      if (inOnboarding && segments[1] !== "add-child") {
         isNavigating.current = true;
         lastRedirectTime.current = now;
         router.replace("/(tabs)");

@@ -162,7 +162,7 @@ export default function HomeScreen() {
   // ---- Real data from Supabase ----
   const { session } = useAuth();
   const userId = session?.user?.id;
-  const { matches, loading: matchesLoading } = useMatches(userId);
+  const { matches, incomingOffers, loading: matchesLoading, acceptMatch, declineMatch } = useMatches(userId);
   const { items, loading: itemsLoading } = useInventory(userId);
   const { friends, loading: friendsLoading } = useFriends(userId);
   const userInitials = useAppStore((s) => s.userInitials) || "\u{1F331}";
@@ -320,6 +320,104 @@ export default function HomeScreen() {
                 </>
               ) : null}
             </Card>
+          </View>
+        )}
+
+        {/* ---- Incoming offers (receiver view) ---- */}
+        {incomingOffers.filter((o) => o.status === "offered").length > 0 && (
+          <View style={styles.section}>
+            <SectionHeader title="Offers for you" />
+            <View style={styles.sectionGap} />
+            {incomingOffers
+              .filter((o) => o.status === "offered")
+              .map((offer) => (
+                <Card key={offer.id} style={styles.offerCard}>
+                  <View style={styles.offerHeader}>
+                    <Avatar initials={offer.fromAvatar ?? "??"} size={36} />
+                    <View style={styles.offerHeaderText}>
+                      <Text style={styles.offerFrom}>
+                        {firstName(offer.from)} wants to send you something
+                      </Text>
+                      <Text style={styles.offerFor}>
+                        For {offer.toKid} ({offer.toKidAge})
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.offerItemRow}>
+                    <Text style={styles.offerItemEmoji}>{offer.itemEmoji}</Text>
+                    <View style={styles.offerItemInfo}>
+                      <Text style={styles.offerItemName}>{offer.item}</Text>
+                      {offer.pricing?.type === "free" ? (
+                        <Badge color="#34D399">Free</Badge>
+                      ) : offer.pricing?.amount ? (
+                        <Badge color="#60A5FA">${offer.pricing.amount}</Badge>
+                      ) : null}
+                    </View>
+                  </View>
+
+                  {offer.message ? (
+                    <View style={styles.offerMessage}>
+                      <Text style={styles.offerMessageText}>"{offer.message}"</Text>
+                    </View>
+                  ) : null}
+
+                  {offer.personalLine ? (
+                    <Text style={styles.offerPersonalLine}>{offer.personalLine}</Text>
+                  ) : null}
+
+                  <View style={styles.offerActions}>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      title={`Accept ${"\u{1F49C}"}`}
+                      onPress={async () => {
+                        await acceptMatch(offer.id);
+                      }}
+                    />
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      title="No thanks"
+                      onPress={async () => {
+                        await declineMatch(offer.id);
+                      }}
+                      style={styles.declineButton}
+                    />
+                  </View>
+                </Card>
+              ))}
+          </View>
+        )}
+
+        {/* ---- Accepted (waiting for handoff) ---- */}
+        {incomingOffers.filter((o) => o.status === "accepted" || o.status === "scheduled").length > 0 && (
+          <View style={styles.section}>
+            <SectionHeader title="Coming your way" />
+            <View style={styles.sectionGap} />
+            {incomingOffers
+              .filter((o) => o.status === "accepted" || o.status === "scheduled")
+              .map((offer) => (
+                <Card key={offer.id} style={styles.matchCard}>
+                  <View style={styles.matchItemRow}>
+                    <Text style={styles.matchEmoji}>{offer.itemEmoji}</Text>
+                    <View style={styles.matchItemInfo}>
+                      <Text style={styles.matchItemName}>{offer.item}</Text>
+                      <Text style={styles.matchTo}>
+                        From {firstName(offer.from)} {"\u2192"} {offer.toKid}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.badgeRow}>
+                    {offer.status === "accepted" && (
+                      <Badge color="#C084FC">Accepted — arranging handoff</Badge>
+                    )}
+                    {offer.status === "scheduled" && (
+                      <Badge color="#FB923C">Handoff planned</Badge>
+                    )}
+                  </View>
+                </Card>
+              ))}
           </View>
         )}
 
@@ -497,7 +595,7 @@ export default function HomeScreen() {
             onPress={() => router.push("/friends/nearby" as `/${string}`)}
             style={styles.finderCard}
           >
-            <Text style={styles.finderEmoji}>{"\u{1F30D}"}</Text>
+            <Text style={styles.finderEmoji}>{"\u{1F3D8}\uFE0F"}</Text>
             <View style={styles.finderText}>
               <Text style={styles.finderTitle}>
                 Families nearby with similar-age kids?
@@ -748,6 +846,76 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.text,
     flex: 1,
+  },
+
+  // Incoming offers
+  offerCard: {
+    marginBottom: 12,
+  },
+  offerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  offerHeaderText: {
+    flex: 1,
+    marginLeft: 10,
+  },
+  offerFrom: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.text,
+  },
+  offerFor: {
+    fontSize: 13,
+    color: colors.textMuted,
+    marginTop: 1,
+  },
+  offerItemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    gap: 8,
+  },
+  offerItemEmoji: {
+    fontSize: 28,
+  },
+  offerItemInfo: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  offerItemName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  offerMessage: {
+    backgroundColor: "#F8F7F5",
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 8,
+  },
+  offerMessageText: {
+    fontSize: 14,
+    color: colors.text,
+    fontStyle: "italic",
+    lineHeight: 20,
+  },
+  offerPersonalLine: {
+    fontSize: 14,
+    color: colors.neonPurple,
+    marginBottom: 8,
+  },
+  offerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 4,
+  },
+  declineButton: {
+    marginLeft: 4,
   },
 
   // Friend finder

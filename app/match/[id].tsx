@@ -105,14 +105,16 @@ export default function MatchDetailScreen() {
   // ---- Real data from Supabase ----
   const { session } = useAuth();
   const userId = session?.user?.id;
-  const { matches, loading, sendMatch } = useMatches(userId);
+  const { matches, incomingOffers, loading, sendMatch, acceptMatch, declineMatch } = useMatches(userId);
 
-  // Try real data first, fall back to mock
-  const realMatch = matches.find((m) => m.id === id);
+  // Try real data first (outgoing or incoming), fall back to mock
+  const realMatch = matches.find((m) => m.id === id) || incomingOffers.find((m) => m.id === id);
   const mockMatch = MOCK_MATCHES[id ?? ""];
   const match: (Match & { toKidEmoji?: string }) | undefined = realMatch
     ? { ...realMatch, toKidEmoji: "" }
     : mockMatch;
+
+  const isReceiver = match?.role === "receiver";
 
   const [selectedPricing, setSelectedPricing] = useState<Pricing | null>(
     match?.pricing ?? null
@@ -254,6 +256,117 @@ export default function MatchDetailScreen() {
           <Text style={styles.backText}>← Back</Text>
         </Pressable>
 
+        {/* ---- RECEIVER VIEW ---- */}
+        {isReceiver ? (
+          <>
+            <View style={styles.itemSection}>
+              <Text style={styles.itemEmoji}>{match.itemEmoji}</Text>
+              <Text style={styles.itemName}>{match.item}</Text>
+              {match.isBundle && match.count && (
+                <Text style={styles.bundleCount}>Bundle of {match.count}</Text>
+              )}
+              <View style={styles.badgeRow}>
+                {match.status === "offered" && (
+                  <Badge color={colors.neonPurple}>Offer from {firstName(match.from)}</Badge>
+                )}
+                {match.status === "accepted" && (
+                  <Badge color="#34D399">You accepted!</Badge>
+                )}
+                {match.status === "handed-off" && (
+                  <Badge color="#34D399">Received</Badge>
+                )}
+                {pricingBadgeLabel && (
+                  <Badge color={colors.neonBlue}>{pricingBadgeLabel}</Badge>
+                )}
+              </View>
+            </View>
+
+            {/* From card */}
+            <Card style={styles.friendCard}>
+              <View style={styles.friendRow}>
+                <Avatar initials={match.fromAvatar ?? "??"} size={44} gradient />
+                <View style={styles.friendInfo}>
+                  <Text style={styles.friendName}>{match.from}</Text>
+                  <Text style={styles.friendKid}>
+                    For {match.toKid} ({match.toKidAge})
+                  </Text>
+                </View>
+              </View>
+            </Card>
+
+            {/* Message from giver */}
+            {match.message ? (
+              <View style={styles.section}>
+                <LinearGradient
+                  colors={gradientColors.subtle}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.messageCard}
+                >
+                  <Text style={styles.messageLabel}>MESSAGE FROM {firstName(match.from).toUpperCase()}</Text>
+                  <Text style={styles.receiverMessageText}>{match.message}</Text>
+                  {match.personalLine ? (
+                    <Text style={styles.receiverPersonalLine}>{match.personalLine}</Text>
+                  ) : null}
+                </LinearGradient>
+              </View>
+            ) : null}
+
+            {/* Accept/Decline buttons */}
+            {match.status === "offered" && (
+              <View style={styles.section}>
+                <Button
+                  variant="primary"
+                  size="lg"
+                  title={`Yes, I'd love this! ${"\u{1F49C}"}`}
+                  onPress={async () => {
+                    await acceptMatch(match.id);
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                    router.back();
+                  }}
+                  style={styles.sendBtn}
+                />
+                <Pressable
+                  style={styles.declineBtn}
+                  onPress={async () => {
+                    await declineMatch(match.id);
+                    router.back();
+                  }}
+                >
+                  <Text style={styles.declineText}>No thanks — pass to someone else</Text>
+                </Pressable>
+              </View>
+            )}
+
+            {/* Accepted confirmation */}
+            {match.status === "accepted" && (
+              <View style={styles.section}>
+                <View style={styles.acceptedConfirm}>
+                  <Text style={styles.acceptedEmoji}>{"\u{1F389}"}</Text>
+                  <Text style={styles.acceptedTitle}>You're getting this!</Text>
+                  <Text style={styles.acceptedSub}>
+                    {firstName(match.from)} will arrange the handoff. Sit tight!
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* Handed off */}
+            {match.status === "handed-off" && (
+              <View style={styles.section}>
+                <View style={styles.acceptedConfirm}>
+                  <Text style={styles.acceptedEmoji}>{"\u{1F30D}"}</Text>
+                  <Text style={styles.acceptedTitle}>Received!</Text>
+                  <Text style={styles.acceptedSub}>
+                    One more item kept out of the landfill. {match.toKid} is going to love it.
+                  </Text>
+                </View>
+              </View>
+            )}
+          </>
+        ) : (
+        <>
+        {/* ---- GIVER VIEW (original) ---- */}
         {/* Item display */}
         <View style={styles.itemSection}>
           <Text style={styles.itemEmoji}>{match.itemEmoji}</Text>
@@ -613,6 +726,8 @@ export default function MatchDetailScreen() {
               </View>
             </View>
           </View>
+        )}
+        </>
         )}
       </ScrollView>
       </KeyboardAvoidingView>
@@ -996,5 +1111,49 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textAlign: "center",
     marginTop: 6,
+  },
+
+  // Receiver-specific styles
+  receiverMessageText: {
+    fontSize: 15,
+    color: colors.text,
+    lineHeight: 22,
+    marginTop: 8,
+  },
+  receiverPersonalLine: {
+    fontSize: 14,
+    color: colors.neonPurple,
+    marginTop: 8,
+    fontStyle: "italic",
+  },
+  declineBtn: {
+    alignItems: "center",
+    paddingVertical: 14,
+    marginTop: 8,
+  },
+  declineText: {
+    fontSize: 14,
+    color: colors.textMuted,
+    fontWeight: "500",
+  },
+  acceptedConfirm: {
+    alignItems: "center",
+    paddingVertical: 20,
+  },
+  acceptedEmoji: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  acceptedTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: colors.text,
+    marginBottom: 6,
+  },
+  acceptedSub: {
+    fontSize: 15,
+    color: colors.textMuted,
+    textAlign: "center",
+    lineHeight: 22,
   },
 });

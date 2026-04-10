@@ -7,6 +7,7 @@ import {
   ScrollView,
   Platform,
   Pressable,
+  Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -31,8 +32,11 @@ export default function AddChildScreen() {
   const router = useRouter();
   const addChild = useAppStore((s) => s.addChild);
   const setOnboardingComplete = useAppStore((s) => s.setOnboardingComplete);
+  const hasCompletedOnboarding = useAppStore((s) => s.hasCompletedOnboarding);
   const { session } = useAuth();
 
+  const childCount = useAppStore((s) => s.children).length;
+  const [addedThisSession, setAddedThisSession] = useState(0);
   const [name, setName] = useState("");
   const [dob, setDob] = useState<Date>(new Date(new Date().getFullYear() - 1, new Date().getMonth(), new Date().getDate()));
   const [dobSelected, setDobSelected] = useState(false);
@@ -68,20 +72,31 @@ export default function AddChildScreen() {
     }
   };
 
+  const isPostOnboarding = hasCompletedOnboarding;
+
   const handleNext = async () => {
     if (!canProceed) return;
     await saveChild();
-    router.push("/onboarding/contacts");
+    if (isPostOnboarding) {
+      router.back();
+    } else {
+      router.push("/onboarding/contacts");
+    }
   };
 
   const handleSkip = () => {
-    setOnboardingComplete();
-    router.replace("/(tabs)");
+    if (isPostOnboarding) {
+      router.back();
+    } else {
+      setOnboardingComplete();
+      router.replace("/(tabs)");
+    }
   };
 
   const handleAddAnother = async () => {
     if (!canProceed) return;
     await saveChild();
+    setAddedThisSession((n) => n + 1);
     setName("");
     setDob(new Date(new Date().getFullYear() - 1, new Date().getMonth(), new Date().getDate()));
     setDobSelected(false);
@@ -129,7 +144,7 @@ export default function AddChildScreen() {
         <Text style={styles.label}>Name</Text>
         <TextInput
           style={styles.input}
-          placeholder="e.g., Maya"
+          placeholder={(childCount + addedThisSession) % 2 === 0 ? "e.g., Ana" : "e.g., George"}
           placeholderTextColor={colors.textLight}
           value={name}
           onChangeText={setName}
@@ -142,7 +157,7 @@ export default function AddChildScreen() {
           variant="secondary"
           size="md"
           title={dobSelected ? formatDate(dob) : "Select birthday"}
-          onPress={() => setShowDatePicker(true)}
+          onPress={() => { Keyboard.dismiss(); setShowDatePicker(true); }}
           style={styles.dateButton}
         />
         {showDatePicker && (

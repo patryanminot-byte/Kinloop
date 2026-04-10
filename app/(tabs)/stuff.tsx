@@ -17,6 +17,8 @@ import Button from "../../components/ui/Button";
 import AddItemModal from "../../components/AddItemModal";
 import { useAuth } from "../../hooks/useAuth";
 import { useInventory } from "../../hooks/useInventory";
+import { useAppStore } from "../../stores/appStore";
+import { supabase } from "../../lib/supabase";
 
 // ── Mock Data ──────────────────────────────────────────────────────────
 const MOCK_ITEMS: Item[] = [
@@ -128,6 +130,40 @@ function ItemRow({ item }: { item: Item }) {
   );
 }
 
+function VisibilityRow({ userId }: { userId?: string }) {
+  const visibility = useAppStore((s) => s.itemVisibility);
+  const setVisibility = useAppStore((s) => s.setItemVisibility);
+  const isPublic = visibility === "public";
+
+  const toggle = async () => {
+    const next = isPublic ? "circle" : "public";
+    setVisibility(next);
+    if (userId) {
+      await supabase
+        .from("profiles")
+        .update({ item_visibility: next })
+        .eq("id", userId);
+    }
+  };
+
+  return (
+    <View style={styles.visibilityContainer}>
+      <Pressable onPress={toggle} style={styles.visibilityRow}>
+        <Text style={styles.visibilityEmoji}>{isPublic ? "\u{1F3D8}\uFE0F" : "\u{1F465}"}</Text>
+        <Text style={styles.visibilityLabel}>
+          {isPublic ? "Visible to everyone on Watasu" : "Visible to friends"}
+        </Text>
+        <View style={[styles.toggleTrack, isPublic && styles.toggleTrackOn]}>
+          <View style={[styles.toggleThumb, isPublic && styles.toggleThumbOn]} />
+        </View>
+      </Pressable>
+      <Text style={styles.visibilityHint}>
+        Your items are shared with friends and their friends by default
+      </Text>
+    </View>
+  );
+}
+
 // ── Main Screen ────────────────────────────────────────────────────────
 
 export default function StuffScreen() {
@@ -207,6 +243,9 @@ export default function StuffScreen() {
             </Text>
           </View>
         )}
+
+        {/* Visibility quick toggle */}
+        <VisibilityRow userId={userId} />
 
         {/* Item list */}
         {sorted.length > 0 ? (
@@ -303,4 +342,42 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 48, marginBottom: 12 },
   emptyTitle: { fontSize: 16, fontWeight: "600", color: colors.text, marginBottom: 4 },
   emptyHint: { fontSize: 14, color: colors.textLight },
+
+  // Visibility toggle
+  visibilityContainer: {
+    marginBottom: 12,
+  },
+  visibilityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.card,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  visibilityEmoji: { fontSize: 16, marginRight: 8 },
+  visibilityLabel: { flex: 1, fontSize: 13, color: colors.text, fontWeight: "500" },
+  visibilityHint: { fontSize: 12, color: colors.textMuted, marginTop: 6, paddingHorizontal: 4 },
+  toggleTrack: {
+    width: 40,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#E5E5E3",
+    justifyContent: "center",
+    paddingHorizontal: 2,
+  },
+  toggleTrackOn: {
+    backgroundColor: colors.neonPurple,
+  },
+  toggleThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+  },
+  toggleThumbOn: {
+    alignSelf: "flex-end",
+  },
 });

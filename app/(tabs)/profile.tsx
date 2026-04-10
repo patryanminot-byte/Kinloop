@@ -26,7 +26,6 @@ import { useAuth } from "../../hooks/useAuth";
 import { useAppStore } from "../../stores/appStore";
 import { useInventory } from "../../hooks/useInventory";
 import { useFriends } from "../../hooks/useFriends";
-import { useLocation } from "../../hooks/useLocation";
 import { supabase } from "../../lib/supabase";
 
 const MOCK_USER = {
@@ -66,75 +65,39 @@ const SETTINGS_ROWS = [
   { label: "About Watasu", icon: "\u{2728}", route: null },
 ];
 
-const VISIBILITY_OPTIONS: {
-  key: "circle" | "nearby" | "friends-only";
-  label: string;
-  desc: string;
-  emoji: string;
-}[] = [
-  {
-    key: "circle",
-    label: "Friends' circle",
-    desc: "Friends + their friends",
-    emoji: "\u{1F465}",
-  },
-  {
-    key: "nearby",
-    label: "Everyone nearby",
-    desc: "Any family in your area",
-    emoji: "\u{1F30D}",
-  },
-  {
-    key: "friends-only",
-    label: "Friends only",
-    desc: "Only people you've added",
-    emoji: "\u{1F512}",
-  },
-];
-
 function VisibilityPicker() {
   const visibility = useAppStore((s) => s.itemVisibility);
   const setVisibility = useAppStore((s) => s.setItemVisibility);
   const userId = useAuth().session?.user?.id;
+  const isPublic = visibility === "public";
 
-  const handleSelect = async (key: "circle" | "nearby" | "friends-only") => {
-    setVisibility(key);
+  const toggle = async () => {
+    const next = isPublic ? "circle" : "public";
+    setVisibility(next);
     if (userId) {
       await supabase
         .from("profiles")
-        .update({ item_visibility: key })
+        .update({ item_visibility: next })
         .eq("id", userId);
     }
   };
 
   return (
     <View style={styles.visibilityCard}>
-      {VISIBILITY_OPTIONS.map((opt) => {
-        const active = visibility === opt.key;
-        return (
-          <Pressable
-            key={opt.key}
-            style={[styles.visibilityOption, active && styles.visibilityActive]}
-            onPress={() => handleSelect(opt.key)}
-          >
-            <Text style={styles.visibilityEmoji}>{opt.emoji}</Text>
-            <View style={styles.visibilityText}>
-              <Text
-                style={[
-                  styles.visibilityLabel,
-                  active && styles.visibilityLabelActive,
-                ]}
-              >
-                {opt.label}
-              </Text>
-              <Text style={styles.visibilityDesc}>{opt.desc}</Text>
-            </View>
-            {active && (
-              <Text style={styles.visibilityCheck}>{"\u2713"}</Text>
-            )}
-          </Pressable>
-        );
-      })}
+      <Pressable style={styles.visibilityOption} onPress={toggle}>
+        <Text style={styles.visibilityEmoji}>{isPublic ? "\u{1F3D8}\uFE0F" : "\u{1F465}"}</Text>
+        <View style={styles.visibilityText}>
+          <Text style={styles.visibilityLabel}>
+            {isPublic ? "Visible to everyone on Watasu" : "Visible to friends"}
+          </Text>
+          <Text style={styles.visibilityDesc}>
+            Friends and their friends can always see your items
+          </Text>
+        </View>
+        <View style={[styles.toggleTrack, isPublic && styles.toggleTrackOn]}>
+          <View style={[styles.toggleThumb, isPublic && styles.toggleThumbOn]} />
+        </View>
+      </Pressable>
     </View>
   );
 }
@@ -146,7 +109,7 @@ export default function ProfileScreen() {
   const { userName, userInitials, locationCity } = useAppStore();
   const { items } = useInventory(userId);
   const { friends } = useFriends(userId);
-  const { city: locationFromGPS, requestLocation, loading: locationLoading } = useLocation();
+
 
   const [kids, setKids] = useState<Child[]>([]);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
@@ -195,7 +158,7 @@ export default function ProfileScreen() {
     ? { name: userName, initials: userInitials, city: locationCity }
     : MOCK_USER;
 
-  const displayKids = kids.length > 0 ? kids : MOCK_KIDS;
+  const displayKids = kids;
 
   // Real impact stats
   const handedOff = items.filter((i) => i.status === "handed-off").length;
@@ -435,19 +398,12 @@ export default function ProfileScreen() {
             </Pressable>
           )}
 
-          {/* Location — tappable to update via GPS */}
-          <Pressable onPress={requestLocation} disabled={locationLoading}>
-            <Text style={[
-              styles.userCity,
-              !displayUser.city && styles.userCityPrompt,
-            ]}>
-              {locationLoading
-                ? "\u{1F4CD} Updating..."
-                : displayUser.city
-                  ? `\u{1F4CD} ${displayUser.city}`
-                  : "\u{1F4CD} Tap to add your location"}
+          {/* Location — display only if set */}
+          {displayUser.city ? (
+            <Text style={styles.userCity}>
+              {"\u{1F4CD}"} {displayUser.city}
             </Text>
-          </Pressable>
+          ) : null}
 
           <GradientBar height={3} style={styles.gradientBar} />
         </View>
@@ -457,7 +413,7 @@ export default function ProfileScreen() {
           <Text style={styles.sectionTitle}>Your kids</Text>
           <Pressable
             onPress={() =>
-              router.push("/onboarding/welcome" as `/${string}`)
+              router.push("/onboarding/add-child" as `/${string}`)
             }
           >
             <Text style={styles.sectionAction}>+ Add</Text>
@@ -756,10 +712,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
     textAlign: "center",
   },
-  userCityPrompt: {
-    color: colors.neonPurple,
-    fontWeight: "500",
-  },
   gradientBar: {
     marginTop: 16,
     marginHorizontal: -20,
@@ -953,7 +905,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
 
-  // Visibility picker
+  // Visibility toggle
   visibilityCard: {
     backgroundColor: colors.card,
     borderRadius: 14,
@@ -968,11 +920,6 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0ED",
-  },
-  visibilityActive: {
-    backgroundColor: colors.neonPurple + "08",
   },
   visibilityEmoji: {
     fontSize: 20,
@@ -987,18 +934,30 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.text,
   },
-  visibilityLabelActive: {
-    color: colors.neonPurple,
-  },
   visibilityDesc: {
     fontSize: 12,
     color: colors.textMuted,
     marginTop: 1,
   },
-  visibilityCheck: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: colors.neonPurple,
+  toggleTrack: {
+    width: 40,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#E5E5E3",
+    justifyContent: "center",
+    paddingHorizontal: 2,
+  },
+  toggleTrackOn: {
+    backgroundColor: colors.neonPurple,
+  },
+  toggleThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+  },
+  toggleThumbOn: {
+    alignSelf: "flex-end" as const,
   },
 
   // Settings
