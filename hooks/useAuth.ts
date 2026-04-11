@@ -89,7 +89,12 @@ export function useAuth() {
   };
 
   // ── Google Sign In ──────────────────────────────────────────────────
-  const signInWithGoogle = async () => {
+  // Returns { cancelled: true } when the user dismisses the browser,
+  // session data on success, or throws on real errors.
+  const signInWithGoogle = async (): Promise<
+    | { cancelled: true }
+    | { user?: any; session?: any }
+  > => {
     const isExpoGo = Constants.appOwnership === "expo";
     const redirectTo = isExpoGo
       ? makeRedirectUri({ scheme: "exp" })
@@ -107,6 +112,10 @@ export function useAuth() {
         data.url,
         redirectTo,
       );
+      // User deliberately closed the browser / tapped cancel
+      if (result.type === "cancel" || result.type === "dismiss") {
+        return { cancelled: true };
+      }
       if (result.type === "success" && result.url) {
         // Extract tokens from the redirect URL
         const url = result.url;
@@ -125,9 +134,11 @@ export function useAuth() {
             return sessionData;
           }
         }
+        // Redirect succeeded but tokens were missing
+        throw new Error("Could not extract sign-in tokens. Please try again.");
       }
     }
-    return null;
+    throw new Error("Google sign in failed. Please try again.");
   };
 
   // ── Profile helpers ─────────────────────────────────────────────────

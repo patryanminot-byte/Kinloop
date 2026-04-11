@@ -78,7 +78,7 @@ const MOCK_ITEMS: Record<string, Item> = {
   "2": {
     id: "2",
     name: "Bugaboo stroller",
-    category: "Stroller",
+    category: "Strollers",
     ageRange: "6-12mo",
     status: "matched",
     matchedTo: "Mike J.",
@@ -110,7 +110,7 @@ const MOCK_ITEMS: Record<string, Item> = {
   "5": {
     id: "5",
     name: "Infant car seat",
-    category: "Car Seat",
+    category: "Car Seats",
     ageRange: "0-12mo",
     status: "handed-off",
     matchedTo: "Sarah C.",

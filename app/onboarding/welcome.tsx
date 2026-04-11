@@ -16,6 +16,7 @@ import { useRouter } from "expo-router";
 import GradientText from "../../components/ui/GradientText";
 import Button from "../../components/ui/Button";
 import { useAuth } from "../../hooks/useAuth";
+import { useAppStore } from "../../stores/appStore";
 import { colors } from "../../lib/colors";
 
 type AuthMode = "main" | "email-otp" | "magic-link";
@@ -48,6 +49,8 @@ export default function WelcomeScreen() {
       await createProfile(userId, identifier, name);
       router.push("/onboarding/consent");
     } else {
+      // Defensive: ensure onboarding flag is set even if AsyncStorage was cleared
+      useAppStore.getState().setOnboardingComplete();
       router.replace("/(tabs)");
     }
   };
@@ -80,12 +83,19 @@ export default function WelcomeScreen() {
     setLoading(true);
     try {
       const data = await signInWithGoogle();
-      const user = data?.user ?? data?.session?.user;
-      if (user?.id) {
-        const googleName = user.user_metadata?.full_name;
-        const googleEmail = user.email ?? "";
-        await handleNewUser(user.id, googleEmail, googleName);
+      // User deliberately closed the browser — silently stop
+      if (!data || ("cancelled" in data && data.cancelled)) {
+        return;
       }
+      const sessionData = data as { user?: any; session?: any };
+      const user = sessionData.user ?? sessionData.session?.user;
+      if (!user?.id) {
+        setError("Sign in failed. Please try again.");
+        return;
+      }
+      const googleName = user.user_metadata?.full_name;
+      const googleEmail = user.email ?? "";
+      await handleNewUser(user.id, googleEmail, googleName);
     } catch (e: any) {
       setError(e.message ?? "Google sign in failed");
       Alert.alert("Google Sign In", e.message ?? "Failed");

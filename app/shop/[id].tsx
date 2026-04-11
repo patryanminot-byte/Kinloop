@@ -60,7 +60,7 @@ const ALL_ITEMS: Item[] = [
   {
     id: "s3",
     name: "Uppababy Vista",
-    category: "Stroller",
+    category: "Strollers",
     ageRange: "0-3y",
     status: "available",
     matchedTo: null,
@@ -494,7 +494,7 @@ export default function ShopItemDetailScreen() {
               await supabase.from("matches").insert({
                 item_id: item.id,
                 receiver_id: userId,
-                giver_id: null, // will be filled by seller
+                giver_id: item.userId,
                 status: "offered",
                 pricing_type: item.pricing?.type ?? "free",
                 pricing_amount: isGWYC ? selectedAmount : null,
@@ -519,8 +519,19 @@ export default function ShopItemDetailScreen() {
           itemEmoji={item.emoji}
           itemPrice={item.pricing.amount}
           sellerId={item.userId ?? ""}
-          onSuccess={() => {
+          onSuccess={async () => {
+            if (userId) {
+              await supabase.from("matches").insert({
+                item_id: item.id,
+                receiver_id: userId,
+                giver_id: item.userId,
+                status: "offered",
+                pricing_type: "set-price",
+                pricing_amount: item.pricing!.amount,
+              });
+            }
             setShowPayment(false);
+            setRequested(true);
             Alert.alert(
               "Payment successful!",
               `You bought ${item.name}. The seller will be in touch.`,
