@@ -714,7 +714,7 @@ export default function ItemDetailScreen() {
               variant="primary"
               size="md"
               title="Find a match now"
-              onPress={() => {}}
+              onPress={() => router.push("/(tabs)/shop")}
               style={styles.actionBtn}
             />
           </Card>

@@ -518,7 +518,7 @@ export default function ShopItemDetailScreen() {
           itemName={item.name}
           itemEmoji={item.emoji}
           itemPrice={item.pricing.amount}
-          sellerId={item.id} // TODO: replace with real seller user ID
+          sellerId={item.userId ?? ""}
           onSuccess={() => {
             setShowPayment(false);
             Alert.alert(

@@ -118,14 +118,16 @@ export function useAuth() {
           const accessToken = params.get("access_token");
           const refreshToken = params.get("refresh_token");
           if (accessToken && refreshToken) {
-            await supabase.auth.setSession({
+            const { data: sessionData } = await supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken,
             });
+            return sessionData;
           }
         }
       }
     }
+    return null;
   };
 
   // ── Phone OTP (requires Twilio) ─────────────────────────────────────

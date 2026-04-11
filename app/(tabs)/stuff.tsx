@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { colors, gradientColors } from "../../lib/colors";
+import { CATEGORY_INFO } from "../../lib/itemCatalog";
 import type { Item } from "../../lib/types";
 import Button from "../../components/ui/Button";
 import { useAuth } from "../../hooks/useAuth";
@@ -21,14 +22,14 @@ import { useAppStore } from "../../stores/appStore";
 // ── Mock Data ──────────────────────────────────────────────────────────
 const MOCK_ITEMS: Item[] = [
   { id: "1", name: "3-6mo clothes bundle", category: "Clothing", ageRange: "3-6mo", status: "aging-out", matchedTo: null, emoji: "👕", daysLeft: 0, isBundle: true, count: 12 },
-  { id: "2", name: "Bugaboo stroller", category: "Stroller", ageRange: "6-12mo", status: "matched", matchedTo: "Mike J.", emoji: "🚼" },
+  { id: "2", name: "Bugaboo stroller", category: "Strollers", ageRange: "6-12mo", status: "matched", matchedTo: "Mike J.", emoji: "🚼" },
   { id: "3", name: "Winter jacket bundle", category: "Clothing", ageRange: "2-3y", status: "aging-out", matchedTo: null, emoji: "🧥", daysLeft: 5, isBundle: true, count: 3 },
   { id: "4", name: "Board books set", category: "Books", ageRange: "12-18mo", status: "available", matchedTo: null, emoji: "📚", isBundle: true, count: 8 },
-  { id: "5", name: "Infant car seat", category: "Car Seat", ageRange: "0-12mo", status: "handed-off", matchedTo: "Sarah C.", emoji: "🚗", hasPhoto: true },
+  { id: "5", name: "Infant car seat", category: "Car Seats", ageRange: "0-12mo", status: "handed-off", matchedTo: "Sarah C.", emoji: "🚗", hasPhoto: true },
   { id: "6", name: "Play mat", category: "Gear", ageRange: "0-6mo", status: "available", matchedTo: null, emoji: "🎪" },
 ];
 
-const CATEGORIES = ["All", "Clothing", "Gear", "Stroller", "Car Seat", "Books", "Toys", "Household", "Outdoor", "Furniture", "Electronics", "Other"];
+const CATEGORIES = ["All", ...Object.keys(CATEGORY_INFO)] as const;
 
 const STATUS_ORDER: Record<Item["status"], number> = {
   "aging-out": 0,

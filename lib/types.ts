@@ -16,6 +16,7 @@ export interface Friend {
 
 export interface Item {
   id: string;
+  userId?: string;
   name: string;
   category: string;
   ageRange: string;

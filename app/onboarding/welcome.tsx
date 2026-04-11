@@ -79,7 +79,13 @@ export default function WelcomeScreen() {
     setError("");
     setLoading(true);
     try {
-      await signInWithGoogle();
+      const data = await signInWithGoogle();
+      const user = data?.user ?? data?.session?.user;
+      if (user?.id) {
+        const googleName = user.user_metadata?.full_name;
+        const googleEmail = user.email ?? "";
+        await handleNewUser(user.id, googleEmail, googleName);
+      }
     } catch (e: any) {
       setError(e.message ?? "Google sign in failed");
       Alert.alert("Google Sign In", e.message ?? "Failed");
@@ -277,7 +283,7 @@ export default function WelcomeScreen() {
           <View style={styles.center}>
             <GradientText style={styles.title}>Watasu</GradientText>
             <Text style={styles.japanese}>{"\u6E21\u3059"} to pass along</Text>
-            <Text style={styles.tagline}>Love it, then watasu.</Text>
+            <Text style={styles.tagline}>Love it, then Watasu.</Text>
           </View>
 
           {/* Auth form */}

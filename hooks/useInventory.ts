@@ -117,7 +117,7 @@ export function useInventory(userId: string | undefined) {
         photo_url: item.photoUri || null,
         condition: item.condition || null,
         pricing_type: item.pricing?.type || null,
-        pricing_amount: item.pricing?.amount || null,
+        pricing_amount: item.pricing?.amount ?? null,
       })
       .select()
       .single();

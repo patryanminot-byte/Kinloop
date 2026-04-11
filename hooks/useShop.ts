@@ -66,6 +66,7 @@ export function useShop(userId: string | undefined) {
 function mapItem(row: any, ring: "friend" | "nearby"): Item {
   return {
     id: row.id,
+    userId: row.user_id,
     name: row.name,
     category: row.category,
     ageRange: row.age_range,
