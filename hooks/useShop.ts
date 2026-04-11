@@ -2,8 +2,12 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import type { Item } from "../lib/types";
 import { getInitials } from "../lib/utils";
+import { distanceBetween } from "../lib/distance";
+import { useAppStore } from "../stores/appStore";
 
 export function useShop(userId: string | undefined) {
+  const userLat = useAppStore((s) => s.locationLat);
+  const userLng = useAppStore((s) => s.locationLng);
   const [friendItems, setFriendItems] = useState<Item[]>([]);
   const [nearbyItems, setNearbyItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,13 +31,13 @@ export function useShop(userId: string | undefined) {
     if (friendIds.length > 0) {
       const { data: fItems } = await supabase
         .from("items")
-        .select("*, owner:profiles!user_id(name, avatar_initials)")
+        .select("*, owner:profiles!user_id(name, avatar_initials, location_lat, location_lng)")
         .in("user_id", friendIds)
         .eq("status", "available")
         .order("created_at", { ascending: false });
 
       setFriendItems(
-        (fItems ?? []).map((row: any) => mapItem(row, "friend"))
+        (fItems ?? []).map((row: any) => mapItem(row, "friend", userLat, userLng))
       );
     } else {
       setFriendItems([]);
@@ -43,18 +47,18 @@ export function useShop(userId: string | undefined) {
     const excludeIds = [userId, ...friendIds];
     const { data: nItems } = await supabase
       .from("items")
-      .select("*, owner:profiles!user_id(name, avatar_initials)")
+      .select("*, owner:profiles!user_id(name, avatar_initials, location_lat, location_lng)")
       .eq("visible_nearby", true)
       .eq("status", "available")
       .not("user_id", "in", `(${excludeIds.join(",")})`)
       .order("created_at", { ascending: false });
 
     setNearbyItems(
-      (nItems ?? []).map((row: any) => mapItem(row, "nearby"))
+      (nItems ?? []).map((row: any) => mapItem(row, "nearby", userLat, userLng))
     );
 
     setLoading(false);
-  }, [userId]);
+  }, [userId, userLat, userLng]);
 
   useEffect(() => {
     fetch();
@@ -63,7 +67,19 @@ export function useShop(userId: string | undefined) {
   return { friendItems, nearbyItems, loading, refresh: fetch };
 }
 
-function mapItem(row: any, ring: "friend" | "nearby"): Item {
+function mapItem(
+  row: any,
+  ring: "friend" | "nearby",
+  userLat: number | null,
+  userLng: number | null,
+): Item {
+  const dist = distanceBetween(
+    userLat,
+    userLng,
+    row.owner?.location_lat ?? null,
+    row.owner?.location_lng ?? null,
+  );
+
   return {
     id: row.id,
     userId: row.user_id,
@@ -84,7 +100,8 @@ function mapItem(row: any, ring: "friend" | "nearby"): Item {
     from: row.owner?.name ?? "Someone",
     fromAvatar: row.owner?.avatar_initials ?? "??",
     ring,
-    distance: ring === "nearby" ? "About 10 min away" : null,
+    distance: dist?.label ?? null,
+    distanceMinutes: dist?.minutes ?? null,
     postedAgo: formatTimeAgo(row.created_at),
   };
 }

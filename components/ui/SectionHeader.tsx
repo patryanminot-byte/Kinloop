@@ -39,6 +39,6 @@ const styles = StyleSheet.create({
   action: {
     fontSize: 14,
     fontWeight: "600",
-    color: colors.neonPurple,
+    color: colors.violet,
   },
 });

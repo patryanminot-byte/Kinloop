@@ -24,6 +24,24 @@ export default function ConsentScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {/* Progress bar — step 1 of 4 */}
+      <View style={styles.progressRow}>
+        {Array.from({ length: 4 }).map((_, i) => (
+          <View key={i} style={styles.segmentWrapper}>
+            {i < 1 ? (
+              <LinearGradient
+                colors={gradientColors.button}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.segment}
+              />
+            ) : (
+              <View style={[styles.segment, styles.segmentEmpty]} />
+            )}
+          </View>
+        ))}
+      </View>
+
       <View style={styles.center}>
         <Text style={styles.emoji}>{"\u{1F91D}"}</Text>
         <GradientText style={styles.title}>Welcome to Watasu</GradientText>
@@ -65,6 +83,15 @@ export default function ConsentScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
+  progressRow: {
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+  },
+  segmentWrapper: { flex: 1 },
+  segment: { height: 4, borderRadius: 2 },
+  segmentEmpty: { backgroundColor: colors.surface },
   center: {
     flex: 1,
     alignItems: "center",
@@ -83,7 +110,7 @@ const styles = StyleSheet.create({
   links: { gap: 12 },
   link: {
     fontSize: 15,
-    color: colors.neonPurple,
+    color: colors.violet,
     fontWeight: "600",
     textAlign: "center",
   },

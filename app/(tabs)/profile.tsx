@@ -19,7 +19,6 @@ import { useRouter } from "expo-router";
 import { colors } from "../../lib/colors";
 import { Child } from "../../lib/types";
 import Avatar from "../../components/ui/Avatar";
-import GradientText from "../../components/ui/GradientText";
 import { useAuth } from "../../hooks/useAuth";
 import { useAppStore } from "../../stores/appStore";
 import { useInventory } from "../../hooks/useInventory";
@@ -282,11 +281,16 @@ export default function ProfileScreen() {
       if (kidDobDraft) updates.dob = kidDobDraft;
       if (kidEmojiDraft) updates.emoji = kidEmojiDraft;
       await supabase.from("children").update(updates).eq("id", editingKidId);
+      const childUpdates = {
+        name: kidNameDraft.trim(),
+        ...(kidDobDraft ? { dob: kidDobDraft } : {}),
+        ...(kidEmojiDraft ? { emoji: kidEmojiDraft } : {}),
+      };
       setKids((prev) => prev.map((k) =>
-        k.id === editingKidId
-          ? { ...k, name: kidNameDraft.trim(), dob: kidDobDraft || k.dob, emoji: kidEmojiDraft || k.emoji }
-          : k,
+        k.id === editingKidId ? { ...k, ...childUpdates } : k,
       ));
+      // Sync Zustand appStore so Home screen nudges use fresh data
+      useAppStore.getState().updateChild(editingKidId, childUpdates);
     }
     setEditingKidId(null);
   };

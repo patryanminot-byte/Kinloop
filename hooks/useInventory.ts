@@ -25,8 +25,8 @@ export function useInventory(userId: string | undefined) {
     if (!userId) return;
     setLoading(true);
 
-    // Fetch items and the user's youngest child's DOB for daysLeft calc
-    const [itemsRes, childRes] = await Promise.all([
+    // Fetch items, youngest child DOB, and active matches for the user's items
+    const [itemsRes, childRes, matchesRes] = await Promise.all([
       supabase
         .from("items")
         .select("*")
@@ -38,12 +38,26 @@ export function useInventory(userId: string | undefined) {
         .eq("user_id", userId)
         .order("dob", { ascending: false })
         .limit(1),
+      supabase
+        .from("matches")
+        .select("item_id, receiver:profiles!receiver_id(name)")
+        .eq("giver_id", userId)
+        .not("status", "in", "(declined,completed)"),
     ]);
 
     const { data, error } = itemsRes;
     const youngestDob = childRes.data?.[0]?.dob
       ? new Date(childRes.data[0].dob)
       : null;
+
+    // Build a map of item_id -> receiver name for active matches
+    const matchedToMap = new Map<string, string>();
+    for (const m of matchesRes.data ?? []) {
+      const receiverName = (m.receiver as any)?.name;
+      if (m.item_id && receiverName) {
+        matchedToMap.set(m.item_id, receiverName);
+      }
+    }
 
     if (!error && data) {
       setItems(
@@ -66,7 +80,7 @@ export function useInventory(userId: string | undefined) {
             category: row.category,
             ageRange: row.age_range,
             status: row.status,
-            matchedTo: null,
+            matchedTo: matchedToMap.get(row.id) ?? null,
             emoji: row.emoji,
             daysLeft,
             isBundle: row.is_bundle,

@@ -112,7 +112,7 @@ export default function WelcomeScreen() {
   };
 
   const handleVerifyEmailOtp = async () => {
-    if (code.length !== 8) return;
+    if (code.length !== 6) return;
     setError("");
     setLoading(true);
     try {
@@ -217,10 +217,10 @@ export default function WelcomeScreen() {
       </Text>
       <TextInput
         style={styles.codeInput}
-        placeholder="00000000"
+        placeholder="000000"
         placeholderTextColor={colors.textLight}
         value={code}
-        onChangeText={(t) => setCode(t.replace(/\D/g, "").slice(0, 8))}
+        onChangeText={(t) => setCode(t.replace(/\D/g, "").slice(0, 6))}
         keyboardType="number-pad"
         textContentType="oneTimeCode"
         autoFocus
@@ -231,7 +231,7 @@ export default function WelcomeScreen() {
         size="lg"
         title={loading ? "Verifying..." : "Verify"}
         onPress={handleVerifyEmailOtp}
-        disabled={loading || code.length !== 8}
+        disabled={loading || code.length !== 6}
         style={styles.button}
       />
       <TouchableOpacity

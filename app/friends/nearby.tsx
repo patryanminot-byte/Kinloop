@@ -119,7 +119,7 @@ export default function NearbyFriendsScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.neonPurple} />
+          <ActivityIndicator size="large" color={colors.violet} />
           <Text style={styles.loadingText}>Finding families nearby...</Text>
         </View>
       </SafeAreaView>
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
   connectedLabel: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#34D399",
+    color: colors.eucalyptus,
   },
   footer: {
     alignItems: "center",

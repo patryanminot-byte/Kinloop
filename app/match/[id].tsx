@@ -157,7 +157,7 @@ export default function MatchDetailScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.neonPurple} />
+          <ActivityIndicator size="large" color={colors.violet} />
         </View>
       </SafeAreaView>
     );
@@ -175,6 +175,8 @@ export default function MatchDetailScreen() {
 
   const firstName = match.to.split(" ")[0];
   const fromFirstName = match.from?.split(" ")[0] ?? "Someone";
+  // For push notifications, use the real user name (fromFirstName may be "You" in giver view)
+  const senderRealName = session?.user?.user_metadata?.full_name?.split(" ")[0] ?? fromFirstName;
   const isReady = match.status === "ready" && !sent;
 
   const getButtonTitle = () => {
@@ -278,6 +280,7 @@ export default function MatchDetailScreen() {
               <View style={[styles.itemEmojiCircle, {
                 backgroundColor: match.status === "offered" ? colors.violetLight
                   : match.status === "accepted" ? colors.goldenLight
+                  : match.status === "scheduled" ? colors.goldenLight
                   : colors.eucalyptusLight,
               }]}>
                 <Text style={styles.itemEmojiCompact}>{match.itemEmoji}</Text>
@@ -289,6 +292,7 @@ export default function MatchDetailScreen() {
               <Text style={styles.bundleCount}>
                 {match.status === "offered" ? `Offer from ${fromFirstName}` : ""}
                 {match.status === "accepted" ? "You accepted!" : ""}
+                {match.status === "scheduled" ? "Handoff scheduled!" : ""}
                 {match.status === "handed-off" ? "Received" : ""}
                 {pricingBadgeLabel ? ` \u00B7 ${pricingBadgeLabel}` : ""}
               </Text>
@@ -361,6 +365,32 @@ export default function MatchDetailScreen() {
                     {fromFirstName} will arrange the handoff. Sit tight!
                   </Text>
                 </View>
+              </View>
+            )}
+
+            {/* Scheduled */}
+            {match.status === "scheduled" && (
+              <View style={styles.section}>
+                <View style={styles.acceptedConfirm}>
+                  <Text style={styles.acceptedEmoji}>{"\u{1F4C5}"}</Text>
+                  <Text style={styles.acceptedTitle}>Handoff scheduled!</Text>
+                  <Text style={styles.acceptedSub}>
+                    {match.handoff?.details
+                      ? `${fromFirstName} set up the handoff: ${match.handoff.details}`
+                      : `${fromFirstName} is arranging the handoff — you'll get the details soon!`}
+                  </Text>
+                </View>
+                {match.handoff && (
+                  <View style={styles.scheduledCard}>
+                    <Text style={styles.scheduledMethod}>
+                      {match.handoff.method === "porch" ? "Porch pickup" :
+                       match.handoff.method === "meetup" ? "Meetup" :
+                       match.handoff.method === "school" ? "School drop-off" :
+                       "Shipping"}
+                    </Text>
+                    <Text style={styles.scheduledDetails}>{match.handoff.details}</Text>
+                  </View>
+                )}
               </View>
             )}
 
@@ -588,7 +618,7 @@ export default function MatchDetailScreen() {
                         await supabase.functions.invoke("send-notification", {
                           body: {
                             user_id: matchData.receiver_id,
-                            title: `${fromFirstName} is checking in...`,
+                            title: `${senderRealName} is checking in...`,
                             body: nudgeMessage,
                             data: { matchId: id },
                           },
@@ -798,7 +828,7 @@ const styles = StyleSheet.create({
   },
   backText: {
     fontSize: 16,
-    color: colors.neonPurple,
+    color: colors.violet,
     fontWeight: "600",
   },
   itemSection: {
@@ -900,7 +930,7 @@ const styles = StyleSheet.create({
   },
   messageHint: {
     fontSize: 12,
-    color: colors.neonPurple,
+    color: colors.violet,
     marginBottom: 8,
   },
   messageTextEditable: {
@@ -926,11 +956,11 @@ const styles = StyleSheet.create({
   },
   suggestionText: {
     fontSize: 14,
-    color: colors.neonPurple,
+    color: colors.violet,
     fontStyle: "italic",
     paddingVertical: 10,
     paddingHorizontal: 12,
-    backgroundColor: colors.neonPurple + "0D",
+    backgroundColor: colors.violet + "0D",
     borderRadius: 10,
     marginBottom: 8,
     overflow: "hidden",
@@ -974,7 +1004,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: colors.neonPurple,
+    backgroundColor: colors.violet,
     opacity: 0.6,
   },
   waitingText: {
@@ -991,12 +1021,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 20,
-    backgroundColor: colors.neonPurple + "15",
+    backgroundColor: colors.violet + "15",
   },
   nudgeText: {
     fontSize: 14,
     fontWeight: "600",
-    color: colors.neonPurple,
+    color: colors.violet,
   },
   nudgeComposer: {
     width: "100%",
@@ -1024,13 +1054,13 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 14,
-    backgroundColor: colors.neonGreen + "15",
+    backgroundColor: colors.eucalyptus + "15",
     alignItems: "center",
   },
   nudgeSentText: {
     fontSize: 15,
     fontWeight: "600",
-    color: colors.neonGreen,
+    color: colors.eucalyptus,
   },
 
   // Scheduled
@@ -1097,7 +1127,7 @@ const styles = StyleSheet.create({
   },
   ratingThanks: {
     fontSize: 14,
-    color: colors.neonPurple,
+    color: colors.violet,
     fontWeight: "600",
   },
   ratingBtns: {
@@ -1141,7 +1171,7 @@ const styles = StyleSheet.create({
   addPhotoText: {
     fontSize: 14,
     fontWeight: "600",
-    color: colors.neonPurple,
+    color: colors.violet,
   },
   photoPreview: {
     width: 200,
@@ -1150,7 +1180,7 @@ const styles = StyleSheet.create({
   },
   photoChangeText: {
     fontSize: 13,
-    color: colors.neonPurple,
+    color: colors.violet,
     fontWeight: "600",
     textAlign: "center",
     marginTop: 6,
@@ -1165,7 +1195,7 @@ const styles = StyleSheet.create({
   },
   receiverPersonalLine: {
     fontSize: 14,
-    color: colors.neonPurple,
+    color: colors.violet,
     marginTop: 8,
     fontStyle: "italic",
   },

@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { gradientColors } from "../../lib/colors";
+import { colors, gradientColors } from "../../lib/colors";
 
 interface AvatarProps {
   initials: string;
@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   defaultText: {
-    color: "#C084FC",
+    color: colors.violet,
   },
   emojiBg: {
     backgroundColor: "rgba(255,255,255,0.85)",

@@ -437,7 +437,7 @@ const styles = StyleSheet.create({
   circleTitle: {
     fontSize: 14,
     fontWeight: "600",
-    color: colors.neonPurple,
+    color: colors.violet,
     textTransform: "uppercase",
     letterSpacing: 0.8,
     marginBottom: 14,
@@ -501,7 +501,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.neonPurple + "15",
+    backgroundColor: colors.violet + "15",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -529,7 +529,7 @@ const styles = StyleSheet.create({
   },
   milestoneCheck: {
     fontSize: 18,
-    color: colors.neonGreen,
+    color: colors.eucalyptus,
     fontWeight: "700",
   },
 

@@ -8,13 +8,13 @@ import {
   TouchableOpacity,
   Modal,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import { colors, gradientColors } from "../lib/colors";
-import { CONDITION_OPTIONS } from "../lib/itemCatalog";
 import type { ToGoItem, Pricing } from "../lib/types";
 import { useAppStore } from "../stores/appStore";
 import { useAuth } from "../hooks/useAuth";
@@ -147,6 +147,7 @@ export default function ToGoScreen() {
       router.replace("/(tabs)/stuff");
     } catch (e) {
       console.error("Save failed:", e);
+      Alert.alert("Error", "Failed to save items. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -181,7 +182,7 @@ export default function ToGoScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Ready to go</Text>
-          <Badge color={colors.neonPurple}>
+          <Badge color={colors.violet}>
             {toGoItems.length} item{toGoItems.length !== 1 ? "s" : ""}
           </Badge>
         </View>
@@ -226,7 +227,7 @@ export default function ToGoScreen() {
                     {lineName}
                   </Text>
                   <View style={styles.lineMetaRow}>
-                    <Badge color={colors.neonGreen}>{line.displayCondition}</Badge>
+                    <Badge color={colors.eucalyptus}>{line.displayCondition}</Badge>
                     {line.type === "bundle" && (
                       <Text style={styles.tapHint}>Tap to manage</Text>
                     )}
@@ -394,14 +395,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: colors.neonPurple,
+    borderColor: colors.violet,
     borderStyle: "dashed",
     marginBottom: 16,
   },
   addAnotherText: {
     fontSize: 14,
     fontWeight: "600",
-    color: colors.neonPurple,
+    color: colors.violet,
   },
 
   // Line card
@@ -516,12 +517,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 14,
     borderRadius: 16,
-    backgroundColor: "#F0F0ED",
+    backgroundColor: colors.surface,
   },
   bundleToggleOn: {
-    backgroundColor: colors.neonPurple + "20",
+    backgroundColor: colors.violet + "20",
     borderWidth: 1,
-    borderColor: colors.neonPurple,
+    borderColor: colors.violet,
   },
   bundleToggleText: {
     fontSize: 13,

@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   },
   secondary: {
     borderWidth: 1.5,
-    borderColor: colors.neonPurple,
+    borderColor: colors.violet,
   },
   text: {
     fontWeight: "600",
@@ -155,10 +155,10 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   textSecondary: {
-    color: colors.neonPurple,
+    color: colors.violet,
   },
   textGhost: {
-    color: colors.neonPurple,
+    color: colors.violet,
   },
   textDisabled: {
     opacity: 0.4,

@@ -1314,7 +1314,7 @@ export default function AddItemModal({
                                 {entry.name}
                               </Text>
                             </View>
-                            <Text style={{ fontSize: 18, color: colors.neonGreen }}>+</Text>
+                            <Text style={{ fontSize: 18, color: colors.eucalyptus }}>+</Text>
                           </TouchableOpacity>
                         ))}
                         {bundleItemQuery.length >= 2 && (
@@ -1622,7 +1622,7 @@ const styles = StyleSheet.create({
   addCustomText: {
     fontSize: 15,
     fontWeight: "600",
-    color: colors.neonPurple,
+    color: colors.violet,
   },
 
   // Search shortcut (in browse mode)
@@ -1714,13 +1714,13 @@ const styles = StyleSheet.create({
   customItemBtn: {
     paddingVertical: 14,
     paddingHorizontal: 16,
-    backgroundColor: colors.neonPurple + "0D",
+    backgroundColor: colors.violet + "0D",
     borderRadius: 12,
     marginBottom: 12,
   },
   customItemText: {
     fontSize: 15,
-    color: colors.neonPurple,
+    color: colors.violet,
     fontWeight: "600",
   },
 
@@ -1766,7 +1766,7 @@ const styles = StyleSheet.create({
   },
   backLinkText: {
     fontSize: 15,
-    color: colors.neonPurple,
+    color: colors.violet,
     fontWeight: "600",
   },
 
@@ -1799,7 +1799,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   autoCategoryBadge: {
-    backgroundColor: colors.neonPurple + "15",
+    backgroundColor: colors.violet + "15",
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 16,
@@ -1807,7 +1807,7 @@ const styles = StyleSheet.create({
   autoCategoryText: {
     fontSize: 14,
     fontWeight: "600",
-    color: colors.neonPurple,
+    color: colors.violet,
   },
   changeCategoryText: {
     fontSize: 13,
@@ -1848,7 +1848,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 20,
   },
-  chipInactive: { backgroundColor: "#F0F0ED" },
+  chipInactive: { backgroundColor: colors.surface },
   chipTextActive: { fontSize: 14, fontWeight: "600", color: "#FFFFFF" },
   chipTextInactive: {
     fontSize: 14,
@@ -1866,12 +1866,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 20,
-    backgroundColor: "#F0F0ED",
+    backgroundColor: colors.surface,
   },
   conditionChipActive: {
-    backgroundColor: colors.neonGreen + "20",
+    backgroundColor: colors.eucalyptus + "20",
     borderWidth: 1,
-    borderColor: colors.neonGreen,
+    borderColor: colors.eucalyptus,
   },
   conditionText: {
     fontSize: 14,
@@ -1879,7 +1879,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   conditionTextActive: {
-    color: colors.neonGreen,
+    color: colors.eucalyptus,
   },
 
   // Bundle flow
@@ -1909,8 +1909,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   bundleCategoryCardActive: {
-    borderColor: colors.neonPurple,
-    backgroundColor: colors.neonPurple + "08",
+    borderColor: colors.violet,
+    backgroundColor: colors.violet + "08",
   },
   bundleCategoryEmoji: {
     fontSize: 32,
@@ -1921,18 +1921,18 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   bundleCategoryLabelActive: {
-    color: colors.neonPurple,
+    color: colors.violet,
   },
   bundleSizeChip: {
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 20,
-    backgroundColor: "#F0F0ED",
+    backgroundColor: colors.surface,
   },
   bundleSizeChipActive: {
-    backgroundColor: colors.neonPurple + "20",
+    backgroundColor: colors.violet + "20",
     borderWidth: 1,
-    borderColor: colors.neonPurple,
+    borderColor: colors.violet,
   },
   bundleSizeText: {
     fontSize: 15,
@@ -1940,7 +1940,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   bundleSizeTextActive: {
-    color: colors.neonPurple,
+    color: colors.violet,
   },
   countRow: {
     flexDirection: "row",
@@ -1952,12 +1952,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 16,
     borderRadius: 14,
-    backgroundColor: "#F0F0ED",
+    backgroundColor: colors.surface,
   },
   countChipActive: {
-    backgroundColor: colors.neonPurple + "20",
+    backgroundColor: colors.violet + "20",
     borderWidth: 1,
-    borderColor: colors.neonPurple,
+    borderColor: colors.violet,
   },
   countText: {
     fontSize: 16,
@@ -1965,7 +1965,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   countTextActive: {
-    color: colors.neonPurple,
+    color: colors.violet,
   },
   bundlePreviewName: {
     fontSize: 18,
@@ -2016,7 +2016,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   bundleItemPill: {
-    backgroundColor: "#F0F0ED",
+    backgroundColor: colors.surface,
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 12,

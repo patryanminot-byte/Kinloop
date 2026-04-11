@@ -24,6 +24,7 @@ interface AppState {
   children: Child[];
   setChildren: (children: Child[]) => void;
   addChild: (child: Child) => void;
+  updateChild: (id: string, updates: Partial<Child>) => void;
 
   // Inventory
   items: Item[];
@@ -81,6 +82,12 @@ export const useAppStore = create<AppState>()(
       children: [],
       setChildren: (children) => set({ children }),
       addChild: (child) => set((s) => ({ children: [...s.children, child] })),
+      updateChild: (id, updates) =>
+        set((s) => ({
+          children: s.children.map((c) =>
+            c.id === id ? { ...c, ...updates } : c
+          ),
+        })),
 
       items: [],
       setItems: (items) => set({ items }),
@@ -125,7 +132,10 @@ export const useAppStore = create<AppState>()(
     {
       name: "watasu-app-store",
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ toGoItems: state.toGoItems }),
+      partialize: (state) => ({
+        toGoItems: state.toGoItems,
+        hasCompletedOnboarding: state.hasCompletedOnboarding,
+      }),
     }
   )
 );

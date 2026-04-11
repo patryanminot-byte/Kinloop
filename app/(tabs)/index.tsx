@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  FlatList,
   Pressable,
   ActivityIndicator,
 } from "react-native";
@@ -228,7 +227,7 @@ export default function HomeScreen() {
     return (
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.neonPurple} />
+          <ActivityIndicator size="large" color={colors.violet} />
         </View>
       </SafeAreaView>
     );
@@ -519,14 +518,14 @@ export default function HomeScreen() {
             onAction={() => router.push("/(tabs)/stuff" as `/${string}`)}
           />
           <View style={styles.sectionGap} />
-          <FlatList
+          <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            data={displayAgingItems}
-            keyExtractor={(item) => item.id}
             contentContainerStyle={styles.agingList}
-            renderItem={({ item }) => (
+          >
+            {displayAgingItems.map((item) => (
               <Pressable
+                key={item.id}
                 onPress={() => router.push(`/item/${item.id}` as `/${string}`)}
               >
                 <Card style={styles.agingCard}>
@@ -544,8 +543,8 @@ export default function HomeScreen() {
                   </View>
                 </Card>
               </Pressable>
-            )}
-          />
+            ))}
+          </ScrollView>
         </View>
 
         {/* ---- Your network ---- */}
@@ -687,7 +686,7 @@ const styles = StyleSheet.create({
   promptActionText: {
     fontSize: 15,
     fontWeight: "600",
-    color: colors.neonPurple,
+    color: colors.violet,
   },
 
   // Match cards
@@ -749,13 +748,13 @@ const styles = StyleSheet.create({
   },
   messageTapHint: {
     fontSize: 12,
-    color: colors.neonPurple,
+    color: colors.violet,
     fontWeight: "600",
     marginTop: 8,
   },
   personalLine: {
     fontSize: 14,
-    color: colors.neonPurple,
+    color: colors.violet,
     marginBottom: 8,
   },
   matchActions: {
@@ -872,7 +871,7 @@ const styles = StyleSheet.create({
   },
   offerPersonalLine: {
     fontSize: 14,
-    color: colors.neonPurple,
+    color: colors.violet,
     marginBottom: 8,
   },
   offerActions: {
@@ -909,7 +908,7 @@ const styles = StyleSheet.create({
   },
   finderArrow: {
     fontSize: 18,
-    color: colors.neonPurple,
+    color: colors.violet,
     fontWeight: "600",
   },
 

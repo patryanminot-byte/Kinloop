@@ -130,11 +130,11 @@ function getPricingBadgeInfo(item: Item) {
   if (!pricing) return null;
   switch (pricing.type) {
     case "free":
-      return { label: "\uD83C\uDF81 Free", color: colors.neonGreen };
+      return { label: "\uD83C\uDF81 Free", color: colors.eucalyptus };
     case "give-what-you-can":
-      return { label: "\uD83D\uDC9B You decide", color: colors.neonOrange };
+      return { label: "\uD83D\uDC9B You decide", color: colors.coral };
     case "set-price":
-      return { label: `$${pricing.amount ?? 0}`, color: colors.neonPurple };
+      return { label: `$${pricing.amount ?? 0}`, color: colors.violet };
     default:
       return null;
   }
@@ -219,12 +219,12 @@ export default function ShopItemDetailScreen() {
         {/* Badge row */}
         <View style={styles.badgeRow}>
           {item.ring === "friend" ? (
-            <Badge color={colors.neonPurple}>From a friend</Badge>
+            <Badge color={colors.violet}>From a friend</Badge>
           ) : item.distance ? (
-            <Badge color={colors.neonCyan}>{item.distance}</Badge>
+            <Badge color={colors.eucalyptus}>{item.distance}</Badge>
           ) : null}
           {item.condition ? (
-            <Badge color={colors.neonGreen}>{item.condition}</Badge>
+            <Badge color={colors.eucalyptus}>{item.condition}</Badge>
           ) : null}
         </View>
 
@@ -573,7 +573,7 @@ const styles = StyleSheet.create({
   backLink: {
     fontSize: 15,
     fontWeight: "600",
-    color: colors.neonPurple,
+    color: colors.violet,
   },
 
   // Hero
@@ -665,7 +665,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   haveThisAdded: {
-    borderColor: colors.neonGreen,
+    borderColor: colors.eucalyptus,
     backgroundColor: "#F0FDF4",
   },
   haveThisEmoji: {
@@ -687,7 +687,7 @@ const styles = StyleSheet.create({
   haveThisPlus: {
     fontSize: 22,
     fontWeight: "600",
-    color: colors.neonPurple,
+    color: colors.violet,
   },
 
   // GWYC

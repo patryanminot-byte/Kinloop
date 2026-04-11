@@ -81,6 +81,7 @@ export interface Match {
   daysAgo: number;
   sentAt?: string;
   handoff?: HandoffPlan | null;
+  rating?: "up" | "down" | null;
   ring?: "friend" | "nearby";
   role?: "giver" | "receiver";
   fromAvatar?: string;

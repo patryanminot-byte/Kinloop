@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
   checkmark: {
     fontSize: 18,
     fontWeight: "700",
-    color: colors.neonPurple,
+    color: colors.violet,
   },
   priceSection: {
     marginTop: 4,
@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
   receiveText: {
     fontSize: 13,
     fontWeight: "600",
-    color: colors.neonGreen,
+    color: colors.eucalyptus,
   },
   gwucSection: {
     marginTop: 4,

@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: { padding: 20, paddingBottom: 40 },
   backBtn: { alignSelf: "flex-start", paddingVertical: 8, marginBottom: 8 },
-  backText: { fontSize: 16, color: colors.neonPurple, fontWeight: "600" },
+  backText: { fontSize: 16, color: colors.violet, fontWeight: "600" },
   title: { fontSize: 24, fontWeight: "700", color: colors.text, marginBottom: 16 },
 
   // Category grid
@@ -420,9 +420,9 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 12,
     borderRadius: 12,
-    backgroundColor: colors.neonPurple + "10",
+    backgroundColor: colors.violet + "10",
     borderWidth: 1,
-    borderColor: colors.neonPurple,
+    borderColor: colors.violet,
     marginBottom: 20,
   },
   selectedCategoryEmoji: { fontSize: 22 },
@@ -430,12 +430,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: "700",
-    color: colors.neonPurple,
+    color: colors.violet,
   },
   selectedCategoryChange: {
     fontSize: 14,
     fontWeight: "600",
-    color: colors.neonPurple,
+    color: colors.violet,
   },
 
   // Sections
@@ -494,13 +494,13 @@ const styles = StyleSheet.create({
     marginTop: 8,
     padding: 12,
     borderRadius: 12,
-    backgroundColor: colors.neonGreen + "15",
+    backgroundColor: colors.eucalyptus + "15",
     borderWidth: 1,
-    borderColor: colors.neonGreen + "40",
+    borderColor: colors.eucalyptus + "40",
   },
   selectedEmoji: { fontSize: 22 },
   selectedName: { flex: 1, fontSize: 16, fontWeight: "600", color: colors.text },
-  changeLink: { fontSize: 14, fontWeight: "600", color: colors.neonPurple },
+  changeLink: { fontSize: 14, fontWeight: "600", color: colors.violet },
 
   // Description
   descriptionInput: {
@@ -517,7 +517,7 @@ const styles = StyleSheet.create({
   // Pills
   pillRow: { gap: 8 },
   pill: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 20 },
-  pillInactive: { backgroundColor: "#F0F0ED" },
+  pillInactive: { backgroundColor: colors.surface },
   pillTextActive: { fontSize: 14, fontWeight: "600", color: "#FFFFFF" },
   pillTextInactive: { fontSize: 14, fontWeight: "600", color: colors.textMuted },
 
@@ -527,15 +527,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 20,
-    backgroundColor: "#F0F0ED",
+    backgroundColor: colors.surface,
   },
   conditionChipActive: {
-    backgroundColor: colors.neonPurple + "20",
+    backgroundColor: colors.violet + "20",
     borderWidth: 1,
-    borderColor: colors.neonPurple,
+    borderColor: colors.violet,
   },
   conditionText: { fontSize: 14, fontWeight: "600", color: colors.textMuted },
-  conditionTextActive: { color: colors.neonPurple },
+  conditionTextActive: { color: colors.violet },
 
   // Bundle toggle
   bundleToggleRow: {
@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 2,
   },
-  toggleTrackOn: { backgroundColor: colors.neonPurple },
+  toggleTrackOn: { backgroundColor: colors.violet },
   toggleThumb: {
     width: 22,
     height: 22,
@@ -577,6 +577,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   addedEmoji: { fontSize: 48 },
-  addedTitle: { fontSize: 24, fontWeight: "700", color: colors.neonGreen },
+  addedTitle: { fontSize: 24, fontWeight: "700", color: colors.eucalyptus },
   addedName: { fontSize: 16, color: colors.textMuted },
 });

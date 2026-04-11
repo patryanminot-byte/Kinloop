@@ -6,7 +6,6 @@ import {
   ScrollView,
   FlatList,
   Pressable,
-  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -249,14 +248,14 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 12,
     borderRadius: 14,
-    backgroundColor: colors.neonPurple + "20",
+    backgroundColor: colors.violet + "20",
     borderWidth: 1,
-    borderColor: colors.neonPurple,
+    borderColor: colors.violet,
   },
   toGoBadgeText: {
     fontSize: 13,
     fontWeight: "600",
-    color: colors.neonPurple,
+    color: colors.violet,
   },
 
   // Pills
@@ -268,7 +267,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 20,
   },
-  pillInactive: { backgroundColor: "#F0F0ED" },
+  pillInactive: { backgroundColor: colors.surface },
   pillTextActive: { fontSize: 14, fontWeight: "600", color: "#FFFFFF" },
   pillTextInactive: { fontSize: 14, fontWeight: "600", color: colors.textMuted },
 
@@ -305,7 +304,7 @@ const styles = StyleSheet.create({
   itemMiddle: { flex: 1, marginRight: 8 },
   itemName: { fontSize: 16, fontWeight: "700", color: colors.text },
   itemSubHandedOff: { fontSize: 13, color: colors.success, marginTop: 2 },
-  itemSubMatched: { fontSize: 13, color: colors.neonPurple, marginTop: 2 },
+  itemSubMatched: { fontSize: 13, color: colors.violet, marginTop: 2 },
   itemSubMuted: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
 
   // Empty state

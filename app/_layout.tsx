@@ -18,7 +18,6 @@ export default function RootLayout() {
   const segments = useSegments();
   const setUserId = useAppStore((s) => s.setUserId);
   const setUserProfile = useAppStore((s) => s.setUserProfile);
-  const setOnboardingComplete = useAppStore((s) => s.setOnboardingComplete);
   const setLocation = useAppStore((s) => s.setLocation);
   const hasCompletedOnboarding = useAppStore((s) => s.hasCompletedOnboarding);
 
@@ -84,17 +83,9 @@ export default function RootLayout() {
             }
           }
         });
-      // Check if they have a profile with a name (onboarding complete)
-      supabase
-        .from("profiles")
-        .select("name")
-        .eq("id", session.user.id)
-        .single()
-        .then(({ data }) => {
-          if (data?.name && data.name.length > 0) {
-            setOnboardingComplete();
-          }
-        });
+      // Onboarding completion is now persisted in the app store via AsyncStorage.
+      // It is set only when the user finishes the final onboarding screen
+      // (inventory-suggest), so we no longer mark it complete based on profile name.
     } else {
       setUserId(null);
     }

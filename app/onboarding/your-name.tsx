@@ -21,7 +21,8 @@ import { useAppStore } from "../../stores/appStore";
 import { supabase } from "../../lib/supabase";
 import { colors, gradientColors } from "../../lib/colors";
 
-const SEGMENTS = 3;
+const SEGMENTS = 4;
+const CURRENT_STEP = 2;
 
 const AVATAR_EMOJIS = [
   "\u{1F60A}", "\u{1F60E}", "\u{1F929}", "\u{1F970}",
@@ -100,7 +101,7 @@ export default function YourNameScreen() {
       <View style={styles.progressRow}>
         {Array.from({ length: SEGMENTS }).map((_, i) => (
           <View key={i} style={styles.segmentWrapper}>
-            {i === 0 ? (
+            {i < CURRENT_STEP ? (
               <LinearGradient
                 colors={gradientColors.button}
                 start={{ x: 0, y: 0 }}
@@ -113,6 +114,11 @@ export default function YourNameScreen() {
           </View>
         ))}
       </View>
+
+      {/* Back button */}
+      <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Text style={styles.backText}>{"\u2190"} Back</Text>
+      </Pressable>
 
       <KeyboardAvoidingView
         style={styles.flex}
@@ -217,6 +223,17 @@ export default function YourNameScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   flex: { flex: 1 },
+  backButton: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 4,
+    alignSelf: "flex-start",
+  },
+  backText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.violet,
+  },
   progressRow: {
     flexDirection: "row",
     gap: 6,
@@ -225,7 +242,7 @@ const styles = StyleSheet.create({
   },
   segmentWrapper: { flex: 1 },
   segment: { height: 4, borderRadius: 2 },
-  segmentEmpty: { backgroundColor: "#F0F0ED" },
+  segmentEmpty: { backgroundColor: colors.surface },
   content: {
     padding: 20,
     paddingTop: 32,
@@ -308,8 +325,8 @@ const styles = StyleSheet.create({
     borderColor: "transparent",
   },
   emojiOptionSelected: {
-    borderColor: colors.neonPurple,
-    backgroundColor: colors.neonPurple + "15",
+    borderColor: colors.violet,
+    backgroundColor: colors.violet + "15",
   },
   emojiText: {
     fontSize: 24,

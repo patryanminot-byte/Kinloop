@@ -13,7 +13,7 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { colors, gradientColors } from "../../lib/colors";
+import { colors } from "../../lib/colors";
 import type { Item } from "../../lib/types";
 import {
   CATEGORY_INFO,
@@ -344,13 +344,13 @@ export default function ItemDetailScreen() {
   const statusBadge = () => {
     switch (item.status) {
       case "aging-out":
-        return <Badge color="#FB923C">Time to go?</Badge>;
+        return <Badge color={colors.coral}>Time to go?</Badge>;
       case "available":
-        return <Badge color={colors.neonGreen}>Available</Badge>;
+        return <Badge color={colors.eucalyptus}>Available</Badge>;
       case "matched":
-        return <Badge color={colors.neonBlue}>Matched</Badge>;
+        return <Badge color={colors.blue}>Matched</Badge>;
       case "handed-off":
-        return <Badge color={colors.neonPurple}>Handed off</Badge>;
+        return <Badge color={colors.violet}>Handed off</Badge>;
       default:
         return null;
     }
@@ -454,7 +454,7 @@ export default function ItemDetailScreen() {
                     <Text style={styles.bundleAddSuggestionText} numberOfLines={1}>
                       {entry.brand ? `${entry.brand} ` : ""}{entry.name}
                     </Text>
-                    <Text style={{ fontSize: 16, color: colors.neonGreen }}>+</Text>
+                    <Text style={{ fontSize: 16, color: colors.eucalyptus }}>+</Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -772,7 +772,7 @@ const styles = StyleSheet.create({
   },
   backText: {
     fontSize: 16,
-    color: colors.neonPurple,
+    color: colors.violet,
     fontWeight: "600",
   },
 
@@ -868,7 +868,7 @@ const styles = StyleSheet.create({
   addPhotoText: {
     fontSize: 14,
     fontWeight: "600",
-    color: colors.neonPurple,
+    color: colors.violet,
   },
   photoPreview: {
     width: 200,
@@ -877,7 +877,7 @@ const styles = StyleSheet.create({
   },
   photoChangeText: {
     fontSize: 13,
-    color: colors.neonPurple,
+    color: colors.violet,
     fontWeight: "600",
     textAlign: "center",
     marginTop: 6,
@@ -894,7 +894,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.neonPurple,
+    borderColor: colors.violet,
     borderStyle: "dashed",
     backgroundColor: colors.card,
     alignSelf: "center",
@@ -905,7 +905,7 @@ const styles = StyleSheet.create({
   editBtnText: {
     fontSize: 14,
     fontWeight: "600",
-    color: colors.neonPurple,
+    color: colors.violet,
   },
 
   // Edit card
@@ -982,7 +982,7 @@ const styles = StyleSheet.create({
   customText: {
     fontSize: 14,
     fontWeight: "600",
-    color: colors.neonPurple,
+    color: colors.violet,
   },
 
   // Pickers
@@ -1010,8 +1010,8 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   chipActive: {
-    backgroundColor: colors.neonGreen,
-    borderColor: colors.neonGreen,
+    backgroundColor: colors.eucalyptus,
+    borderColor: colors.eucalyptus,
   },
   chipEmoji: {
     fontSize: 14,
@@ -1059,7 +1059,7 @@ const styles = StyleSheet.create({
   savedText: {
     fontSize: 16,
     fontWeight: "700",
-    color: colors.neonGreen,
+    color: colors.eucalyptus,
   },
 
   // Status cards
@@ -1164,7 +1164,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 20,
     borderRadius: 20,
-    backgroundColor: colors.neonPurple,
+    backgroundColor: colors.violet,
   },
   bundleSaveBtnText: {
     fontSize: 14,

@@ -13,7 +13,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import * as Clipboard from "expo-clipboard";
 import { colors } from "../../lib/colors";
 import { Friend, Item } from "../../lib/types";
 import Avatar from "../../components/ui/Avatar";
@@ -21,6 +20,7 @@ import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
 import { useAuth } from "../../hooks/useAuth";
 import { useFriends } from "../../hooks/useFriends";
+import { useShop } from "../../hooks/useShop";
 import { supabase } from "../../lib/supabase";
 
 const { height: SCREEN_H } = Dimensions.get("window");
@@ -56,7 +56,9 @@ export default function FriendsScreen() {
   const { session } = useAuth();
   const userId = session?.user?.id;
   const { friends: realFriends, loading } = useFriends(userId);
-  const friends = realFriends.length > 0 || loading ? realFriends : MOCK_FRIENDS;
+  const { friendItems: shopFriendItems } = useShop(userId);
+  const usingMock = realFriends.length === 0 && !loading;
+  const friends = usingMock ? MOCK_FRIENDS : realFriends;
   const router = useRouter();
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
 
@@ -68,7 +70,11 @@ export default function FriendsScreen() {
     Share.share({ message: `Join me on Watasu! We share kids' stuff with friends nearby. ${link}` });
   };
 
-  const friendItems = selectedFriend ? MOCK_FRIEND_ITEMS[selectedFriend.id] ?? [] : [];
+  const friendItems = selectedFriend
+    ? usingMock
+      ? MOCK_FRIEND_ITEMS[selectedFriend.id] ?? []
+      : shopFriendItems.filter((item) => item.userId === selectedFriend.id)
+    : [];
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>

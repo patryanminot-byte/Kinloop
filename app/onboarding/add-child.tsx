@@ -22,7 +22,8 @@ import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../lib/supabase";
 import { colors, gradientColors } from "../../lib/colors";
 
-const SEGMENTS = 3;
+const SEGMENTS = 4;
+const CURRENT_STEP = 3;
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 15);
@@ -56,20 +57,33 @@ export default function AddChildScreen() {
   const canProceed = name.trim().length > 0 && dobSelected && emoji.length > 0;
 
   const saveChild = async () => {
+    const trimmedName = name.trim();
+    const dobISO = dob.toISOString();
+    let childId = generateId();
+
+    if (session?.user?.id) {
+      const { data } = await supabase
+        .from("children")
+        .insert({
+          user_id: session.user.id,
+          name: trimmedName,
+          dob: dobISO.split("T")[0],
+          emoji,
+        })
+        .select("id")
+        .single();
+
+      if (data?.id) {
+        childId = data.id;
+      }
+    }
+
     addChild({
-      id: generateId(),
-      name: name.trim(),
-      dob: dob.toISOString(),
+      id: childId,
+      name: trimmedName,
+      dob: dobISO,
       emoji,
     });
-    if (session?.user?.id) {
-      await supabase.from("children").insert({
-        user_id: session.user.id,
-        name: name.trim(),
-        dob: dob.toISOString().split("T")[0],
-        emoji,
-      });
-    }
   };
 
   const isPostOnboarding = hasCompletedOnboarding;
@@ -116,7 +130,7 @@ export default function AddChildScreen() {
       <View style={styles.progressRow}>
         {Array.from({ length: SEGMENTS }).map((_, i) => (
           <View key={i} style={styles.segmentWrapper}>
-            {i === 0 ? (
+            {i < CURRENT_STEP ? (
               <LinearGradient
                 colors={gradientColors.button}
                 start={{ x: 0, y: 0 }}
@@ -129,6 +143,11 @@ export default function AddChildScreen() {
           </View>
         ))}
       </View>
+
+      {/* Back button */}
+      <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Text style={styles.backText}>{"\u2190"} Back</Text>
+      </Pressable>
 
       <ScrollView
         style={styles.scroll}
@@ -219,6 +238,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
+  backButton: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 4,
+    alignSelf: "flex-start",
+  },
+  backText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.violet,
+  },
   progressRow: {
     flexDirection: "row",
     gap: 6,
@@ -233,7 +263,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   segmentEmpty: {
-    backgroundColor: "#F0F0ED",
+    backgroundColor: colors.surface,
   },
   scroll: {
     flex: 1,

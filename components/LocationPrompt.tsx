@@ -39,7 +39,7 @@ export default function LocationPrompt({ onComplete, onDismiss }: LocationPrompt
         Share your approximate location to see what's nearby
       </Text>
       {loading ? (
-        <ActivityIndicator size="small" color={colors.neonPurple} style={styles.loader} />
+        <ActivityIndicator size="small" color={colors.violet} style={styles.loader} />
       ) : (
         <Pressable onPress={handleShare} hitSlop={8} style={styles.shareBtn}>
           <Text style={styles.shareBtnText}>Share</Text>
@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   shareBtn: {
-    backgroundColor: colors.neonPurple,
+    backgroundColor: colors.violet,
     borderRadius: 8,
     paddingVertical: 6,
     paddingHorizontal: 14,

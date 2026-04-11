@@ -109,7 +109,7 @@ export default function PrivacyPolicyScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   backBtn: { paddingHorizontal: 20, paddingVertical: 12 },
-  backText: { fontSize: 16, color: colors.neonPurple, fontWeight: "600" },
+  backText: { fontSize: 16, color: colors.violet, fontWeight: "600" },
   scroll: { flex: 1 },
   content: { padding: 20, paddingTop: 0 },
   title: { fontSize: 28, fontWeight: "700", color: colors.text, marginBottom: 4 },

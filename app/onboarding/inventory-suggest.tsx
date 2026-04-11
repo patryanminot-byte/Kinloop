@@ -22,7 +22,8 @@ import {
   type MilestoneItem,
 } from "../../lib/milestones";
 
-const SEGMENTS = 3;
+const SEGMENTS = 4;
+const CURRENT_STEP = 4;
 
 function generateId(): string {
   return Math.random().toString(36).substring(2, 15);
@@ -122,6 +123,11 @@ export default function InventorySuggestScreen() {
         ))}
       </View>
 
+      {/* Back button */}
+      <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Text style={styles.backText}>{"\u2190"} Back</Text>
+      </Pressable>
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -209,6 +215,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
+  backButton: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 4,
+    alignSelf: "flex-start",
+  },
+  backText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.violet,
+  },
   progressRow: {
     flexDirection: "row",
     gap: 6,
@@ -273,7 +290,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: "#F0F0ED",
+    backgroundColor: colors.surface,
     gap: 6,
   },
   chipEmoji: {

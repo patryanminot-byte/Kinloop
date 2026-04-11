@@ -130,23 +130,6 @@ export function useAuth() {
     return null;
   };
 
-  // ── Phone OTP (requires Twilio) ─────────────────────────────────────
-  const sendPhoneOtp = async (phone: string) => {
-    const { data, error } = await supabase.auth.signInWithOtp({ phone });
-    if (error) throw error;
-    return data;
-  };
-
-  const verifyPhoneOtp = async (phone: string, token: string) => {
-    const { data, error } = await supabase.auth.verifyOtp({
-      phone,
-      token,
-      type: "sms",
-    });
-    if (error) throw error;
-    return data;
-  };
-
   // ── Profile helpers ─────────────────────────────────────────────────
   const isNewUser = async (userId: string): Promise<boolean> => {
     const { data, error } = await supabase
@@ -197,9 +180,6 @@ export function useAuth() {
     signInWithApple,
     // Google
     signInWithGoogle,
-    // Phone (future)
-    sendPhoneOtp,
-    verifyPhoneOtp,
     // Profile
     isNewUser,
     createProfile,

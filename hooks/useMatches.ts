@@ -53,12 +53,16 @@ export function useMatches(userId: string | undefined) {
               (1000 * 60 * 60 * 24)
           ),
           sentAt: row.offered_at,
+          handoff: row.handoff ?? null,
+          rating: row.rating ?? null,
           role: "giver" as const,
         }))
       );
     }
 
-    // Fetch incoming offers (user is receiver, status is "offered" or "accepted" or "scheduled")
+    // Fetch incoming offers (user is receiver) — include all statuses so
+    // deep-links to declined/completed matches show the correct state
+    // instead of "Match not found"
     const { data: incoming, error: inError } = await supabase
       .from("matches")
       .select(
@@ -70,7 +74,6 @@ export function useMatches(userId: string | undefined) {
       `
       )
       .eq("receiver_id", userId)
-      .in("status", ["offered", "accepted", "scheduled", "handed-off"])
       .order("created_at", { ascending: false });
 
     if (!inError && incoming) {
@@ -100,6 +103,8 @@ export function useMatches(userId: string | undefined) {
               (1000 * 60 * 60 * 24)
           ),
           sentAt: row.offered_at,
+          handoff: row.handoff ?? null,
+          rating: row.rating ?? null,
           role: "receiver" as const,
         }))
       );

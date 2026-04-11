@@ -20,7 +20,8 @@ import { useAuth } from "../../hooks/useAuth";
 import { useAppStore } from "../../stores/appStore";
 import { triggerMatchEngine } from "../../lib/matchTrigger";
 
-const SEGMENTS = 3;
+const SEGMENTS = 4;
+const CURRENT_STEP = 3;
 
 interface ContactEntry {
   id: string;
@@ -240,7 +241,7 @@ export default function ContactsScreen() {
       <View style={styles.progressRow}>
         {Array.from({ length: SEGMENTS }).map((_, i) => (
           <View key={i} style={styles.segmentWrapper}>
-            {i < 2 ? (
+            {i < CURRENT_STEP ? (
               <LinearGradient
                 colors={gradientColors.button}
                 start={{ x: 0, y: 0 }}
@@ -253,6 +254,11 @@ export default function ContactsScreen() {
           </View>
         ))}
       </View>
+
+      {/* Back button */}
+      <Pressable onPress={() => router.back()} style={styles.backButton}>
+        <Text style={styles.backText}>{"\u2190"} Back</Text>
+      </Pressable>
 
       {!permissionGranted ? (
         /* Pre-permission state */
@@ -282,7 +288,7 @@ export default function ContactsScreen() {
 
           {loading ? (
             <ActivityIndicator
-              color={colors.neonPurple}
+              color={colors.violet}
               style={{ marginTop: 32 }}
             />
           ) : (
@@ -324,7 +330,7 @@ export default function ContactsScreen() {
 
           {loading ? (
             <ActivityIndicator
-              color={colors.neonPurple}
+              color={colors.violet}
               style={{ marginTop: 32 }}
             />
           ) : (
@@ -377,6 +383,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
+  backButton: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 4,
+    alignSelf: "flex-start",
+  },
+  backText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.violet,
+  },
   progressRow: {
     flexDirection: "row",
     gap: 6,
@@ -391,7 +408,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   segmentEmpty: {
-    backgroundColor: "#F0F0ED",
+    backgroundColor: colors.surface,
   },
   content: {
     flex: 1,
@@ -419,7 +436,7 @@ const styles = StyleSheet.create({
   },
   learnMoreText: {
     fontSize: 13,
-    color: colors.neonPurple,
+    color: colors.violet,
     fontWeight: "600",
   },
   privacyBox: {
@@ -511,8 +528,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   checkboxSelected: {
-    backgroundColor: colors.neonPurple,
-    borderColor: colors.neonPurple,
+    backgroundColor: colors.violet,
+    borderColor: colors.violet,
   },
   checkmark: {
     fontSize: 14,
@@ -520,18 +537,18 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   avatarWatasu: {
-    backgroundColor: colors.neonPurple + "20",
+    backgroundColor: colors.violet + "20",
     borderWidth: 2,
-    borderColor: colors.neonPurple,
+    borderColor: colors.violet,
   },
   contactPhoneOnWatasu: {
     fontSize: 13,
-    color: colors.neonPurple,
+    color: colors.violet,
     fontWeight: "500",
     marginTop: 2,
   },
   addBtn: {
-    backgroundColor: colors.neonPurple,
+    backgroundColor: colors.violet,
     borderRadius: 8,
     paddingVertical: 6,
     paddingHorizontal: 14,
@@ -544,7 +561,7 @@ const styles = StyleSheet.create({
   addedCheck: {
     fontSize: 13,
     fontWeight: "600",
-    color: colors.neonPurple,
+    color: colors.violet,
   },
   bottom: {
     paddingHorizontal: 20,
