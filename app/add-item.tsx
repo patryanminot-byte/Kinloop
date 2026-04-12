@@ -7,11 +7,13 @@ import {
   TextInput,
   TouchableOpacity,
   Pressable,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import { colors, gradientColors } from "../lib/colors";
 import {
   CATEGORY_INFO,
@@ -25,29 +27,115 @@ import { useItemCatalog } from "../hooks/useItemCatalog";
 import { useAppStore } from "../stores/appStore";
 import Button from "../components/ui/Button";
 
-// Generate simple unique ID
+// ─── Top-level category tiles ───────────────────────────────────────────────
+
+interface TopCategory {
+  key: string;
+  label: string;
+  emoji: string;
+  children: Category[];
+}
+
+const TOP_CATEGORIES: TopCategory[] = [
+  {
+    key: "kids",
+    label: "Kids",
+    emoji: "\uD83D\uDC76",
+    children: [
+      "Clothing",
+      "Shoes",
+      "Outerwear",
+      "Strollers",
+      "Car Seats",
+      "Gear",
+      "Feeding",
+      "Toys",
+      "Books",
+      "Furniture",
+      "Sleep",
+      "Bath",
+      "Safety",
+    ],
+  },
+  {
+    key: "home",
+    label: "Home",
+    emoji: "\uD83C\uDFE0",
+    children: [
+      "Home Furniture",
+      "Appliances",
+      "Home Decor",
+    ],
+  },
+  {
+    key: "clothing",
+    label: "Clothing",
+    emoji: "\uD83D\uDC55",
+    children: ["Fashion"],
+  },
+  {
+    key: "electronics",
+    label: "Electronics",
+    emoji: "\uD83D\uDCF1",
+    children: ["Electronics", "Gaming"],
+  },
+  {
+    key: "outdoor",
+    label: "Outdoor",
+    emoji: "\uD83C\uDF33",
+    children: ["Outdoor", "Sports & Fitness", "Garden & Patio"],
+  },
+  {
+    key: "more",
+    label: "More",
+    emoji: "\u00B7\u00B7\u00B7",
+    children: [
+      "Tools",
+      "Instruments",
+      "Auto & Moto",
+      "Office",
+      "Free Stuff",
+    ],
+  },
+];
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
 let idCounter = 0;
 function makeId() {
   return `tg_${Date.now()}_${++idCounter}`;
 }
+
+// ─── Price slider positions ─────────────────────────────────────────────────
+
+type PricingMode = "free" | "pay-what-feels-fair" | "set-price";
+
+// ─── Component ──────────────────────────────────────────────────────────────
 
 export default function AddItemScreen() {
   const router = useRouter();
   const addToGoItem = useAppStore((s) => s.addToGoItem);
   const { searchSmart } = useItemCatalog();
 
-  // State
+  // Steps: "camera" → "details" → "done"
+  const [step, setStep] = useState<"camera" | "details" | "done">("camera");
+
+  // Photo
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+
+  // Details
+  const [selectedTopCategory, setSelectedTopCategory] = useState<TopCategory | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [query, setQuery] = useState("");
   const [selectedName, setSelectedName] = useState<string | null>(null);
   const [selectedEmoji, setSelectedEmoji] = useState<string | null>(null);
-  const [description, setDescription] = useState("");
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedCondition, setSelectedCondition] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+  const [pricingMode, setPricingMode] = useState<PricingMode>("pay-what-feels-fair");
+  const [customPrice, setCustomPrice] = useState("");
   const [wantsBundle, setWantsBundle] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [added, setAdded] = useState(false);
-
   const searchInputRef = useRef<TextInput>(null);
 
   // Derived
@@ -55,24 +143,67 @@ export default function AddItemScreen() {
     ? CATEGORY_INFO[selectedCategory]?.sizeSystem ?? "age-range"
     : "age-range";
   const sizeOptions = SIZE_OPTIONS[sizeSystem] ?? [];
-  const defaultsToBundle = selectedCategory
-    ? BUNDLE_CATEGORIES.includes(selectedCategory)
-    : false;
 
-  // Smart search: brand + product type results
   const suggestions = useMemo(() => {
     if (query.length < 2 || !selectedCategory) return [];
     return searchSmart(query, selectedCategory);
   }, [query, selectedCategory, searchSmart]);
 
-  const handleSelectCategory = (cat: Category) => {
+  // ─── Camera step ────────────────────────────────────────────────────────
+
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") return;
+    const result = await ImagePicker.launchCameraAsync({
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+    if (!result.canceled && result.assets[0]) {
+      setPhotoUri(result.assets[0].uri);
+      setStep("details");
+    }
+  };
+
+  const pickFromLibrary = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+    if (!result.canceled && result.assets[0]) {
+      setPhotoUri(result.assets[0].uri);
+      setStep("details");
+    }
+  };
+
+  const skipPhoto = () => {
+    setStep("details");
+  };
+
+  // ─── Details helpers ──────────────────────────────────────────────────
+
+  const handleSelectTopCategory = (top: TopCategory) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (top.children.length === 1) {
+      setSelectedTopCategory(top);
+      setSelectedCategory(top.children[0]);
+      setWantsBundle(BUNDLE_CATEGORIES.includes(top.children[0]));
+      setTimeout(() => searchInputRef.current?.focus(), 300);
+    } else {
+      setSelectedTopCategory(top);
+    }
+  };
+
+  const handleSelectSubCategory = (cat: Category) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedCategory(cat);
     setWantsBundle(BUNDLE_CATEGORIES.includes(cat));
     setQuery("");
     setSelectedName(null);
     setSelectedEmoji(null);
-    setDescription("");
     setSelectedSize(null);
     setSelectedCondition(null);
     setTimeout(() => searchInputRef.current?.focus(), 300);
@@ -96,7 +227,7 @@ export default function AddItemScreen() {
     setShowSuggestions(false);
   };
 
-  const handleAdd = () => {
+  const handleList = () => {
     if (!selectedCategory || !selectedName || !selectedSize || !selectedCondition) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
@@ -108,30 +239,104 @@ export default function AddItemScreen() {
       ageRange: selectedSize,
       condition: selectedCondition,
       wantsBundle,
-      description: description.trim() || undefined,
+      description: note.trim() || undefined,
+      photoUri: photoUri ?? undefined,
+      pricingType: pricingMode === "free" ? "free" : pricingMode === "set-price" ? "set-price" : "give-what-you-can",
+      pricingAmount: pricingMode === "set-price" && customPrice ? Number(customPrice) : undefined,
     });
 
-    setAdded(true);
-    setTimeout(() => {
-      router.replace("/to-go");
-    }, 600);
+    setStep("done");
   };
 
-  const isReady =
-    selectedCategory && selectedName && selectedSize && selectedCondition;
+  const isReady = selectedCategory && selectedName && selectedSize && selectedCondition;
 
-  if (added) {
+  // ========================
+  // STEP: Done
+  // ========================
+  if (step === "done") {
     return (
       <SafeAreaView style={styles.safe} edges={["top"]}>
-        <View style={styles.addedContainer}>
-          <Text style={styles.addedEmoji}>{"\u2728"}</Text>
-          <Text style={styles.addedTitle}>Added!</Text>
-          <Text style={styles.addedName}>{selectedName}</Text>
+        <View style={styles.doneContainer}>
+          <Text style={styles.doneCheck}>{"\u2713"}</Text>
+          <Text style={styles.doneTitle}>We'll find the right match.</Text>
+          <View style={styles.doneButtons}>
+            <Button
+              variant="primary"
+              size="md"
+              title="List another"
+              onPress={() => {
+                setStep("camera");
+                setPhotoUri(null);
+                setSelectedTopCategory(null);
+                setSelectedCategory(null);
+                setQuery("");
+                setSelectedName(null);
+                setSelectedEmoji(null);
+                setSelectedSize(null);
+                setSelectedCondition(null);
+                setNote("");
+                setPricingMode("pay-what-feels-fair");
+                setCustomPrice("");
+              }}
+            />
+            <Button
+              variant="secondary"
+              size="md"
+              title="Home"
+              onPress={() => router.replace("/(tabs)/" as `/${string}`)}
+              style={{ marginLeft: 12 }}
+            />
+          </View>
         </View>
       </SafeAreaView>
     );
   }
 
+  // ========================
+  // STEP: Camera
+  // ========================
+  if (step === "camera") {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top"]}>
+        <View style={styles.cameraContainer}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+            <Text style={styles.backText}>{"\u2190"} Back</Text>
+          </Pressable>
+
+          <View style={styles.cameraPlaceholder}>
+            <Text style={styles.cameraIcon}>{"\uD83D\uDCF7"}</Text>
+            <Text style={styles.cameraTitle}>Take a photo of your item</Text>
+            <Text style={styles.cameraSub}>
+              We'll suggest a category and title
+            </Text>
+          </View>
+
+          <View style={styles.cameraActions}>
+            <Pressable style={styles.shutterButton} onPress={takePhoto}>
+              <View style={styles.shutterInner} />
+            </Pressable>
+          </View>
+
+          <View style={styles.cameraSecondary}>
+            <Pressable onPress={pickFromLibrary}>
+              <Text style={styles.cameraSecondaryText}>
+                {"\uD83D\uDDBC\uFE0F"} Photo library
+              </Text>
+            </Pressable>
+            <Pressable onPress={skipPhoto}>
+              <Text style={styles.cameraSecondaryText}>
+                or browse categories
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ========================
+  // STEP: Details
+  // ========================
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView
@@ -140,18 +345,74 @@ export default function AddItemScreen() {
         keyboardShouldPersistTaps="handled"
       >
         {/* Back */}
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable onPress={() => setStep("camera")} style={styles.backBtn}>
           <Text style={styles.backText}>{"\u2190"} Back</Text>
         </Pressable>
 
-        <Text style={styles.title}>What are you adding?</Text>
+        {/* Photo thumbnail */}
+        {photoUri && (
+          <Pressable style={styles.photoThumb} onPress={takePhoto}>
+            <Image source={{ uri: photoUri }} style={styles.photoImage} />
+            <Text style={styles.photoRetake}>Retake</Text>
+          </Pressable>
+        )}
 
-        {/* Step 1: Category */}
-        {selectedCategory ? (
+        {/* Category — top level tiles */}
+        {!selectedCategory && !selectedTopCategory && (
+          <>
+            <Text style={styles.sectionLabel}>What is it?</Text>
+            <View style={styles.topCategoryGrid}>
+              {TOP_CATEGORIES.map((top) => (
+                <TouchableOpacity
+                  key={top.key}
+                  style={styles.topCategoryTile}
+                  onPress={() => handleSelectTopCategory(top)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.topCategoryEmoji}>{top.emoji}</Text>
+                  <Text style={styles.topCategoryLabel}>{top.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
+
+        {/* Category — subcategory selection */}
+        {selectedTopCategory && !selectedCategory && (
+          <>
+            <Pressable
+              style={styles.breadcrumb}
+              onPress={() => setSelectedTopCategory(null)}
+            >
+              <Text style={styles.breadcrumbText}>
+                {"\u2190"} {selectedTopCategory.label}
+              </Text>
+            </Pressable>
+            <View style={styles.subCategoryGrid}>
+              {selectedTopCategory.children.map((cat) => (
+                <TouchableOpacity
+                  key={cat}
+                  style={styles.subCategoryChip}
+                  onPress={() => handleSelectSubCategory(cat)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.subCategoryEmoji}>
+                    {CATEGORY_INFO[cat]?.emoji ?? "\u{1F4E6}"}
+                  </Text>
+                  <Text style={styles.subCategoryLabel}>{cat}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
+
+        {/* Selected category header */}
+        {selectedCategory && (
           <Pressable
             style={styles.selectedCategoryRow}
             onPress={() => {
               setSelectedCategory(null);
+              setSelectedTopCategory(null);
               setQuery("");
               setSelectedName(null);
               setSelectedEmoji(null);
@@ -165,28 +426,9 @@ export default function AddItemScreen() {
             <Text style={styles.selectedCategoryLabel}>{selectedCategory}</Text>
             <Text style={styles.selectedCategoryChange}>Change</Text>
           </Pressable>
-        ) : (
-          <View style={styles.categoryGrid}>
-            {(Object.keys(CATEGORY_INFO) as Category[]).map((cat) => {
-              const info = CATEGORY_INFO[cat];
-              return (
-                <TouchableOpacity
-                  key={cat}
-                  style={styles.categoryCard}
-                  onPress={() => handleSelectCategory(cat)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.categoryEmoji}>{info.emoji}</Text>
-                  <Text style={styles.categoryLabel} numberOfLines={1}>
-                    {cat}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
         )}
 
-        {/* Step 2: Item search */}
+        {/* Item name search */}
         {selectedCategory && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>What is it?</Text>
@@ -222,7 +464,6 @@ export default function AddItemScreen() {
               )}
             </View>
 
-            {/* Suggestions */}
             {showSuggestions && query.length >= 2 && (
               <View style={styles.suggestionsBox}>
                 <TouchableOpacity
@@ -250,11 +491,10 @@ export default function AddItemScreen() {
               </View>
             )}
 
-            {/* Selected item confirmation */}
             {selectedName && !showSuggestions && (
               <View style={styles.selectedItem}>
-                <Text style={styles.selectedEmoji}>{selectedEmoji}</Text>
-                <Text style={styles.selectedName}>{selectedName}</Text>
+                <Text style={styles.selectedItemEmoji}>{selectedEmoji}</Text>
+                <Text style={styles.selectedItemName}>{selectedName}</Text>
                 <TouchableOpacity
                   onPress={() => {
                     setSelectedName(null);
@@ -270,23 +510,8 @@ export default function AddItemScreen() {
           </View>
         )}
 
-        {/* Optional description */}
+        {/* Size */}
         {selectedName && !showSuggestions && (
-          <View style={styles.section}>
-            <TextInput
-              style={styles.descriptionInput}
-              placeholder="Any details? (color, model, notes)"
-              placeholderTextColor={colors.textLight}
-              value={description}
-              onChangeText={setDescription}
-              autoCapitalize="sentences"
-              returnKeyType="done"
-            />
-          </View>
-        )}
-
-        {/* Step 3: Size */}
-        {selectedName && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Size</Text>
             <ScrollView
@@ -297,7 +522,7 @@ export default function AddItemScreen() {
               {sizeOptions.map((size) => {
                 const isActive = selectedSize === size;
                 return isActive ? (
-                  <Pressable key={size} onPress={() => setSelectedSize(size)}>
+                  <Pressable key={size}>
                     <LinearGradient
                       colors={gradientColors.button}
                       start={{ x: 0, y: 0 }}
@@ -324,7 +549,7 @@ export default function AddItemScreen() {
           </View>
         )}
 
-        {/* Step 4: Condition */}
+        {/* Condition */}
         {selectedSize && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Condition</Text>
@@ -334,14 +559,22 @@ export default function AddItemScreen() {
                 return (
                   <TouchableOpacity
                     key={c}
-                    style={[styles.conditionChip, isActive && styles.conditionChipActive]}
+                    style={[
+                      styles.conditionChip,
+                      isActive && styles.conditionChipActive,
+                    ]}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       setSelectedCondition(c);
                     }}
                     activeOpacity={0.7}
                   >
-                    <Text style={[styles.conditionText, isActive && styles.conditionTextActive]}>
+                    <Text
+                      style={[
+                        styles.conditionText,
+                        isActive && styles.conditionTextActive,
+                      ]}
+                    >
                       {c}
                     </Text>
                   </TouchableOpacity>
@@ -351,34 +584,109 @@ export default function AddItemScreen() {
           </View>
         )}
 
-        {/* Step 5: Bundle toggle */}
+        {/* Note */}
         {selectedCondition && (
           <View style={styles.section}>
-            <Pressable
-              style={styles.bundleToggleRow}
-              onPress={() => setWantsBundle(!wantsBundle)}
-            >
-              <View style={{ flex: 1 }}>
-                <Text style={styles.bundleToggleLabel}>Bundle this?</Text>
-                <Text style={styles.bundleToggleHint}>
-                  Group with similar items by size
-                </Text>
-              </View>
-              <View style={[styles.toggleTrack, wantsBundle && styles.toggleTrackOn]}>
-                <View style={[styles.toggleThumb, wantsBundle && styles.toggleThumbOn]} />
-              </View>
-            </Pressable>
+            <TextInput
+              style={styles.noteInput}
+              placeholder="Add a note"
+              placeholderTextColor={colors.textLight}
+              value={note}
+              onChangeText={setNote}
+              autoCapitalize="sentences"
+              returnKeyType="done"
+            />
           </View>
         )}
 
-        {/* Add button */}
+        {/* Price */}
+        {selectedCondition && (
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Price</Text>
+            <View style={styles.pricingRow}>
+              <Pressable
+                style={[
+                  styles.pricingOption,
+                  pricingMode === "free" && styles.pricingOptionActive,
+                ]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setPricingMode("free");
+                }}
+              >
+                <Text
+                  style={[
+                    styles.pricingOptionText,
+                    pricingMode === "free" && styles.pricingOptionTextActive,
+                  ]}
+                >
+                  Free
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.pricingOption,
+                  pricingMode === "pay-what-feels-fair" &&
+                    styles.pricingOptionActive,
+                ]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setPricingMode("pay-what-feels-fair");
+                }}
+              >
+                <Text
+                  style={[
+                    styles.pricingOptionText,
+                    pricingMode === "pay-what-feels-fair" &&
+                      styles.pricingOptionTextActive,
+                  ]}
+                >
+                  Pay what's fair
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.pricingOption,
+                  pricingMode === "set-price" && styles.pricingOptionActive,
+                ]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setPricingMode("set-price");
+                }}
+              >
+                <Text
+                  style={[
+                    styles.pricingOptionText,
+                    pricingMode === "set-price" &&
+                      styles.pricingOptionTextActive,
+                  ]}
+                >
+                  $___
+                </Text>
+              </Pressable>
+            </View>
+            {pricingMode === "set-price" && (
+              <TextInput
+                style={styles.priceInput}
+                placeholder="Enter price"
+                placeholderTextColor={colors.textLight}
+                value={customPrice}
+                onChangeText={setCustomPrice}
+                keyboardType="numeric"
+                returnKeyType="done"
+              />
+            )}
+          </View>
+        )}
+
+        {/* List button */}
         {isReady && (
           <Button
             variant="primary"
             size="lg"
-            title={`Add ${selectedEmoji ?? ""} ${selectedName}`}
-            onPress={handleAdd}
-            style={styles.addBtn}
+            title="List it"
+            onPress={handleList}
+            style={styles.listBtn}
           />
         )}
 
@@ -388,32 +696,148 @@ export default function AddItemScreen() {
   );
 }
 
+// ─── Styles ─────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   scroll: { flex: 1 },
   scrollContent: { padding: 20, paddingBottom: 40 },
+
+  // Back
   backBtn: { alignSelf: "flex-start", paddingVertical: 8, marginBottom: 8 },
   backText: { fontSize: 16, color: colors.violet, fontWeight: "600" },
-  title: { fontSize: 24, fontWeight: "700", color: colors.text, marginBottom: 16 },
 
-  // Category grid
-  categoryGrid: {
+  // ─── Camera step ────────────────────────────────────────────────────
+  cameraContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  cameraPlaceholder: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+  },
+  cameraIcon: {
+    fontSize: 64,
+  },
+  cameraTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: colors.text,
+    textAlign: "center",
+  },
+  cameraSub: {
+    fontSize: 15,
+    color: colors.textMuted,
+    textAlign: "center",
+  },
+  cameraActions: {
+    alignItems: "center",
+    paddingBottom: 24,
+  },
+  shutterButton: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    borderWidth: 4,
+    borderColor: colors.text,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  shutterInner: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: colors.text,
+  },
+  cameraSecondary: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingBottom: 32,
+  },
+  cameraSecondaryText: {
+    fontSize: 15,
+    color: colors.violet,
+    fontWeight: "600",
+  },
+
+  // ─── Photo thumbnail ───────────────────────────────────────────────
+  photoThumb: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 16,
+  },
+  photoImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+  },
+  photoRetake: {
+    fontSize: 14,
+    color: colors.violet,
+    fontWeight: "600",
+  },
+
+  // ─── Top category grid (6 tiles) ──────────────────────────────────
+  topCategoryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginBottom: 20,
+  },
+  topCategoryTile: {
+    width: "30%",
+    aspectRatio: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 16,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 6,
+  },
+  topCategoryEmoji: { fontSize: 28 },
+  topCategoryLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.text,
+  },
+
+  // ─── Subcategory chips ─────────────────────────────────────────────
+  breadcrumb: { marginBottom: 12 },
+  breadcrumbText: {
+    fontSize: 16,
+    color: colors.violet,
+    fontWeight: "600",
+  },
+  subCategoryGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
     marginBottom: 20,
   },
-  categoryCard: {
-    width: "30%",
+  subCategoryChip: {
+    flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     borderRadius: 12,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  categoryEmoji: { fontSize: 24, marginBottom: 4 },
-  categoryLabel: { fontSize: 11, fontWeight: "600", color: colors.textMuted },
+  subCategoryEmoji: { fontSize: 18 },
+  subCategoryLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.text,
+  },
+
+  // ─── Selected category ────────────────────────────────────────────
   selectedCategoryRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -438,7 +862,7 @@ const styles = StyleSheet.create({
     color: colors.violet,
   },
 
-  // Sections
+  // ─── Sections ─────────────────────────────────────────────────────
   section: { marginBottom: 20 },
   sectionLabel: {
     fontSize: 16,
@@ -447,7 +871,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
-  // Search
+  // ─── Search ───────────────────────────────────────────────────────
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -465,8 +889,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   clearBtn: { fontSize: 14, color: colors.textMuted, padding: 4 },
-
-  // Suggestions
   suggestionsBox: {
     marginTop: 4,
     borderRadius: 12,
@@ -485,8 +907,6 @@ const styles = StyleSheet.create({
   },
   suggestionEmoji: { fontSize: 18 },
   suggestionName: { flex: 1, fontSize: 15, fontWeight: "500", color: colors.text },
-
-  // Selected item
   selectedItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -498,30 +918,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.eucalyptus + "40",
   },
-  selectedEmoji: { fontSize: 22 },
-  selectedName: { flex: 1, fontSize: 16, fontWeight: "600", color: colors.text },
+  selectedItemEmoji: { fontSize: 22 },
+  selectedItemName: { flex: 1, fontSize: 16, fontWeight: "600", color: colors.text },
   changeLink: { fontSize: 14, fontWeight: "600", color: colors.violet },
 
-  // Description
-  descriptionInput: {
-    fontSize: 15,
-    color: colors.text,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-  },
-
-  // Pills
+  // ─── Pills ────────────────────────────────────────────────────────
   pillRow: { gap: 8 },
   pill: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 20 },
   pillInactive: { backgroundColor: colors.surface },
   pillTextActive: { fontSize: 14, fontWeight: "600", color: "#FFFFFF" },
   pillTextInactive: { fontSize: 14, fontWeight: "600", color: colors.textMuted },
 
-  // Condition
+  // ─── Condition ────────────────────────────────────────────────────
   conditionRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   conditionChip: {
     paddingVertical: 10,
@@ -537,46 +945,79 @@ const styles = StyleSheet.create({
   conditionText: { fontSize: 14, fontWeight: "600", color: colors.textMuted },
   conditionTextActive: { color: colors.violet },
 
-  // Bundle toggle
-  bundleToggleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 14,
+  // ─── Note ─────────────────────────────────────────────────────────
+  noteInput: {
+    fontSize: 15,
+    color: colors.text,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
     borderRadius: 12,
-    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
+    backgroundColor: colors.card,
   },
-  bundleToggleLabel: { fontSize: 15, fontWeight: "600", color: colors.text },
-  bundleToggleHint: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  toggleTrack: {
-    width: 44,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: "#E5E5E3",
-    justifyContent: "center",
-    paddingHorizontal: 2,
-  },
-  toggleTrackOn: { backgroundColor: colors.violet },
-  toggleThumb: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: "#FFFFFF",
-  },
-  toggleThumbOn: { alignSelf: "flex-end" },
 
-  // Add button
-  addBtn: { width: "100%", marginTop: 8 },
+  // ─── Pricing ──────────────────────────────────────────────────────
+  pricingRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  pricingOption: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+  },
+  pricingOptionActive: {
+    backgroundColor: colors.eucalyptus + "20",
+    borderWidth: 1,
+    borderColor: colors.eucalyptus,
+  },
+  pricingOptionText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.textMuted,
+  },
+  pricingOptionTextActive: {
+    color: colors.eucalyptus,
+  },
+  priceInput: {
+    marginTop: 10,
+    fontSize: 16,
+    color: colors.text,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
 
-  // Added state
-  addedContainer: {
+  // ─── List button ──────────────────────────────────────────────────
+  listBtn: { width: "100%", marginTop: 8 },
+
+  // ─── Done step ────────────────────────────────────────────────────
+  doneContainer: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    padding: 32,
+    gap: 12,
   },
-  addedEmoji: { fontSize: 48 },
-  addedTitle: { fontSize: 24, fontWeight: "700", color: colors.eucalyptus },
-  addedName: { fontSize: 16, color: colors.textMuted },
+  doneCheck: {
+    fontSize: 48,
+    color: colors.eucalyptus,
+    fontWeight: "300",
+  },
+  doneTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: colors.text,
+    textAlign: "center",
+  },
+  doneButtons: {
+    flexDirection: "row",
+    marginTop: 20,
+  },
 });

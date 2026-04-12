@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
   Pressable,
   Dimensions,
   TouchableOpacity,
@@ -18,6 +17,7 @@ import { Friend, Item } from "../../lib/types";
 import Avatar from "../../components/ui/Avatar";
 import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
+import Card from "../../components/ui/Card";
 import { useAuth } from "../../hooks/useAuth";
 import { useFriends } from "../../hooks/useFriends";
 import { useShop } from "../../hooks/useShop";
@@ -62,6 +62,9 @@ export default function FriendsScreen() {
   const router = useRouter();
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
 
+  const activeFriends = friends.filter((f) => f.status === "active");
+  const invitedFriends = friends.filter((f) => f.status === "invited");
+
   const handleInvite = async () => {
     if (!userId) return;
     const { data: profile } = await supabase
@@ -85,7 +88,32 @@ export default function FriendsScreen() {
           <Button variant="secondary" size="sm" title="+ Invite" onPress={handleInvite} />
         </View>
 
-        {/* Friend list — single list, active + invited together */}
+        {/* Your circle */}
+        {activeFriends.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.circleRow}>
+              <View style={styles.avatarStack}>
+                {activeFriends.slice(0, 4).map((friend, idx) => (
+                  <View
+                    key={friend.id}
+                    style={[
+                      styles.stackedAvatar,
+                      idx > 0 && { marginLeft: -12 },
+                      { zIndex: 4 - idx },
+                    ]}
+                  >
+                    <Avatar initials={friend.avatar} size={36} />
+                  </View>
+                ))}
+              </View>
+              <Text style={styles.circleCount}>
+                {activeFriends.length} friends in your circle
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Friend list */}
         <View style={styles.list}>
           {friends.map((friend) => {
             const isInvited = friend.status === "invited";
@@ -116,6 +144,23 @@ export default function FriendsScreen() {
           </View>
         )}
 
+        {/* Nearby families — moved from Home */}
+        <Card
+          onPress={() => router.push("/friends/nearby" as `/${string}`)}
+          style={styles.finderCard}
+        >
+          <Text style={styles.finderEmoji}>{"\u{1F3D8}\uFE0F"}</Text>
+          <View style={styles.finderText}>
+            <Text style={styles.finderTitle}>
+              Families nearby with similar-age kids?
+            </Text>
+            <Text style={styles.finderSub}>
+              You might make a friend {"\u{1F49C}"}
+            </Text>
+          </View>
+          <Text style={styles.finderArrow}>{"\u2192"}</Text>
+        </Card>
+
         {/* Invite banner */}
         <Pressable style={styles.inviteBanner} onPress={handleInvite}>
           <Text style={styles.inviteBannerIcon}>{"\u{1F517}"}</Text>
@@ -126,14 +171,13 @@ export default function FriendsScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* ── Friend Detail Bottom Sheet ── */}
+      {/* ---- Friend Detail Bottom Sheet ---- */}
       <Modal visible={selectedFriend !== null} transparent animationType="slide" onRequestClose={() => setSelectedFriend(null)}>
         <Pressable style={styles.sheetOverlay} onPress={() => setSelectedFriend(null)}>
           <Pressable style={styles.sheetContainer} onPress={() => {}}>
             <View style={styles.sheetHandle} />
             {selectedFriend && (
               <View style={styles.sheetContent}>
-                {/* Header */}
                 <View style={styles.sheetHeader}>
                   <Avatar initials={selectedFriend.avatar} size={56} gradient />
                   <View style={styles.sheetHeaderInfo}>
@@ -148,7 +192,6 @@ export default function FriendsScreen() {
                   </View>
                 </View>
 
-                {/* Available items */}
                 {friendItems.length > 0 && (
                   <View style={styles.sheetSection}>
                     <Text style={styles.sheetSectionTitle}>Available items</Text>
@@ -216,6 +259,30 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
 
+  // Section
+  section: {
+    marginBottom: 16,
+  },
+  circleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  avatarStack: {
+    flexDirection: "row",
+    marginRight: 12,
+  },
+  stackedAvatar: {
+    borderWidth: 2,
+    borderColor: colors.card,
+    borderRadius: 20,
+  },
+  circleCount: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.text,
+    flex: 1,
+  },
+
   // Friend list
   list: {
     gap: 2,
@@ -249,6 +316,35 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
 
+  // Nearby families finder
+  finderCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 20,
+  },
+  finderEmoji: {
+    fontSize: 28,
+    marginRight: 12,
+  },
+  finderText: {
+    flex: 1,
+  },
+  finderTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.text,
+  },
+  finderSub: {
+    fontSize: 13,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  finderArrow: {
+    fontSize: 18,
+    color: colors.violet,
+    fontWeight: "600",
+  },
+
   // Invite banner
   inviteBanner: {
     flexDirection: "row",
@@ -259,7 +355,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
-    marginTop: 20,
+    marginTop: 16,
     gap: 12,
   },
   inviteBannerIcon: { fontSize: 18 },

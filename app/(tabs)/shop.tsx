@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   Pressable,
+  TextInput,
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -17,8 +18,60 @@ import { useAuth } from "../../hooks/useAuth";
 import { useShop } from "../../hooks/useShop";
 import { useAppStore } from "../../stores/appStore";
 import LocationPrompt from "../../components/LocationPrompt";
+import { CATEGORY_INFO, type Category } from "../../lib/itemCatalog";
 
-// --------------- Mock Data ---------------
+// ─── Top-level browse tiles ─────────────────────────────────────────────────
+
+interface BrowseTile {
+  key: string;
+  label: string;
+  emoji: string;
+  categories: Category[];
+}
+
+const BROWSE_TILES: BrowseTile[] = [
+  {
+    key: "kids",
+    label: "Kids",
+    emoji: "\uD83D\uDC76",
+    categories: [
+      "Clothing", "Shoes", "Outerwear", "Strollers", "Car Seats",
+      "Gear", "Feeding", "Toys", "Books", "Furniture", "Sleep", "Bath", "Safety",
+    ],
+  },
+  {
+    key: "home",
+    label: "Home",
+    emoji: "\uD83C\uDFE0",
+    categories: ["Home Furniture", "Appliances", "Home Decor"],
+  },
+  {
+    key: "clothing",
+    label: "Clothing",
+    emoji: "\uD83D\uDC55",
+    categories: ["Fashion"],
+  },
+  {
+    key: "electronics",
+    label: "Electronics",
+    emoji: "\uD83D\uDCF1",
+    categories: ["Electronics", "Gaming"],
+  },
+  {
+    key: "outdoor",
+    label: "Outdoor",
+    emoji: "\uD83C\uDF33",
+    categories: ["Outdoor", "Sports & Fitness", "Garden & Patio"],
+  },
+  {
+    key: "more",
+    label: "More",
+    emoji: "\u00B7\u00B7\u00B7",
+    categories: ["Tools", "Instruments", "Auto & Moto", "Office", "Free Stuff"],
+  },
+];
+
+// ─── Mock data ──────────────────────────────────────────────────────────────
 
 const MOCK_FRIEND_ITEMS: Item[] = [
   {
@@ -68,7 +121,6 @@ const MOCK_FRIEND_ITEMS: Item[] = [
 ];
 
 const MOCK_NEARBY_ITEMS: Item[] = [
-  // Under 10 min
   {
     id: "s4",
     name: "Crib",
@@ -104,7 +156,6 @@ const MOCK_NEARBY_ITEMS: Item[] = [
     distanceMinutes: 8,
     postedAgo: "3h ago",
   },
-  // 10-25 min
   {
     id: "s6",
     name: "Balance bike",
@@ -139,73 +190,10 @@ const MOCK_NEARBY_ITEMS: Item[] = [
     condition: "Like new",
     postedAgo: "2d ago",
   },
-  // 25-40 min
-  {
-    id: "s8",
-    name: "Toddler bed frame",
-    category: "Furniture",
-    ageRange: "2-5y",
-    status: "available",
-    matchedTo: null,
-    emoji: "\uD83D\uDECF\uFE0F",
-    pricing: { type: "set-price", amount: 50 },
-    from: "Chris L.",
-    fromAvatar: "CL",
-    ring: "nearby",
-    distance: "About 30 min away",
-    distanceMinutes: 30,
-    condition: "Good",
-    postedAgo: "4d ago",
-  },
-  {
-    id: "s9",
-    name: "Play kitchen",
-    category: "Toys",
-    ageRange: "2-6y",
-    status: "available",
-    matchedTo: null,
-    emoji: "\uD83C\uDF73",
-    pricing: { type: "give-what-you-can" },
-    from: "Dana W.",
-    fromAvatar: "DW",
-    ring: "nearby",
-    distance: "About 35 min away",
-    distanceMinutes: 35,
-    postedAgo: "1d ago",
-  },
-  // 40-55 min
-  {
-    id: "s10",
-    name: "Jogging stroller",
-    category: "Strollers",
-    ageRange: "6mo-4y",
-    status: "available",
-    matchedTo: null,
-    emoji: "\uD83D\uDEBC",
-    pricing: { type: "set-price", amount: 85 },
-    from: "Sam N.",
-    fromAvatar: "SN",
-    ring: "nearby",
-    distance: "About 45 min away",
-    distanceMinutes: 45,
-    condition: "Great",
-    postedAgo: "6d ago",
-  },
 ];
 
-const CATEGORIES = [
-  "All",
-  "Clothing",
-  "Gear",
-  "Strollers",
-  "Toys",
-  "Home Furniture",
-  "Outdoor",
-  "Furniture",
-  "Electronics",
-];
+// ─── Distance brackets ──────────────────────────────────────────────────────
 
-// Distance brackets
 interface DistanceBracket {
   label: string;
   min: number;
@@ -222,9 +210,8 @@ const DISTANCE_BRACKETS: DistanceBracket[] = [
 
 function groupByDistance(items: Item[]): { label: string; items: Item[] }[] {
   const sorted = [...items].sort(
-    (a, b) => (a.distanceMinutes ?? 999) - (b.distanceMinutes ?? 999),
+    (a, b) => (a.distanceMinutes ?? 999) - (b.distanceMinutes ?? 999)
   );
-
   const groups: { label: string; items: Item[] }[] = [];
   for (const bracket of DISTANCE_BRACKETS) {
     const bracketItems = sorted.filter((item) => {
@@ -238,7 +225,6 @@ function groupByDistance(items: Item[]): { label: string; items: Item[] }[] {
   return groups;
 }
 
-// Render items in a 2-column grid
 function ItemGrid({ items }: { items: Item[] }) {
   const rows: Item[][] = [];
   for (let i = 0; i < items.length; i += 2) {
@@ -258,7 +244,17 @@ function ItemGrid({ items }: { items: Item[] }) {
   );
 }
 
-export default function ShopScreen() {
+// ─── Search mapping: "stroller" → Kids > Strollers ──────────────────────────
+
+function findCategoryBySearch(query: string): Category | null {
+  const q = query.toLowerCase();
+  const allCats = Object.keys(CATEGORY_INFO) as Category[];
+  return allCats.find((cat) => cat.toLowerCase().includes(q)) ?? null;
+}
+
+// ─── Component ──────────────────────────────────────────────────────────────
+
+export default function BrowseScreen() {
   const router = useRouter();
   const { session } = useAuth();
   const userId = session?.user?.id;
@@ -277,31 +273,56 @@ export default function ShopScreen() {
       ? realNearbyItems
       : MOCK_NEARBY_ITEMS;
 
-  const [activeCategory, setActiveCategory] = useState("All");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedTile, setSelectedTile] = useState<BrowseTile | null>(null);
+  const [selectedSubCategory, setSelectedSubCategory] = useState<Category | null>(null);
   const locationLat = useAppStore((s) => s.locationLat);
   const [locationDismissed, setLocationDismissed] = useState(false);
   const showLocationPrompt = !locationLat && !locationDismissed;
+  const children = useAppStore((s) => s.children);
+
+  // Active category filter (from tile + subcategory or search)
+  const activeCategories: Category[] | null = useMemo(() => {
+    if (selectedSubCategory) return [selectedSubCategory];
+    if (selectedTile) return selectedTile.categories;
+    if (searchQuery.length >= 2) {
+      const match = findCategoryBySearch(searchQuery);
+      return match ? [match] : null;
+    }
+    return null;
+  }, [selectedTile, selectedSubCategory, searchQuery]);
 
   const filteredFriendItems = useMemo(() => {
-    if (activeCategory === "All") return friendItems;
-    return friendItems.filter((i) => i.category === activeCategory);
-  }, [friendItems, activeCategory]);
+    if (!activeCategories) return friendItems;
+    return friendItems.filter((i) => activeCategories.includes(i.category as Category));
+  }, [friendItems, activeCategories]);
 
   const filteredNearbyItems = useMemo(() => {
-    if (activeCategory === "All") return nearbyItems;
-    return nearbyItems.filter((i) => i.category === activeCategory);
-  }, [nearbyItems, activeCategory]);
+    if (!activeCategories) return nearbyItems;
+    return nearbyItems.filter((i) => activeCategories.includes(i.category as Category));
+  }, [nearbyItems, activeCategories]);
+
+  // Text search across item names
+  const textFilteredFriendItems = useMemo(() => {
+    if (searchQuery.length < 2 || activeCategories) return filteredFriendItems;
+    const q = searchQuery.toLowerCase();
+    return friendItems.filter((i) => i.name.toLowerCase().includes(q));
+  }, [filteredFriendItems, friendItems, searchQuery, activeCategories]);
+
+  const textFilteredNearbyItems = useMemo(() => {
+    if (searchQuery.length < 2 || activeCategories) return filteredNearbyItems;
+    const q = searchQuery.toLowerCase();
+    return nearbyItems.filter((i) => i.name.toLowerCase().includes(q));
+  }, [filteredNearbyItems, nearbyItems, searchQuery, activeCategories]);
 
   const nearbyGroups = useMemo(
-    () => groupByDistance(filteredNearbyItems),
-    [filteredNearbyItems],
+    () => groupByDistance(textFilteredNearbyItems),
+    [textFilteredNearbyItems]
   );
 
-  if (
-    loading &&
-    realFriendItems.length === 0 &&
-    realNearbyItems.length === 0
-  ) {
+  const showResults = selectedTile || selectedSubCategory || searchQuery.length >= 2;
+
+  if (loading && realFriendItems.length === 0 && realNearbyItems.length === 0) {
     return (
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <View style={styles.loadingContainer}>
@@ -317,100 +338,189 @@ export default function ShopScreen() {
         style={styles.container}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        stickyHeaderIndices={[1]}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
-        <View>
-          <GradientText style={styles.title}>Shop</GradientText>
-          <Text style={styles.subtitle}>
-            Browse what's available near you
-          </Text>
-        </View>
+        <Text style={styles.title}>What are you looking for?</Text>
 
-        {/* Sticky category filter pills */}
-        <View style={styles.pillBar}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.pillContainer}
-          >
-            {CATEGORIES.map((cat) => (
-              <Pressable
-                key={cat}
-                style={[
-                  styles.pill,
-                  activeCategory === cat && styles.pillActive,
-                ]}
-                onPress={() => setActiveCategory(cat)}
-              >
-                <Text
-                  style={[
-                    styles.pillText,
-                    activeCategory === cat && styles.pillTextActive,
-                  ]}
-                >
-                  {cat}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* ---- Friends section ---- */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {"\u2661"} From friends ({filteredFriendItems.length})
-          </Text>
-          {filteredFriendItems.length > 0 ? (
-            <ItemGrid items={filteredFriendItems} />
-          ) : (
-            <View style={styles.emptySection}>
-              <Text style={styles.emptySectionText}>
-                No friend items
-                {activeCategory !== "All" ? ` in ${activeCategory}` : ""}
-              </Text>
-            </View>
+        {/* Search bar */}
+        <View style={styles.searchBar}>
+          <Text style={styles.searchIcon}>{"\u{1F50D}"}</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search items..."
+            placeholderTextColor={colors.textLight}
+            value={searchQuery}
+            onChangeText={(t) => {
+              setSearchQuery(t);
+              if (t.length === 0) {
+                setSelectedTile(null);
+                setSelectedSubCategory(null);
+              }
+            }}
+            autoCapitalize="none"
+            returnKeyType="search"
+          />
+          {searchQuery.length > 0 && (
+            <Pressable
+              onPress={() => {
+                setSearchQuery("");
+                setSelectedTile(null);
+                setSelectedSubCategory(null);
+              }}
+            >
+              <Text style={styles.clearBtn}>{"\u2715"}</Text>
+            </Pressable>
           )}
         </View>
 
-        {/* ---- Location prompt before nearby ---- */}
-        {showLocationPrompt && (
-          <View style={styles.section}>
-            <LocationPrompt
-              onComplete={() => setLocationDismissed(true)}
-              onDismiss={() => setLocationDismissed(true)}
-            />
+        {/* Category tiles */}
+        {!showResults && (
+          <View style={styles.tileGrid}>
+            {BROWSE_TILES.map((tile) => (
+              <Pressable
+                key={tile.key}
+                style={styles.tile}
+                onPress={() => {
+                  setSelectedTile(tile);
+                  setSelectedSubCategory(null);
+                  setSearchQuery("");
+                }}
+              >
+                <Text style={styles.tileEmoji}>{tile.emoji}</Text>
+                <Text style={styles.tileLabel}>{tile.label}</Text>
+              </Pressable>
+            ))}
           </View>
         )}
 
-        {/* ---- Nearby section with distance groups ---- */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {"\u25C9"} Nearby ({filteredNearbyItems.length})
-          </Text>
-
-          {nearbyGroups.length > 0 ? (
-            nearbyGroups.map((group) => (
-              <View key={group.label} style={styles.distanceGroup}>
-                <View style={styles.distanceHeaderRow}>
-                  <View style={styles.distanceLine} />
-                  <Text style={styles.distanceLabel}>{group.label}</Text>
-                  <View style={styles.distanceLine} />
-                </View>
-                <ItemGrid items={group.items} />
-              </View>
-            ))
-          ) : (
-            <View style={styles.emptySection}>
-              <Text style={styles.emptySectionText}>
-                No nearby items
-                {activeCategory !== "All" ? ` in ${activeCategory}` : ""}
+        {/* Subcategory chips (when a tile is selected) */}
+        {selectedTile && !selectedSubCategory && (
+          <>
+            <Pressable
+              style={styles.breadcrumb}
+              onPress={() => setSelectedTile(null)}
+            >
+              <Text style={styles.breadcrumbText}>
+                {"\u2190"} All categories
               </Text>
-            </View>
-          )}
-        </View>
+            </Pressable>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.subChipRow}
+            >
+              <Pressable
+                style={[styles.subChip, styles.subChipActive]}
+                onPress={() => setSelectedSubCategory(null)}
+              >
+                <Text style={[styles.subChipText, styles.subChipTextActive]}>
+                  All {selectedTile.label}
+                </Text>
+              </Pressable>
+              {selectedTile.categories.map((cat) => (
+                <Pressable
+                  key={cat}
+                  style={styles.subChip}
+                  onPress={() => setSelectedSubCategory(cat)}
+                >
+                  <Text style={styles.subChipText}>{cat}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </>
+        )}
 
-        {/* Safety explainer link */}
+        {/* Selected subcategory header */}
+        {selectedSubCategory && (
+          <Pressable
+            style={styles.breadcrumb}
+            onPress={() => setSelectedSubCategory(null)}
+          >
+            <Text style={styles.breadcrumbText}>
+              {"\u2190"} {selectedTile?.label} {"\u203A"} {selectedSubCategory}
+            </Text>
+          </Pressable>
+        )}
+
+        {/* Family member chips */}
+        {showResults && children.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.familyChipRow}
+          >
+            {children.map((child) => (
+              <View key={child.id} style={styles.familyChip}>
+                <Text style={styles.familyChipEmoji}>{child.emoji || "\uD83D\uDC76"}</Text>
+                <Text style={styles.familyChipName}>{child.name}</Text>
+              </View>
+            ))}
+            <Pressable
+              style={[styles.familyChip, styles.familyChipAdd]}
+              onPress={() => router.push("/(tabs)/profile" as `/${string}`)}
+            >
+              <Text style={styles.familyChipAddText}>+ Add</Text>
+            </Pressable>
+          </ScrollView>
+        )}
+
+        {/* Results */}
+        {showResults && (
+          <>
+            {/* Friends section */}
+            {textFilteredFriendItems.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>
+                  {"\u2661"} From friends ({textFilteredFriendItems.length})
+                </Text>
+                <ItemGrid items={textFilteredFriendItems} />
+              </View>
+            )}
+
+            {/* Location prompt */}
+            {showLocationPrompt && (
+              <View style={styles.section}>
+                <LocationPrompt
+                  onComplete={() => setLocationDismissed(true)}
+                  onDismiss={() => setLocationDismissed(true)}
+                />
+              </View>
+            )}
+
+            {/* Nearby section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                {"\u25C9"} Nearby ({textFilteredNearbyItems.length})
+              </Text>
+              {nearbyGroups.length > 0 ? (
+                nearbyGroups.map((group) => (
+                  <View key={group.label} style={styles.distanceGroup}>
+                    <View style={styles.distanceHeaderRow}>
+                      <View style={styles.distanceLine} />
+                      <Text style={styles.distanceLabel}>{group.label}</Text>
+                      <View style={styles.distanceLine} />
+                    </View>
+                    <ItemGrid items={group.items} />
+                  </View>
+                ))
+              ) : (
+                <View style={styles.emptySection}>
+                  <Text style={styles.emptySectionText}>
+                    No nearby items
+                    {selectedSubCategory
+                      ? ` in ${selectedSubCategory}`
+                      : selectedTile
+                        ? ` in ${selectedTile.label}`
+                        : ""}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </>
+        )}
+
+        {/* Safety link */}
         <Pressable
           onPress={() =>
             router.push("/legal/safety-and-privacy" as `/${string}`)
@@ -428,44 +538,69 @@ export default function ShopScreen() {
   );
 }
 
+// ─── Styles ─────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  container: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  safe: { flex: 1, backgroundColor: colors.bg },
+  container: { flex: 1 },
+  content: { paddingHorizontal: 20, paddingTop: 20 },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "700",
-  },
-  subtitle: {
-    fontSize: 14,
-    color: colors.textMuted,
-    marginTop: 4,
-    marginBottom: 12,
+    color: colors.text,
+    marginBottom: 16,
   },
 
-  // Sticky pill bar
-  pillBar: {
-    backgroundColor: colors.bg,
-    paddingBottom: 12,
-    paddingTop: 4,
+  // Search bar
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 14,
+    marginBottom: 20,
   },
-  pillContainer: {
-    gap: 8,
+  searchIcon: { fontSize: 16, marginRight: 8 },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: colors.text,
+    paddingVertical: 12,
   },
-  pill: {
+  clearBtn: { fontSize: 14, color: colors.textMuted, padding: 4 },
+
+  // Tile grid (6 tiles, 3x2)
+  tileGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginBottom: 24,
+  },
+  tile: {
+    width: "30%",
+    aspectRatio: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 16,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 6,
+  },
+  tileEmoji: { fontSize: 28 },
+  tileLabel: { fontSize: 13, fontWeight: "600", color: colors.text },
+
+  // Breadcrumb
+  breadcrumb: { marginBottom: 12 },
+  breadcrumbText: { fontSize: 15, color: colors.violet, fontWeight: "600" },
+
+  // Subcategory chips
+  subChipRow: { gap: 8, marginBottom: 16, paddingRight: 20 },
+  subChip: {
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 20,
@@ -473,23 +608,36 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  pillActive: {
+  subChipActive: {
     backgroundColor: colors.text,
     borderColor: colors.text,
   },
-  pillText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.textMuted,
+  subChipText: { fontSize: 13, fontWeight: "600", color: colors.textMuted },
+  subChipTextActive: { color: "#FFFFFF" },
+
+  // Family chips
+  familyChipRow: { gap: 8, marginBottom: 16, paddingRight: 20 },
+  familyChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: colors.violet + "15",
+    borderWidth: 1,
+    borderColor: colors.violet + "30",
   },
-  pillTextActive: {
-    color: "#FFFFFF",
+  familyChipEmoji: { fontSize: 16 },
+  familyChipName: { fontSize: 13, fontWeight: "600", color: colors.violet },
+  familyChipAdd: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
   },
+  familyChipAddText: { fontSize: 13, fontWeight: "600", color: colors.textMuted },
 
   // Sections
-  section: {
-    marginBottom: 24,
-  },
+  section: { marginBottom: 24 },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "700",
@@ -498,22 +646,12 @@ const styles = StyleSheet.create({
   },
 
   // Grid
-  grid: {
-    gap: 0,
-  },
-  gridRow: {
-    flexDirection: "row",
-    marginHorizontal: -6,
-  },
-  gridSpacer: {
-    flex: 1,
-    margin: 6,
-  },
+  grid: { gap: 0 },
+  gridRow: { flexDirection: "row", marginHorizontal: -6 },
+  gridSpacer: { flex: 1, margin: 6 },
 
   // Distance groups
-  distanceGroup: {
-    marginBottom: 8,
-  },
+  distanceGroup: { marginBottom: 8 },
   distanceHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -521,39 +659,16 @@ const styles = StyleSheet.create({
     marginTop: 4,
     gap: 10,
   },
-  distanceLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.border,
-  },
-  distanceLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.textMuted,
-  },
+  distanceLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  distanceLabel: { fontSize: 13, fontWeight: "600", color: colors.textMuted },
 
-  // Empty states
-  emptySection: {
-    alignItems: "center",
-    paddingVertical: 24,
-  },
-  emptySectionText: {
-    fontSize: 14,
-    color: colors.textLight,
-  },
+  // Empty
+  emptySection: { alignItems: "center", paddingVertical: 24 },
+  emptySectionText: { fontSize: 14, color: colors.textLight },
 
-  safetyLink: {
-    alignItems: "center",
-    paddingVertical: 16,
-    marginTop: 4,
-  },
-  safetyLinkText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontWeight: "500",
-  },
+  // Safety
+  safetyLink: { alignItems: "center", paddingVertical: 16, marginTop: 4 },
+  safetyLinkText: { fontSize: 13, color: colors.textMuted, fontWeight: "500" },
 
-  bottomSpacer: {
-    height: 100,
-  },
+  bottomSpacer: { height: 100 },
 });

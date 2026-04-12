@@ -37,6 +37,7 @@ export interface Item {
   condition?: string;
   from?: string;
   fromAvatar?: string;
+  description?: string;
 }
 
 export interface Pricing {
@@ -53,6 +54,9 @@ export interface ToGoItem {
   condition: string;
   wantsBundle: boolean;
   description?: string;
+  photoUri?: string;
+  pricingType?: "free" | "give-what-you-can" | "set-price";
+  pricingAmount?: number;
 }
 
 export type HandoffMethod = "porch" | "meetup" | "school" | "ship";

@@ -1,36 +1,58 @@
-import { Tabs, useRouter } from "expo-router";
-import { Text, View, StyleSheet, Pressable } from "react-native";
+import { Tabs } from "expo-router";
+import { Text, View, StyleSheet } from "react-native";
 import { BlurView } from "expo-blur";
 import { colors } from "../../lib/colors";
+import { useMatches } from "../../hooks/useMatches";
+import { useFriends } from "../../hooks/useFriends";
+import { useAuth } from "../../hooks/useAuth";
 
-function TabIcon({ icon, label, focused }: { icon: string; label: string; focused: boolean }) {
+function TabIcon({
+  icon,
+  label,
+  focused,
+  badge,
+}: {
+  icon: string;
+  label: string;
+  focused: boolean;
+  badge?: number;
+}) {
   return (
     <View style={styles.tabItem}>
-      <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>
-        {icon}
-      </Text>
-      <Text style={[styles.tabLabel, focused && styles.tabLabelActive]} numberOfLines={1}>
+      <View>
+        <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>
+          {icon}
+        </Text>
+        {badge != null && badge > 0 && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>
+              {badge > 9 ? "9+" : badge}
+            </Text>
+          </View>
+        )}
+      </View>
+      <Text
+        style={[styles.tabLabel, focused && styles.tabLabelActive]}
+        numberOfLines={1}
+      >
         {label}
       </Text>
     </View>
   );
 }
 
-function AddButton() {
-  const router = useRouter();
-  return (
-    <Pressable
-      onPress={() => router.push("/add-item")}
-      style={styles.addButton}
-    >
-      <View style={styles.addButtonInner}>
-        <Text style={styles.addButtonIcon}>+</Text>
-      </View>
-    </Pressable>
-  );
-}
-
 export default function TabLayout() {
+  const { session } = useAuth();
+  const userId = session?.user?.id;
+  const { incomingOffers } = useMatches(userId);
+  const { friends } = useFriends(userId);
+
+  // Badge count for Friends tab: pending friend requests + new incoming offers
+  const pendingFriendRequests = friends.filter(
+    (f) => f.status === "invited"
+  ).length;
+  const friendBadge = pendingFriendRequests > 0 ? pendingFriendRequests : undefined;
+
   return (
     <Tabs
       screenOptions={{
@@ -46,7 +68,7 @@ export default function TabLayout() {
         name="index"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon="⌂" label="Home" focused={focused} />
+            <TabIcon icon={"\u2302"} label="Home" focused={focused} />
           ),
         }}
       />
@@ -54,26 +76,15 @@ export default function TabLayout() {
         name="shop"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon="✦" label="Shop" focused={focused} />
+            <TabIcon icon={"\u25CB"} label="Browse" focused={focused} />
           ),
-        }}
-      />
-      <Tabs.Screen
-        name="add"
-        options={{
-          tabBarButton: () => <AddButton />,
-        }}
-        listeners={{
-          tabPress: (e) => {
-            e.preventDefault();
-          },
         }}
       />
       <Tabs.Screen
         name="friends"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon="♡" label="Friends" focused={focused} />
+            <TabIcon icon={"\u2661"} label="Friends" focused={focused} badge={friendBadge} />
           ),
         }}
       />
@@ -81,19 +92,14 @@ export default function TabLayout() {
         name="profile"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon="○" label="Profile" focused={focused} />
+            <TabIcon icon={"\u25CB"} label="Profile" focused={focused} />
           ),
         }}
       />
       {/* Hidden tabs — still accessible via router.push but not in tab bar */}
-      <Tabs.Screen
-        name="stuff"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
-        name="impact"
-        options={{ href: null }}
-      />
+      <Tabs.Screen name="add" options={{ href: null }} />
+      <Tabs.Screen name="stuff" options={{ href: null }} />
+      <Tabs.Screen name="impact" options={{ href: null }} />
     </Tabs>
   );
 }
@@ -128,29 +134,21 @@ const styles = StyleSheet.create({
     color: colors.violet,
     fontWeight: "700",
   },
-  // Center (+) button
-  addButton: {
+  badge: {
+    position: "absolute",
+    top: -4,
+    right: -10,
+    backgroundColor: colors.coral,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
     alignItems: "center",
     justifyContent: "center",
-    top: -8,
+    paddingHorizontal: 4,
   },
-  addButtonInner: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: colors.violet,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: colors.violet,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  addButtonIcon: {
-    fontSize: 28,
-    fontWeight: "300",
+  badgeText: {
+    fontSize: 10,
+    fontWeight: "700",
     color: "#FFFFFF",
-    marginTop: -1,
   },
 });
