@@ -1,96 +1,184 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Image } from "react-native";
 import { router } from "expo-router";
 import Card from "./ui/Card";
-import Avatar from "./ui/Avatar";
 import { colors } from "../lib/colors";
 import type { Item } from "../lib/types";
+
+// ─── Category background colors ────────────────────────────────────────────
+
+const CATEGORY_BG: Record<string, string> = {
+  // Kids
+  Clothing: "#FFF0EC",
+  Shoes: "#FFF0EC",
+  Outerwear: "#FFF0EC",
+  Strollers: "#FFF0EC",
+  "Car Seats": "#FFF0EC",
+  Gear: "#FFF0EC",
+  Feeding: "#FFF0EC",
+  Toys: "#FFF0EC",
+  Books: "#FFF0EC",
+  Furniture: "#FFF0EC",
+  Sleep: "#FFF0EC",
+  Bath: "#FFF0EC",
+  Safety: "#FFF0EC",
+  // Home
+  "Home Furniture": "#EFF5EE",
+  Appliances: "#EFF5EE",
+  "Home Decor": "#EFF5EE",
+  // Clothing/Fashion
+  Fashion: "#F0EDF5",
+  // Electronics
+  Electronics: "#EDF2F7",
+  Gaming: "#EDF2F7",
+  // Outdoor
+  Outdoor: "#EEF5EC",
+  "Sports & Fitness": "#EEF5EC",
+  "Garden & Patio": "#EEF5EC",
+  // Other
+  Tools: "#F5F0EB",
+  Instruments: "#F5F0EB",
+  "Auto & Moto": "#F5F0EB",
+  Office: "#F5F0EB",
+  "Free Stuff": "#F5F0EB",
+};
+
+function getCategoryBg(category: string): string {
+  return CATEGORY_BG[category] ?? "#F5F0EB";
+}
+
+// ─── Pricing label ──────────────────────────────────────────────────────────
+
+function getPricingLabel(item: Item): { text: string; accent: boolean } | null {
+  const pricing = item.pricing;
+  if (!pricing) return null;
+  switch (pricing.type) {
+    case "free":
+      return { text: "Free", accent: true };
+    case "give-what-you-can":
+      return { text: "Pay what's fair", accent: true };
+    case "set-price":
+      return { text: `$${pricing.amount ?? 0}`, accent: false };
+    default:
+      return null;
+  }
+}
+
+// ─── Component ──────────────────────────────────────────────────────────────
 
 interface ShopItemCardProps {
   item: Item;
 }
 
-function getPricingLabel(item: Item): string | null {
-  const pricing = item.pricing;
-  if (!pricing) return null;
-  switch (pricing.type) {
-    case "free": return "Free";
-    case "give-what-you-can": return "You decide";
-    case "set-price": return `$${pricing.amount ?? 0}`;
-    default: return null;
-  }
-}
-
 export default function ShopItemCard({ item }: ShopItemCardProps) {
-  const pricingLabel = getPricingLabel(item);
+  const pricing = getPricingLabel(item);
+  const bgColor = getCategoryBg(item.category);
+  const hasPhoto = item.photoUri != null;
 
-  // Single metadata line: "6-12mo · Free" or "2-3y · $120"
-  const metaParts = [item.ageRange];
-  if (item.isBundle && item.count) metaParts.push(`${item.count} items`);
-  if (pricingLabel) metaParts.push(pricingLabel);
-  const metaLine = metaParts.join(" \u00B7 ");
+  // Detail line: "Sarah · Size 2T" or "Sarah · Good"
+  const detailParts: string[] = [];
+  if (item.from) detailParts.push(item.from.split(" ")[0]);
+  if (item.ageRange) detailParts.push(item.ageRange);
+  if (item.condition) detailParts.push(item.condition);
+  const detailLine = detailParts.join(" \u00B7 ");
 
   return (
     <Card
       onPress={() => router.push(`/shop/${item.id}`)}
       style={styles.card}
     >
-      {item.ring === "nearby" && item.distance ? (
-        <Text style={styles.distance}>{item.distance}</Text>
-      ) : null}
-
-      <Text style={styles.emoji}>{item.emoji}</Text>
-      <Text style={styles.name} numberOfLines={2}>
-        {item.name}
-      </Text>
-
-      <Text style={styles.meta}>{metaLine}</Text>
-
-      {item.fromAvatar && item.from ? (
-        <View style={styles.seller}>
-          <Avatar initials={item.fromAvatar} size={20} />
-          <Text style={styles.sellerName}>{item.from.split(" ")[0]}</Text>
+      {/* Header area: photo or emoji on colored bg */}
+      {hasPhoto ? (
+        <Image
+          source={{ uri: item.photoUri! }}
+          style={styles.photoHeader}
+        />
+      ) : (
+        <View style={[styles.emojiHeader, { backgroundColor: bgColor }]}>
+          <Text style={styles.emoji}>{item.emoji}</Text>
         </View>
-      ) : null}
+      )}
+
+      {/* Text area */}
+      <View style={styles.textArea}>
+        <Text style={styles.name} numberOfLines={2}>
+          {item.name}
+          {item.isBundle && item.count ? ` (${item.count})` : ""}
+        </Text>
+        <Text style={styles.detail} numberOfLines={1}>
+          {detailLine}
+        </Text>
+        {pricing && (
+          <Text
+            style={[
+              styles.price,
+              pricing.accent && styles.priceAccent,
+            ]}
+          >
+            {pricing.text}
+          </Text>
+        )}
+      </View>
     </Card>
   );
 }
+
+// ─── Styles ─────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   card: {
     flex: 1,
     margin: 6,
-    padding: 12,
+    padding: 0,
+    overflow: "hidden",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#EAE7E3",
   },
-  distance: {
-    fontSize: 12,
-    color: colors.blue,
-    fontWeight: "600",
-    textAlign: "right",
-    marginBottom: 4,
+
+  // Photo header
+  photoHeader: {
+    width: "100%",
+    aspectRatio: 1,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+
+  // Emoji on color bg header
+  emojiHeader: {
+    width: "100%",
+    aspectRatio: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
   },
   emoji: {
-    fontSize: 32,
-    marginBottom: 6,
+    fontSize: 48,
+  },
+
+  // Text area
+  textArea: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
   name: {
     fontSize: 14,
-    fontWeight: "700",
-    color: colors.text,
+    fontWeight: "600",
+    color: "#1A1A1A",
     marginBottom: 2,
   },
-  meta: {
+  detail: {
     fontSize: 12,
-    color: colors.textMuted,
-    marginBottom: 8,
+    color: "#8E8E93",
+    marginBottom: 2,
   },
-  seller: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  sellerName: {
+  price: {
     fontSize: 12,
-    color: colors.textMuted,
+    fontWeight: "500",
+    color: "#1A1A1A",
+  },
+  priceAccent: {
+    color: colors.eucalyptus,
   },
 });

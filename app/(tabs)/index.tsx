@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
@@ -6,11 +6,12 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
+  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { colors } from "../../lib/colors";
-import type { Match, Item } from "../../lib/types";
+import type { Match } from "../../lib/types";
 import GradientText from "../../components/ui/GradientText";
 import Avatar from "../../components/ui/Avatar";
 import Badge from "../../components/ui/Badge";
@@ -22,7 +23,19 @@ import { useInventory } from "../../hooks/useInventory";
 import { useFriends } from "../../hooks/useFriends";
 import { useAppStore } from "../../stores/appStore";
 
-// --------------- Helpers ---------------
+// ─── Warm neutral palette ───────────────────────────────────────────────────
+
+const warm = {
+  buttonBg: "#F8F6F3",
+  buttonBorder: "#E5E2DE",
+  textDark: "#1A1A1A",
+  textMuted: "#8E8E93",
+  divider: "#EAE7E3",
+  screenBg: "#FAFAF8",
+  accent: colors.eucalyptus, // for interactive text only
+};
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
 function firstName(fullName: string): string {
   return fullName.split(" ")[0];
@@ -43,13 +56,48 @@ const SEASONAL_COPY: Record<string, { emoji: string; line1: string; line2: strin
   winter: { emoji: "\uD83C\uDF81", line1: "End of year clearout", line2: "Toys, books, gear?" },
 };
 
-// --------------- Component ---------------
+// ─── Pressable button with scale animation ──────────────────────────────────
+
+function WarmButton({
+  title,
+  onPress,
+}: {
+  title: string;
+  onPress: () => void;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const onPressIn = () => {
+    Animated.timing(scale, {
+      toValue: 0.97,
+      duration: 150,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const onPressOut = () => {
+    Animated.timing(scale, {
+      toValue: 1,
+      duration: 150,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  return (
+    <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut}>
+      <Animated.View style={[styles.warmButton, { transform: [{ scale }] }]}>
+        <Text style={styles.warmButtonText}>{title}</Text>
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+// ─── Component ──────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
   const router = useRouter();
   const [timedOut, setTimedOut] = useState(false);
 
-  // ---- Real data from Supabase ----
   const { session } = useAuth();
   const userId = session?.user?.id;
   const {
@@ -62,7 +110,6 @@ export default function HomeScreen() {
   const { items, loading: itemsLoading } = useInventory(userId);
   const { friends, loading: friendsLoading } = useFriends(userId);
   const userInitials = useAppStore((s) => s.userInitials) || "\uD83C\uDF31";
-  const children = useAppStore((s) => s.children);
 
   const isLoading =
     (matchesLoading || itemsLoading || friendsLoading) && !timedOut;
@@ -76,34 +123,26 @@ export default function HomeScreen() {
     return () => clearTimeout(timer);
   }, [matchesLoading, itemsLoading, friendsLoading]);
 
-  // Seasonal nudge dismissal
   const [seasonalDismissed, setSeasonalDismissed] = useState(false);
 
-  // ---- Determine if this is a "new" user (no items, no matches) ----
   const hasActivity =
     items.length > 0 || matches.length > 0 || incomingOffers.length > 0;
 
-  // ---- Build smart feed cards ----
+  // Smart feed data
   const handedOffItems = items.filter((i) => i.status === "handed-off");
   const handedOffCount = handedOffItems.length;
   const estimatedSaved = handedOffCount * 85;
 
-  // Matches that need attention (outgoing)
   const actionMatches = matches.filter(
     (m) => m.status === "ready" || m.status === "offered"
   );
-
-  // Incoming offers waiting for response
   const pendingIncoming = incomingOffers.filter(
     (o) => o.status === "offered"
   );
-
-  // Items matched to the user (accepted, coming their way)
   const comingYourWay = incomingOffers.filter(
     (o) => o.status === "accepted" || o.status === "scheduled"
   );
 
-  // Seasonal nudge — only if user has listed items before
   const season = getSeason();
   const seasonalInfo = SEASONAL_COPY[season];
   const showSeasonal = hasActivity && !seasonalDismissed;
@@ -112,37 +151,33 @@ export default function HomeScreen() {
     return (
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.violet} />
+          <ActivityIndicator size="large" color={warm.textMuted} />
         </View>
       </SafeAreaView>
     );
   }
 
   // ========================
-  // NEW USER — two big buttons
+  // NEW USER — logo + tagline + two warm buttons
   // ========================
   if (!hasActivity) {
     return (
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <View style={styles.newUserContainer}>
-          <GradientText style={styles.newUserLogo}>Watasu</GradientText>
+          <View style={styles.newUserGroup}>
+            <GradientText style={styles.newUserLogo}>Watasu</GradientText>
+            <Text style={styles.tagline}>Love it, then pass it along.</Text>
 
-          <View style={styles.newUserButtons}>
-            <Pressable
-              style={styles.bigButton}
-              onPress={() => router.push("/add-item")}
-            >
-              <Text style={styles.bigButtonText}>I have something</Text>
-            </Pressable>
-
-            <Pressable
-              style={[styles.bigButton, styles.bigButtonOutline]}
-              onPress={() => router.push("/(tabs)/shop" as `/${string}`)}
-            >
-              <Text style={[styles.bigButtonText, styles.bigButtonTextOutline]}>
-                I need something
-              </Text>
-            </Pressable>
+            <View style={styles.newUserButtons}>
+              <WarmButton
+                title="I have something"
+                onPress={() => router.push("/add-item")}
+              />
+              <WarmButton
+                title="I need something"
+                onPress={() => router.push("/(tabs)/shop" as `/${string}`)}
+              />
+            </View>
           </View>
         </View>
       </SafeAreaView>
@@ -159,7 +194,7 @@ export default function HomeScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* ---- Header ---- */}
+        {/* Header */}
         <View style={styles.headerRow}>
           <GradientText style={styles.logo}>Watasu</GradientText>
           <Pressable
@@ -171,7 +206,7 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        {/* ---- Compact action buttons ---- */}
+        {/* Compact action buttons */}
         <View style={styles.compactRow}>
           <Pressable
             style={styles.compactButton}
@@ -180,23 +215,16 @@ export default function HomeScreen() {
             <Text style={styles.compactButtonText}>I have something</Text>
           </Pressable>
           <Pressable
-            style={[styles.compactButton, styles.compactButtonOutline]}
+            style={styles.compactButton}
             onPress={() => router.push("/(tabs)/shop" as `/${string}`)}
           >
-            <Text
-              style={[
-                styles.compactButtonText,
-                styles.compactButtonTextOutline,
-              ]}
-            >
-              I need something
-            </Text>
+            <Text style={styles.compactButtonText}>I need something</Text>
           </Pressable>
         </View>
 
-        {/* ---- SMART FEED ---- */}
+        {/* ── SMART FEED ── */}
 
-        {/* Card A: Action matches — items ready to send */}
+        {/* Action matches */}
         {actionMatches.map((match) => (
           <Card
             key={match.id}
@@ -231,7 +259,7 @@ export default function HomeScreen() {
           </Card>
         ))}
 
-        {/* Card B/C: Someone claimed or paid */}
+        {/* Claims */}
         {matches
           .filter((m) => m.status === "accepted" || m.status === "handed-off")
           .slice(0, 2)
@@ -250,18 +278,15 @@ export default function HomeScreen() {
             </Card>
           ))}
 
-        {/* Card D: Items matched to you (incoming offers) */}
+        {/* Incoming offers */}
         {pendingIncoming.map((offer) => (
           <Card key={offer.id} style={styles.feedCard}>
             <View style={styles.feedItemRow}>
               <Text style={styles.feedEmoji}>{offer.itemEmoji}</Text>
               <View style={styles.feedItemInfo}>
-                <Text style={styles.feedItemName}>
-                  {offer.item}
-                </Text>
+                <Text style={styles.feedItemName}>{offer.item}</Text>
                 <Text style={styles.feedItemSub}>
-                  {firstName(offer.from)}'s {offer.toKid} {"\u00B7"}{" "}
-                  {offer.toKidAge}
+                  {firstName(offer.from)} {"\u00B7"} {offer.toKidAge}
                 </Text>
               </View>
             </View>
@@ -303,7 +328,7 @@ export default function HomeScreen() {
           </Card>
         ))}
 
-        {/* Card E: Seasonal nudge */}
+        {/* Seasonal nudge */}
         {showSeasonal && (
           <Card style={styles.feedCard}>
             <Pressable
@@ -316,17 +341,16 @@ export default function HomeScreen() {
             <Text style={styles.nudgeEmoji}>{seasonalInfo.emoji}</Text>
             <Text style={styles.nudgeLine1}>{seasonalInfo.line1}</Text>
             <Text style={styles.nudgeLine2}>{seasonalInfo.line2}</Text>
-            <Button
-              variant="primary"
-              size="sm"
-              title="Take a photo"
+            <Pressable
+              style={styles.nudgeAction}
               onPress={() => router.push("/add-item")}
-              style={{ marginTop: 12, alignSelf: "flex-start" }}
-            />
+            >
+              <Text style={styles.nudgeActionText}>Take a photo</Text>
+            </Pressable>
           </Card>
         )}
 
-        {/* Card F: Savings stat (subtle) */}
+        {/* Impact line */}
         {handedOffCount > 0 && (
           <View style={styles.impactLine}>
             <Text style={styles.impactText}>
@@ -336,77 +360,69 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* bottom spacer */}
         <View style={styles.bottomSpacer} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// --------------- Styles ---------------
+// ─── Styles ─────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
-  container: {
-    flex: 1,
-  },
-  content: {
-    padding: 20,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  safe: { flex: 1, backgroundColor: warm.screenBg },
+  container: { flex: 1 },
+  content: { padding: 16 },
+  loadingContainer: { flex: 1, alignItems: "center", justifyContent: "center" },
 
-  // ========================
-  // NEW USER
-  // ========================
+  // ── New user ──────────────────────────────────────────────────────
   newUserContainer: {
     flex: 1,
     justifyContent: "center",
+    paddingHorizontal: 16,
+    // Push the group to ~40% from top
+    paddingBottom: "20%",
+  },
+  newUserGroup: {
     alignItems: "center",
-    padding: 32,
   },
   newUserLogo: {
-    fontSize: 40,
-    marginBottom: 64,
+    fontSize: 38,
+    marginBottom: 8,
+  },
+  tagline: {
+    fontSize: 16,
+    fontWeight: "400",
+    color: warm.textMuted,
+    textAlign: "center",
+    marginBottom: 32,
   },
   newUserButtons: {
     width: "100%",
-    gap: 16,
-  },
-  bigButton: {
-    backgroundColor: colors.eucalyptus,
-    borderRadius: 16,
-    paddingVertical: 20,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  bigButtonOutline: {
-    backgroundColor: colors.card,
-    borderWidth: 1.5,
-    borderColor: colors.eucalyptus,
-  },
-  bigButtonText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  bigButtonTextOutline: {
-    color: colors.eucalyptus,
+    gap: 12,
   },
 
-  // ========================
-  // RETURNING USER
-  // ========================
+  // Warm neutral button
+  warmButton: {
+    backgroundColor: warm.buttonBg,
+    borderWidth: 1,
+    borderColor: warm.buttonBorder,
+    borderRadius: 16,
+    height: 56,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  warmButtonText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: warm.textDark,
+  },
+
+  // ── Returning user ────────────────────────────────────────────────
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -417,7 +433,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
   },
 
-  // Compact action buttons
+  // Compact buttons (same warm style, side by side)
   compactRow: {
     flexDirection: "row",
     gap: 10,
@@ -425,26 +441,20 @@ const styles = StyleSheet.create({
   },
   compactButton: {
     flex: 1,
-    backgroundColor: colors.eucalyptus,
+    backgroundColor: warm.buttonBg,
+    borderWidth: 1,
+    borderColor: warm.buttonBorder,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: "center",
   },
-  compactButtonOutline: {
-    backgroundColor: colors.card,
-    borderWidth: 1.5,
-    borderColor: colors.eucalyptus,
-  },
   compactButtonText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  compactButtonTextOutline: {
-    color: colors.eucalyptus,
+    color: warm.textDark,
   },
 
-  // Smart feed cards
+  // Feed cards
   feedCard: {
     marginBottom: 12,
     position: "relative",
@@ -458,17 +468,15 @@ const styles = StyleSheet.create({
     fontSize: 32,
     marginRight: 12,
   },
-  feedItemInfo: {
-    flex: 1,
-  },
+  feedItemInfo: { flex: 1 },
   feedItemName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
-    color: colors.text,
+    color: warm.textDark,
   },
   feedItemSub: {
     fontSize: 14,
-    color: colors.textMuted,
+    color: warm.textMuted,
     marginTop: 2,
   },
   feedActions: {
@@ -476,13 +484,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   feedClaimText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
-    color: colors.text,
+    color: warm.textDark,
   },
   feedClaimSub: {
     fontSize: 14,
-    color: colors.textMuted,
+    color: warm.textMuted,
     marginTop: 4,
   },
 
@@ -495,35 +503,30 @@ const styles = StyleSheet.create({
   },
   nudgeDismissText: {
     fontSize: 16,
-    color: colors.textMuted,
+    color: warm.textMuted,
   },
-  nudgeEmoji: {
-    fontSize: 32,
-    marginBottom: 8,
-  },
+  nudgeEmoji: { fontSize: 32, marginBottom: 8 },
   nudgeLine1: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "700",
-    color: colors.text,
+    color: warm.textDark,
     marginBottom: 4,
   },
   nudgeLine2: {
     fontSize: 15,
-    color: colors.textMuted,
+    color: warm.textMuted,
     lineHeight: 22,
+  },
+  nudgeAction: { marginTop: 12 },
+  nudgeActionText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: warm.accent,
   },
 
   // Impact
-  impactLine: {
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-  impactText: {
-    fontSize: 14,
-    color: colors.textMuted,
-  },
+  impactLine: { paddingVertical: 16, alignItems: "center" },
+  impactText: { fontSize: 14, color: warm.textMuted },
 
-  bottomSpacer: {
-    height: 40,
-  },
+  bottomSpacer: { height: 40 },
 });

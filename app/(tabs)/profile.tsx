@@ -25,6 +25,16 @@ import { useInventory } from "../../hooks/useInventory";
 import { useFriends } from "../../hooks/useFriends";
 import { supabase } from "../../lib/supabase";
 
+// ── Warm palette ────────────────────────────────────────────────────
+
+const warm = {
+  textDark: "#1A1A1A",
+  textMuted: "#8E8E93",
+  screenBg: "#FAFAF8",
+  cardBg: "#FFFFFF",
+  divider: "#EAE7E3",
+};
+
 // ── Helpers ──────────────────────────────────────────────────────────
 
 function formatDob(dob: string): string {
@@ -41,78 +51,6 @@ function childAge(dob: string): string {
   if (months < 24) return `${months}mo`;
   const years = Math.floor(months / 12);
   return `${years}y`;
-}
-
-function getRankTitle(itemCount: number): { title: string; emoji: string } {
-  if (itemCount >= 20) return { title: "Circulation Legend", emoji: "\u{1F451}" };
-  if (itemCount >= 10) return { title: "Neighborhood Hero", emoji: "\u{1F3C6}" };
-  if (itemCount >= 5) return { title: "Gear Guardian", emoji: "\u{1F6E1}" };
-  if (itemCount >= 1) return { title: "Kind Starter", emoji: "\u{1F331}" };
-  return { title: "Getting Started", emoji: "\u{1F44B}" };
-}
-
-// ── Milestones ──────────────────────────────────────────────────────
-
-interface MilestoneData {
-  id: string;
-  emoji: string;
-  title: string;
-  description: string;
-  unlocked: boolean;
-  progress?: string;
-}
-
-const MOCK_MILESTONES: MilestoneData[] = [
-  { id: "m1", emoji: "\u{1F381}", title: "First Pass", description: "Passed along your first item", unlocked: true },
-  { id: "m2", emoji: "\u{1F91D}", title: "Circle Starter", description: "Invited 3 friends", unlocked: true },
-  { id: "m3", emoji: "\u{1F4E6}", title: "Bundle of Joy", description: "Sent a bundle of 3+ items", unlocked: true },
-  { id: "m4", emoji: "\u{1F504}", title: "Full Circle", description: "Received an item AND passed one along", unlocked: false, progress: "Receive your first item to unlock" },
-  { id: "m5", emoji: "\u{1F3C6}", title: "Neighborhood Hero", description: "10 items circulated", unlocked: false, progress: "6 more to go!" },
-  { id: "m6", emoji: "\u{1F30D}", title: "Planet Protector", description: "50 lbs kept out of landfills", unlocked: false, progress: "22 lbs to go!" },
-];
-
-// ── Settings ────────────────────────────────────────────────────────
-
-const SETTINGS_ROWS = [
-  { label: "Notifications", icon: "\u{1F514}", route: null },
-  { label: "Privacy Policy", icon: "\u{1F4DC}", route: "/legal/privacy" },
-  { label: "Terms of Service", icon: "\u{1F4CB}", route: "/legal/terms" },
-  { label: "Help & Support", icon: "\u{1F4AC}", route: null },
-  { label: "About Watasu", icon: "\u{2728}", route: null },
-];
-
-// ── Visibility toggle ───────────────────────────────────────────────
-
-function VisibilityRow() {
-  const visibility = useAppStore((s) => s.itemVisibility);
-  const setVisibility = useAppStore((s) => s.setItemVisibility);
-  const userId = useAuth().session?.user?.id;
-  const isPublic = visibility === "public";
-
-  const toggle = async () => {
-    const next = isPublic ? "circle" : "public";
-    setVisibility(next);
-    if (userId) {
-      await supabase
-        .from("profiles")
-        .update({ item_visibility: next })
-        .eq("id", userId);
-    }
-  };
-
-  return (
-    <Pressable style={styles.settingsRow} onPress={toggle}>
-      <Text style={styles.settingsIcon}>{isPublic ? "\u{1F3D8}\uFE0F" : "\u{1F465}"}</Text>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.settingsLabel}>
-          {isPublic ? "Visible to everyone" : "Visible to friends"}
-        </Text>
-      </View>
-      <View style={[styles.toggleTrack, isPublic && styles.toggleTrackOn]}>
-        <View style={[styles.toggleThumb, isPublic && styles.toggleThumbOn]} />
-      </View>
-    </Pressable>
-  );
 }
 
 // ── Kid emoji options ───────────────────────────────────────────────
@@ -141,7 +79,7 @@ const KID_EMOJIS = [
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { session, signOut } = useAuth();
+  const { session } = useAuth();
   const userId = session?.user?.id;
   const { userName, userInitials, locationCity } = useAppStore();
   const { items } = useInventory(userId);
@@ -156,7 +94,6 @@ export default function ProfileScreen() {
   const [kidDobDraft, setKidDobDraft] = useState("");
   const [kidEmojiDraft, setKidEmojiDraft] = useState("");
   const [showKidDatePicker, setShowKidDatePicker] = useState(false);
-  const [showAllMilestones, setShowAllMilestones] = useState(false);
 
   // Load avatar URL
   useEffect(() => {
@@ -179,24 +116,13 @@ export default function ProfileScreen() {
     ? { name: userName, initials: userInitials, city: locationCity }
     : { name: "Pat Ryan", initials: "PR", city: "Madison, WI" };
 
-  // ── Impact stats (absorbed from Impact screen) ────────────────────
+  // Impact summary for the nav row
   const impact = useMemo(() => {
     const given = items.filter((i) => i.status === "handed-off").length;
-    const valueShared = items
-      .filter((i) => i.status === "handed-off")
-      .reduce((sum, i) => sum + (i.pricing?.amount ?? 85), 0);
-    return { given, received: 0, valueShared, lbsDiverted: given * 7 };
+    return { given, lbsDiverted: given * 7 };
   }, [items]);
 
-  const displayImpact = impact.given > 0
-    ? impact
-    : { given: 4, received: 2, valueShared: 340, lbsDiverted: 28 };
-  const totalCirculated = displayImpact.given + displayImpact.received;
-  const rank = getRankTitle(totalCirculated);
-
-  const visibleMilestones = showAllMilestones
-    ? MOCK_MILESTONES
-    : MOCK_MILESTONES.slice(0, 3);
+  const displayLbs = impact.lbsDiverted > 0 ? impact.lbsDiverted : 28;
 
   // ── Photo upload ──────────────────────────────────────────────────
   const uploadPhoto = async (uri: string) => {
@@ -289,14 +215,9 @@ export default function ProfileScreen() {
       setKids((prev) => prev.map((k) =>
         k.id === editingKidId ? { ...k, ...childUpdates } : k,
       ));
-      // Sync Zustand appStore so Home screen nudges use fresh data
       useAppStore.getState().updateChild(editingKidId, childUpdates);
     }
     setEditingKidId(null);
-  };
-
-  const handleSignOut = async () => {
-    try { await signOut(); } catch { Alert.alert("Error", "Failed to sign out"); }
   };
 
   return (
@@ -341,49 +262,43 @@ export default function ProfileScreen() {
           ) : null}
         </View>
 
-        {/* ── Impact Summary ── */}
-        <View style={styles.impactSummary}>
-          <Text style={styles.impactLine}>
-            <Text style={styles.impactNumber}>{displayImpact.given}</Text> passed along{" \u00B7 "}
-            <Text style={styles.impactNumber}>{displayImpact.received}</Text> received{" \u00B7 "}
-            <Text style={styles.impactNumber}>${displayImpact.valueShared}</Text> saved
-          </Text>
-          <Text style={styles.impactSubline}>
-            {displayImpact.lbsDiverted} lbs from landfill {"\u00B7"} {rank.emoji} {rank.title}
-          </Text>
-        </View>
+        {/* ── Navigation rows ── */}
+        <View style={styles.navCard}>
+          {/* My Items */}
+          <Pressable
+            style={styles.navRow}
+            onPress={() => router.push("/(tabs)/stuff" as `/${string}`)}
+          >
+            <Text style={styles.navIcon}>{"\u25CE"}</Text>
+            <Text style={styles.navLabel}>My Items</Text>
+            <Text style={styles.navMeta}>{items.length || 12}</Text>
+            <Text style={styles.chevron}>{"\u203A"}</Text>
+          </Pressable>
 
-        {/* ── My Items link ── */}
-        <Pressable
-          style={styles.myItemsRow}
-          onPress={() => router.push("/(tabs)/stuff" as `/${string}`)}
-        >
-          <Text style={styles.myItemsIcon}>{"\u25CE"}</Text>
-          <Text style={styles.myItemsLabel}>My Items</Text>
-          <Text style={styles.myItemsCount}>{items.length || 12}</Text>
-          <Text style={styles.chevron}>{"\u203A"}</Text>
-        </Pressable>
+          <View style={styles.divider} />
 
-        {/* ── Milestones ── */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Milestones</Text>
-          {visibleMilestones.map((m) => (
-            <View key={m.id} style={[styles.milestoneRow, !m.unlocked && { opacity: 0.4 }]}>
-              <View style={[styles.milestoneCircle, m.unlocked ? styles.milestoneCircleUnlocked : styles.milestoneCircleLocked]}>
-                <Text style={styles.milestoneEmoji}>{m.emoji}</Text>
-              </View>
-              <View style={styles.milestoneInfo}>
-                <Text style={styles.milestoneName}>{m.title}</Text>
-                <Text style={styles.milestoneDesc}>{m.unlocked ? m.description : m.progress ?? m.description}</Text>
-              </View>
-              {m.unlocked && <Text style={styles.milestoneCheck}>{"\u2713"}</Text>}
-            </View>
-          ))}
-          {!showAllMilestones && MOCK_MILESTONES.length > 3 && (
-            <Pressable onPress={() => setShowAllMilestones(true)} style={styles.seeAllBtn}>
-              <Text style={styles.seeAllText}>See all milestones</Text>
-            </Pressable>
-          )}
+          {/* Your impact */}
+          <Pressable
+            style={styles.navRow}
+            onPress={() => router.push("/impact" as `/${string}`)}
+          >
+            <Text style={styles.navIcon}>{"\u{1F331}"}</Text>
+            <Text style={styles.navLabel}>Your impact</Text>
+            <Text style={styles.navMeta}>{displayLbs} lbs saved</Text>
+            <Text style={styles.chevron}>{"\u203A"}</Text>
+          </Pressable>
+
+          <View style={styles.divider} />
+
+          {/* Settings */}
+          <Pressable
+            style={styles.navRow}
+            onPress={() => router.push("/settings" as `/${string}`)}
+          >
+            <Text style={styles.navIcon}>{"\u2699\uFE0F"}</Text>
+            <Text style={styles.navLabel}>Settings</Text>
+            <Text style={styles.chevron}>{"\u203A"}</Text>
+          </Pressable>
         </View>
 
         {/* ── Your Kids ── */}
@@ -453,35 +368,6 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {/* ── Settings ── */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Settings</Text>
-          <View style={styles.settingsCard}>
-            <VisibilityRow />
-            <View style={styles.divider} />
-            {SETTINGS_ROWS.map((item, index) => (
-              <React.Fragment key={item.label}>
-                {index > 0 && <View style={styles.divider} />}
-                <Pressable
-                  style={styles.settingsRow}
-                  onPress={() => item.route ? router.push(item.route as `/${string}`) : Alert.alert("Coming soon")}
-                >
-                  <Text style={styles.settingsIcon}>{item.icon}</Text>
-                  <Text style={styles.settingsLabel}>{item.label}</Text>
-                  <Text style={styles.chevron}>{"\u203A"}</Text>
-                </Pressable>
-              </React.Fragment>
-            ))}
-          </View>
-        </View>
-
-        {/* ── Sign Out ── */}
-        <Pressable style={styles.signOutBtn} onPress={handleSignOut}>
-          <Text style={styles.signOutText}>Sign Out</Text>
-        </Pressable>
-
-        <Text style={styles.version}>Watasu v3.0</Text>
-
         <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaView>
@@ -491,14 +377,14 @@ export default function ProfileScreen() {
 // ── Styles ──────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
+  safe: { flex: 1, backgroundColor: warm.screenBg },
   container: { flex: 1 },
   content: { padding: 20 },
 
   // Header
   headerSection: {
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 24,
   },
   avatarContainer: {
     position: "relative",
@@ -535,7 +421,7 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 22,
     fontWeight: "700",
-    color: colors.text,
+    color: warm.textDark,
   },
   nameEditPencil: { fontSize: 14 },
   nameEditRow: {
@@ -550,7 +436,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     fontWeight: "600",
-    color: colors.text,
+    color: warm.textDark,
     borderBottomWidth: 2,
     borderBottomColor: colors.violet,
     paddingVertical: 6,
@@ -569,69 +455,49 @@ const styles = StyleSheet.create({
   },
   userCity: {
     fontSize: 14,
-    color: colors.textMuted,
+    color: warm.textMuted,
     marginTop: 6,
   },
 
-  // Impact summary
-  impactSummary: {
-    alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    backgroundColor: colors.card,
+  // Navigation card
+  navCard: {
+    backgroundColor: warm.cardBg,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 12,
+    borderColor: warm.divider,
+    overflow: "hidden",
+    marginBottom: 24,
   },
-  impactLine: {
-    fontSize: 15,
-    color: colors.textMuted,
-    textAlign: "center",
-    lineHeight: 22,
-  },
-  impactNumber: {
-    fontWeight: "700",
-    color: colors.text,
-    fontSize: 16,
-  },
-  impactSubline: {
-    fontSize: 13,
-    color: colors.eucalyptus,
-    fontWeight: "600",
-    marginTop: 6,
-  },
-
-  // My Items row
-  myItemsRow: {
+  navRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
-    marginBottom: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     gap: 12,
   },
-  myItemsIcon: {
-    fontSize: 20,
-    color: colors.violet,
+  navIcon: {
+    fontSize: 18,
+    width: 24,
+    textAlign: "center" as const,
   },
-  myItemsLabel: {
+  navLabel: {
     flex: 1,
     fontSize: 16,
     fontWeight: "600",
-    color: colors.text,
+    color: warm.textDark,
   },
-  myItemsCount: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: colors.violet,
+  navMeta: {
+    fontSize: 14,
+    color: warm.textMuted,
   },
   chevron: {
     fontSize: 20,
-    color: colors.textLight,
+    color: warm.textMuted,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: warm.divider,
+    marginHorizontal: 16,
   },
 
   // Sections
@@ -641,7 +507,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     fontWeight: "700",
-    color: colors.text,
+    color: warm.textDark,
     marginBottom: 10,
   },
   sectionHeaderRow: {
@@ -656,67 +522,20 @@ const styles = StyleSheet.create({
     color: colors.violet,
   },
 
-  // Milestones
-  milestoneRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-    gap: 12,
-  },
-  milestoneCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  milestoneCircleUnlocked: {
-    backgroundColor: colors.eucalyptusLight,
-  },
-  milestoneCircleLocked: {
-    backgroundColor: colors.surface,
-  },
-  milestoneEmoji: { fontSize: 20 },
-  milestoneInfo: { flex: 1 },
-  milestoneName: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: colors.text,
-  },
-  milestoneDesc: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginTop: 1,
-  },
-  milestoneCheck: {
-    fontSize: 16,
-    color: colors.eucalyptus,
-    fontWeight: "700",
-  },
-  seeAllBtn: {
-    paddingVertical: 8,
-    alignItems: "center",
-  },
-  seeAllText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.violet,
-  },
-
   // Kids
   kidCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: colors.card,
+    backgroundColor: warm.cardBg,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: warm.divider,
     padding: 14,
     marginBottom: 8,
   },
   kidEditCard: {
-    backgroundColor: colors.card,
+    backgroundColor: warm.cardBg,
     borderRadius: 14,
     borderWidth: 2,
     borderColor: colors.violet,
@@ -728,7 +547,7 @@ const styles = StyleSheet.create({
   kidEditLabel: {
     fontSize: 12,
     fontWeight: "600",
-    color: colors.textMuted,
+    color: warm.textMuted,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
@@ -740,7 +559,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.bg,
+    backgroundColor: warm.screenBg,
     borderWidth: 2,
     borderColor: "transparent",
   },
@@ -750,26 +569,26 @@ const styles = StyleSheet.create({
   },
   emojiOptionText: { fontSize: 22 },
   kidDateBtn: {
-    backgroundColor: colors.bg,
+    backgroundColor: warm.screenBg,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: warm.divider,
   },
-  kidDateBtnText: { fontSize: 15, color: colors.text, fontWeight: "500" },
+  kidDateBtnText: { fontSize: 15, color: warm.textDark, fontWeight: "500" },
   kidDateDoneBtn: { alignSelf: "flex-end", paddingVertical: 6, paddingHorizontal: 12 },
   kidDateDoneText: { fontSize: 15, fontWeight: "600", color: colors.violet },
   kidEmoji: { fontSize: 32 },
   kidInfo: { flex: 1 },
-  kidName: { fontSize: 16, fontWeight: "700", color: colors.text },
-  kidDetail: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+  kidName: { fontSize: 16, fontWeight: "700", color: warm.textDark },
+  kidDetail: { fontSize: 13, color: warm.textMuted, marginTop: 2 },
   kidEditIcon: { fontSize: 14 },
   kidNameInput: {
     flex: 1,
     fontSize: 16,
     fontWeight: "600",
-    color: colors.text,
+    color: warm.textDark,
     borderBottomWidth: 2,
     borderBottomColor: colors.violet,
     paddingVertical: 4,
@@ -782,80 +601,4 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   kidSaveBtnText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
-
-  // Settings
-  settingsCard: {
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: "hidden",
-  },
-  settingsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  settingsIcon: {
-    fontSize: 18,
-    width: 24,
-    textAlign: "center" as const,
-  },
-  settingsLabel: {
-    flex: 1,
-    fontSize: 16,
-    color: colors.text,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginHorizontal: 16,
-  },
-
-  // Toggle
-  toggleTrack: {
-    width: 40,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    justifyContent: "center",
-    paddingHorizontal: 2,
-  },
-  toggleTrackOn: {
-    backgroundColor: colors.violet,
-  },
-  toggleThumb: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "#FFFFFF",
-  },
-  toggleThumbOn: {
-    alignSelf: "flex-end" as const,
-  },
-
-  // Sign out
-  signOutBtn: {
-    alignItems: "center",
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.coral,
-    backgroundColor: colors.coralLight,
-    marginBottom: 20,
-  },
-  signOutText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.coral,
-  },
-
-  version: {
-    fontSize: 12,
-    color: colors.textLight,
-    textAlign: "center",
-    marginBottom: 40,
-  },
 });
