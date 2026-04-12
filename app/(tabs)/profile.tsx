@@ -366,7 +366,7 @@ export default function ProfileScreen() {
 
             <Pressable
               style={styles.navRow}
-              onPress={() => router.push("/impact" as `/${string}`)}
+              onPress={() => router.push("/(tabs)/impact" as `/${string}`)}
             >
               <Text style={styles.navLabel}>Your impact</Text>
               <Text style={styles.navMeta}>{displayImpact.lbsDiverted} lbs</Text>
