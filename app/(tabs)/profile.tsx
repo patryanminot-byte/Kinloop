@@ -79,7 +79,7 @@ const KID_EMOJIS = [
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { session } = useAuth();
+  const { session, signOut } = useAuth();
   const userId = session?.user?.id;
   const { userName, userInitials, locationCity } = useAppStore();
   const { items } = useInventory(userId);
@@ -116,13 +116,20 @@ export default function ProfileScreen() {
     ? { name: userName, initials: userInitials, city: locationCity }
     : { name: "Pat Ryan", initials: "PR", city: "Madison, WI" };
 
-  // Impact summary for the nav row
+  // Impact stats
   const impact = useMemo(() => {
     const given = items.filter((i) => i.status === "handed-off").length;
-    return { given, lbsDiverted: given * 7 };
+    const received = 0;
+    const valueShared = items
+      .filter((i) => i.status === "handed-off")
+      .reduce((sum, i) => sum + (i.pricing?.amount ?? 85), 0);
+    return { given, received, valueShared, lbsDiverted: given * 7 };
   }, [items]);
 
-  const displayLbs = impact.lbsDiverted > 0 ? impact.lbsDiverted : 28;
+  const displayImpact = impact.given > 0
+    ? impact
+    : { given: 4, received: 2, valueShared: 340, lbsDiverted: 28 };
+  const hasImpact = impact.given > 0 || true; // show for demo
 
   // ── Photo upload ──────────────────────────────────────────────────
   const uploadPhoto = async (uri: string) => {
@@ -262,49 +269,10 @@ export default function ProfileScreen() {
           ) : null}
         </View>
 
-        {/* ── Navigation rows ── */}
-        <View style={styles.navCard}>
-          {/* My Items */}
-          <Pressable
-            style={styles.navRow}
-            onPress={() => router.push("/(tabs)/stuff" as `/${string}`)}
-          >
-            <Text style={styles.navIcon}>{"\u25CE"}</Text>
-            <Text style={styles.navLabel}>My Items</Text>
-            <Text style={styles.navMeta}>{items.length || 12}</Text>
-            <Text style={styles.chevron}>{"\u203A"}</Text>
-          </Pressable>
-
-          <View style={styles.divider} />
-
-          {/* Your impact */}
-          <Pressable
-            style={styles.navRow}
-            onPress={() => router.push("/impact" as `/${string}`)}
-          >
-            <Text style={styles.navIcon}>{"\u{1F331}"}</Text>
-            <Text style={styles.navLabel}>Your impact</Text>
-            <Text style={styles.navMeta}>{displayLbs} lbs saved</Text>
-            <Text style={styles.chevron}>{"\u203A"}</Text>
-          </Pressable>
-
-          <View style={styles.divider} />
-
-          {/* Settings */}
-          <Pressable
-            style={styles.navRow}
-            onPress={() => router.push("/settings" as `/${string}`)}
-          >
-            <Text style={styles.navIcon}>{"\u2699\uFE0F"}</Text>
-            <Text style={styles.navLabel}>Settings</Text>
-            <Text style={styles.chevron}>{"\u203A"}</Text>
-          </Pressable>
-        </View>
-
-        {/* ── Your Kids ── */}
+        {/* ── 1. Family (first content section) ── */}
         <View style={styles.section}>
           <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Your kids</Text>
+            <Text style={styles.sectionTitle}>Family</Text>
             <Pressable onPress={() => router.push("/onboarding/add-child" as `/${string}`)}>
               <Text style={styles.sectionAction}>+ Add</Text>
             </Pressable>
@@ -367,6 +335,70 @@ export default function ProfileScreen() {
             ),
           )}
         </View>
+
+        <View style={styles.sectionDivider} />
+
+        {/* ── 2. My Items ── */}
+        <Pressable
+          style={styles.navRow}
+          onPress={() => router.push("/(tabs)/stuff" as `/${string}`)}
+        >
+          <Text style={styles.navLabel}>My Items</Text>
+          <Text style={styles.navMeta}>{items.length || 12}</Text>
+          <Text style={styles.chevron}>{"\u203A"}</Text>
+        </Pressable>
+
+        <View style={styles.sectionDivider} />
+
+        {/* ── 3. Stats + Impact ── */}
+        {hasImpact && (
+          <>
+            <View style={styles.statsBlock}>
+              <Text style={styles.statsLine}>
+                <Text style={styles.statsNumber}>{displayImpact.given}</Text> passed along
+                {" \u00B7 "}
+                <Text style={styles.statsNumber}>{displayImpact.received}</Text> received
+              </Text>
+              <Text style={styles.statsLine}>
+                <Text style={styles.statsNumber}>${displayImpact.valueShared}</Text> saved
+              </Text>
+            </View>
+
+            <Pressable
+              style={styles.navRow}
+              onPress={() => router.push("/impact" as `/${string}`)}
+            >
+              <Text style={styles.navLabel}>Your impact</Text>
+              <Text style={styles.navMeta}>{displayImpact.lbsDiverted} lbs</Text>
+              <Text style={styles.chevron}>{"\u203A"}</Text>
+            </Pressable>
+
+            <View style={styles.sectionDivider} />
+          </>
+        )}
+
+        {/* ── 4. Settings ── */}
+        <Pressable
+          style={styles.navRow}
+          onPress={() => router.push("/settings" as `/${string}`)}
+        >
+          <Text style={styles.navLabel}>Settings</Text>
+          <Text style={styles.chevron}>{"\u203A"}</Text>
+        </Pressable>
+
+        <View style={styles.sectionDivider} />
+
+        {/* ── 5. Sign Out + Version ── */}
+        <Pressable
+          style={styles.signOutBtn}
+          onPress={async () => {
+            try { await signOut(); } catch { Alert.alert("Error", "Failed to sign out"); }
+          }}
+        >
+          <Text style={styles.signOutText}>Sign Out</Text>
+        </Pressable>
+
+        <Text style={styles.version}>Watasu v3.0</Text>
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -459,26 +491,12 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
 
-  // Navigation card
-  navCard: {
-    backgroundColor: warm.cardBg,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: warm.divider,
-    overflow: "hidden",
-    marginBottom: 24,
-  },
+  // Navigation rows
   navRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 14,
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  navIcon: {
-    fontSize: 18,
-    width: 24,
-    textAlign: "center" as const,
+    gap: 8,
   },
   navLabel: {
     flex: 1,
@@ -494,10 +512,44 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: warm.textMuted,
   },
-  divider: {
+  sectionDivider: {
     height: 1,
     backgroundColor: warm.divider,
-    marginHorizontal: 16,
+    marginVertical: 4,
+  },
+
+  // Stats
+  statsBlock: {
+    paddingVertical: 12,
+  },
+  statsLine: {
+    fontSize: 15,
+    color: warm.textMuted,
+    lineHeight: 22,
+  },
+  statsNumber: {
+    fontWeight: "600",
+    color: warm.textDark,
+  },
+
+  // Sign out
+  signOutBtn: {
+    alignItems: "center",
+    paddingVertical: 16,
+    marginTop: 16,
+  },
+  signOutText: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#E85D5D",
+  },
+
+  // Version
+  version: {
+    fontSize: 12,
+    color: warm.textMuted,
+    textAlign: "center",
+    marginTop: 8,
   },
 
   // Sections

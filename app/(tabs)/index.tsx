@@ -26,13 +26,13 @@ import { useAppStore } from "../../stores/appStore";
 // ─── Warm neutral palette ───────────────────────────────────────────────────
 
 const warm = {
-  buttonBg: "#F8F6F3",
-  buttonBorder: "#E5E2DE",
   textDark: "#1A1A1A",
   textMuted: "#8E8E93",
+  tagline: "#6B6B6B",
   divider: "#EAE7E3",
   screenBg: "#FAFAF8",
-  accent: colors.eucalyptus, // for interactive text only
+  accent: colors.eucalyptus,
+  brandAccent: colors.violet,
 };
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -61,9 +61,11 @@ const SEASONAL_COPY: Record<string, { emoji: string; line1: string; line2: strin
 function WarmButton({
   title,
   onPress,
+  variant = "filled",
 }: {
   title: string;
   onPress: () => void;
+  variant?: "filled" | "outlined";
 }) {
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -83,10 +85,25 @@ function WarmButton({
     }).start();
   };
 
+  const isFilled = variant === "filled";
+
   return (
     <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut}>
-      <Animated.View style={[styles.warmButton, { transform: [{ scale }] }]}>
-        <Text style={styles.warmButtonText}>{title}</Text>
+      <Animated.View
+        style={[
+          styles.warmButton,
+          isFilled ? styles.warmButtonFilled : styles.warmButtonOutlined,
+          { transform: [{ scale }] },
+        ]}
+      >
+        <Text
+          style={[
+            styles.warmButtonText,
+            isFilled ? styles.warmButtonTextFilled : styles.warmButtonTextOutlined,
+          ]}
+        >
+          {title}
+        </Text>
       </Animated.View>
     </Pressable>
   );
@@ -164,17 +181,28 @@ export default function HomeScreen() {
     return (
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <View style={styles.newUserContainer}>
-          <View style={styles.newUserGroup}>
+          {/* Top third — logo */}
+          <View style={styles.newUserTop}>
             <GradientText style={styles.newUserLogo}>Watasu</GradientText>
-            <Text style={styles.tagline}>Love it, then pass it along.</Text>
+          </View>
 
+          {/* Middle — tagline */}
+          <View style={styles.newUserMiddle}>
+            <Text style={styles.taglineLine1}>Love it, then pass it along.</Text>
+            <Text style={styles.taglineLine2}>Let Watasu find the perfect next home.</Text>
+          </View>
+
+          {/* Bottom third — buttons */}
+          <View style={styles.newUserBottom}>
             <View style={styles.newUserButtons}>
               <WarmButton
                 title="I have something"
+                variant="filled"
                 onPress={() => router.push("/add-item")}
               />
               <WarmButton
                 title="I need something"
+                variant="outlined"
                 onPress={() => router.push("/(tabs)/shop" as `/${string}`)}
               />
             </View>
@@ -209,16 +237,16 @@ export default function HomeScreen() {
         {/* Compact action buttons */}
         <View style={styles.compactRow}>
           <Pressable
-            style={styles.compactButton}
+            style={[styles.compactButton, styles.compactButtonFilled]}
             onPress={() => router.push("/add-item")}
           >
-            <Text style={styles.compactButtonText}>I have something</Text>
+            <Text style={styles.compactButtonTextFilled}>I have something</Text>
           </Pressable>
           <Pressable
-            style={styles.compactButton}
+            style={[styles.compactButton, styles.compactButtonOutlined]}
             onPress={() => router.push("/(tabs)/shop" as `/${string}`)}
           >
-            <Text style={styles.compactButtonText}>I need something</Text>
+            <Text style={styles.compactButtonTextOutlined}>I need something</Text>
           </Pressable>
         </View>
 
@@ -377,39 +405,63 @@ const styles = StyleSheet.create({
   // ── New user ──────────────────────────────────────────────────────
   newUserContainer: {
     flex: 1,
-    justifyContent: "center",
-    paddingHorizontal: 16,
-    // Push the group to ~40% from top
-    paddingBottom: "20%",
+    paddingHorizontal: 24,
   },
-  newUserGroup: {
+  newUserTop: {
+    flex: 2,
+    justifyContent: "flex-end",
     alignItems: "center",
+    paddingBottom: 24,
+  },
+  newUserMiddle: {
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  newUserBottom: {
+    flex: 3,
+    justifyContent: "flex-start",
+    paddingTop: 48,
   },
   newUserLogo: {
-    fontSize: 38,
-    marginBottom: 8,
+    fontSize: 48,
   },
-  tagline: {
+  taglineLine1: {
     fontSize: 16,
     fontWeight: "400",
-    color: warm.textMuted,
+    color: warm.tagline,
     textAlign: "center",
-    marginBottom: 32,
+    marginBottom: 4,
+  },
+  taglineLine2: {
+    fontSize: 16,
+    fontWeight: "400",
+    color: warm.tagline,
+    textAlign: "center",
   },
   newUserButtons: {
     width: "100%",
     gap: 12,
   },
 
-  // Warm neutral button
+  // Warm buttons
   warmButton: {
-    backgroundColor: warm.buttonBg,
-    borderWidth: 1,
-    borderColor: warm.buttonBorder,
     borderRadius: 16,
     height: 56,
     alignItems: "center",
     justifyContent: "center",
+  },
+  warmButtonFilled: {
+    backgroundColor: warm.brandAccent,
+    shadowColor: "rgba(124, 92, 252, 0.15)",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  warmButtonOutlined: {
+    backgroundColor: warm.screenBg,
+    borderWidth: 1.5,
+    borderColor: warm.brandAccent,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
@@ -419,7 +471,12 @@ const styles = StyleSheet.create({
   warmButtonText: {
     fontSize: 18,
     fontWeight: "600",
-    color: warm.textDark,
+  },
+  warmButtonTextFilled: {
+    color: "#FFFFFF",
+  },
+  warmButtonTextOutlined: {
+    color: warm.brandAccent,
   },
 
   // ── Returning user ────────────────────────────────────────────────
@@ -441,17 +498,27 @@ const styles = StyleSheet.create({
   },
   compactButton: {
     flex: 1,
-    backgroundColor: warm.buttonBg,
-    borderWidth: 1,
-    borderColor: warm.buttonBorder,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: "center",
   },
-  compactButtonText: {
+  compactButtonFilled: {
+    backgroundColor: warm.brandAccent,
+  },
+  compactButtonOutlined: {
+    backgroundColor: warm.screenBg,
+    borderWidth: 1.5,
+    borderColor: warm.brandAccent,
+  },
+  compactButtonTextFilled: {
     fontSize: 14,
     fontWeight: "600",
-    color: warm.textDark,
+    color: "#FFFFFF",
+  },
+  compactButtonTextOutlined: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: warm.brandAccent,
   },
 
   // Feed cards

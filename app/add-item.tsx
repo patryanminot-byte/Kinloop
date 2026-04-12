@@ -8,13 +8,14 @@ import {
   TouchableOpacity,
   Pressable,
   Image,
+  Alert,
+  Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
-import { colors, gradientColors } from "../lib/colors";
+import { colors } from "../lib/colors";
 import {
   CATEGORY_INFO,
   SIZE_OPTIONS,
@@ -25,9 +26,24 @@ import {
 } from "../lib/itemCatalog";
 import { useItemCatalog } from "../hooks/useItemCatalog";
 import { useAppStore } from "../stores/appStore";
-import Button from "../components/ui/Button";
 
-// ─── Top-level category tiles ───────────────────────────────────────────────
+// ─── Warm palette ──────────────────────────────────────────────────────────
+
+const warm = {
+  textDark: "#1A1A1A",
+  textMuted: "#8E8E93",
+  screenBg: "#FAFAF8",
+  cardBg: "#FFFFFF",
+  divider: "#E5E2DE",
+  photoBg: "#F5F3F0",
+  photoBorder: "#D5D0CB",
+  accent: colors.violet,
+};
+
+const SCREEN_WIDTH = Dimensions.get("window").width;
+const PHOTO_SIZE = Math.floor((SCREEN_WIDTH - 48 - 16) / 3); // 24px margins, 8px gaps
+
+// ─── Top-level category tiles ──────────────────────────────────────────────
 
 interface TopCategory {
   key: string;
@@ -42,156 +58,130 @@ const TOP_CATEGORIES: TopCategory[] = [
     label: "Kids",
     emoji: "\uD83D\uDC76",
     children: [
-      "Clothing",
-      "Shoes",
-      "Outerwear",
-      "Strollers",
-      "Car Seats",
-      "Gear",
-      "Feeding",
-      "Toys",
-      "Books",
-      "Furniture",
-      "Sleep",
-      "Bath",
-      "Safety",
+      "Clothing", "Shoes", "Outerwear", "Strollers", "Car Seats",
+      "Gear", "Feeding", "Toys", "Books", "Furniture", "Sleep", "Bath", "Safety",
     ],
   },
-  {
-    key: "home",
-    label: "Home",
-    emoji: "\uD83C\uDFE0",
-    children: [
-      "Home Furniture",
-      "Appliances",
-      "Home Decor",
-    ],
-  },
-  {
-    key: "clothing",
-    label: "Clothing",
-    emoji: "\uD83D\uDC55",
-    children: ["Fashion"],
-  },
-  {
-    key: "electronics",
-    label: "Electronics",
-    emoji: "\uD83D\uDCF1",
-    children: ["Electronics", "Gaming"],
-  },
-  {
-    key: "outdoor",
-    label: "Outdoor",
-    emoji: "\uD83C\uDF33",
-    children: ["Outdoor", "Sports & Fitness", "Garden & Patio"],
-  },
-  {
-    key: "more",
-    label: "More",
-    emoji: "\u00B7\u00B7\u00B7",
-    children: [
-      "Tools",
-      "Instruments",
-      "Auto & Moto",
-      "Office",
-      "Free Stuff",
-    ],
-  },
+  { key: "home", label: "Home", emoji: "\uD83C\uDFE0", children: ["Home Furniture", "Appliances", "Home Decor"] },
+  { key: "clothing", label: "Clothing", emoji: "\uD83D\uDC55", children: ["Fashion"] },
+  { key: "electronics", label: "Electronics", emoji: "\uD83D\uDCF1", children: ["Electronics", "Gaming"] },
+  { key: "outdoor", label: "Outdoor", emoji: "\uD83C\uDF33", children: ["Outdoor", "Sports & Fitness", "Garden & Patio"] },
+  { key: "more", label: "More", emoji: "\u00B7\u00B7\u00B7", children: ["Tools", "Instruments", "Auto & Moto", "Office", "Free Stuff"] },
 ];
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+// ─── Helpers ───────────────────────────────────────────────────────────────
 
 let idCounter = 0;
 function makeId() {
   return `tg_${Date.now()}_${++idCounter}`;
 }
 
-// ─── Price slider positions ─────────────────────────────────────────────────
-
 type PricingMode = "free" | "pay-what-feels-fair" | "set-price";
 
-// ─── Component ──────────────────────────────────────────────────────────────
+// Categories where size isn't relevant
+const NO_SIZE_CATEGORIES: Category[] = [
+  "Toys", "Books", "Electronics", "Home Furniture", "Appliances",
+  "Home Decor", "Instruments", "Office", "Gaming", "Free Stuff",
+  "Tools", "Auto & Moto", "Safety",
+];
+
+// ─── Component ─────────────────────────────────────────────────────────────
 
 export default function AddItemScreen() {
   const router = useRouter();
   const addToGoItem = useAppStore((s) => s.addToGoItem);
   const { searchSmart } = useItemCatalog();
 
-  // Steps: "camera" → "details" → "done"
-  const [step, setStep] = useState<"camera" | "details" | "done">("camera");
-
-  // Photo
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
-
-  // Details
+  // State
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [itemName, setItemName] = useState("");
   const [selectedTopCategory, setSelectedTopCategory] = useState<TopCategory | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-  const [query, setQuery] = useState("");
-  const [selectedName, setSelectedName] = useState<string | null>(null);
-  const [selectedEmoji, setSelectedEmoji] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [selectedCondition, setSelectedCondition] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [pricingMode, setPricingMode] = useState<PricingMode>("pay-what-feels-fair");
   const [customPrice, setCustomPrice] = useState("");
-  const [wantsBundle, setWantsBundle] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [showSizePicker, setShowSizePicker] = useState(false);
+  const [done, setDone] = useState(false);
   const searchInputRef = useRef<TextInput>(null);
 
   // Derived
+  const showSize = selectedCategory && !NO_SIZE_CATEGORIES.includes(selectedCategory);
   const sizeSystem = selectedCategory
     ? CATEGORY_INFO[selectedCategory]?.sizeSystem ?? "age-range"
     : "age-range";
   const sizeOptions = SIZE_OPTIONS[sizeSystem] ?? [];
 
   const suggestions = useMemo(() => {
-    if (query.length < 2 || !selectedCategory) return [];
-    return searchSmart(query, selectedCategory);
-  }, [query, selectedCategory, searchSmart]);
-
-  // ─── Camera step ────────────────────────────────────────────────────────
-
-  const takePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== "granted") return;
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 0.8,
-      allowsEditing: true,
-      aspect: [1, 1],
-    });
-    if (!result.canceled && result.assets[0]) {
-      setPhotoUri(result.assets[0].uri);
-      setStep("details");
+    if (itemName.length < 2) return [];
+    if (selectedCategory) return searchSmart(itemName, selectedCategory);
+    // Search across all categories
+    const results: CatalogEntry[] = [];
+    for (const top of TOP_CATEGORIES) {
+      for (const cat of top.children) {
+        results.push(...searchSmart(itemName, cat));
+        if (results.length >= 8) return results.slice(0, 8);
+      }
     }
+    return results.slice(0, 8);
+  }, [itemName, selectedCategory, searchSmart]);
+
+  const hasEdits = itemName.length > 0 || photos.length > 0 || selectedCategory !== null;
+  const canSubmit = itemName.trim().length > 0;
+
+  // Category display string
+  const categoryDisplay = selectedCategory
+    ? (() => {
+        const top = TOP_CATEGORIES.find((t) => t.children.includes(selectedCategory));
+        return top ? `${top.label} > ${selectedCategory}` : selectedCategory;
+      })()
+    : null;
+
+  // ─── Photo handling ──────────────────────────────────────────────────────
+
+  const addPhoto = () => {
+    Alert.alert("Add Photo", "Choose an option", [
+      {
+        text: "Take Photo",
+        onPress: async () => {
+          const { status } = await ImagePicker.requestCameraPermissionsAsync();
+          if (status !== "granted") { Alert.alert("Permission needed", "Camera access is required."); return; }
+          const result = await ImagePicker.launchCameraAsync({ quality: 0.8, allowsEditing: true, aspect: [1, 1] });
+          if (!result.canceled && result.assets[0]) {
+            setPhotos((prev) => [...prev, result.assets[0].uri].slice(0, 5));
+          }
+        },
+      },
+      {
+        text: "Choose from Library",
+        onPress: async () => {
+          const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8, allowsEditing: true, aspect: [1, 1],
+          });
+          if (!result.canceled && result.assets[0]) {
+            setPhotos((prev) => [...prev, result.assets[0].uri].slice(0, 5));
+          }
+        },
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
   };
 
-  const pickFromLibrary = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") return;
-    const result = await ImagePicker.launchImageLibraryAsync({
-      quality: 0.8,
-      allowsEditing: true,
-      aspect: [1, 1],
-    });
-    if (!result.canceled && result.assets[0]) {
-      setPhotoUri(result.assets[0].uri);
-      setStep("details");
-    }
+  const removePhoto = (index: number) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const skipPhoto = () => {
-    setStep("details");
-  };
-
-  // ─── Details helpers ──────────────────────────────────────────────────
+  // ─── Category selection ──────────────────────────────────────────────────
 
   const handleSelectTopCategory = (top: TopCategory) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (top.children.length === 1) {
-      setSelectedTopCategory(top);
       setSelectedCategory(top.children[0]);
-      setWantsBundle(BUNDLE_CATEGORIES.includes(top.children[0]));
-      setTimeout(() => searchInputRef.current?.focus(), 300);
+      setSelectedTopCategory(null);
+      setShowCategoryPicker(false);
     } else {
       setSelectedTopCategory(top);
     }
@@ -200,133 +190,94 @@ export default function AddItemScreen() {
   const handleSelectSubCategory = (cat: Category) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSelectedCategory(cat);
-    setWantsBundle(BUNDLE_CATEGORIES.includes(cat));
-    setQuery("");
-    setSelectedName(null);
-    setSelectedEmoji(null);
+    setSelectedTopCategory(null);
+    setShowCategoryPicker(false);
     setSelectedSize(null);
-    setSelectedCondition(null);
-    setTimeout(() => searchInputRef.current?.focus(), 300);
   };
+
+  // ─── Suggestion selection ────────────────────────────────────────────────
 
   const handleSelectSuggestion = (entry: CatalogEntry) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const fullName = entry.brand ? `${entry.brand} ${entry.name}` : entry.name;
-    setSelectedName(fullName);
-    setSelectedEmoji(entry.emoji);
-    setQuery(fullName);
+    setItemName(fullName);
+    if (!selectedCategory) {
+      setSelectedCategory(entry.category);
+    }
     setShowSuggestions(false);
   };
 
-  const handleUseCustomName = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSelectedName(query.trim());
-    setSelectedEmoji(
-      selectedCategory ? CATEGORY_INFO[selectedCategory]?.emoji ?? "\u{1F4E6}" : "\u{1F4E6}"
-    );
-    setShowSuggestions(false);
+  // ─── Submit ──────────────────────────────────────────────────────────────
+
+  const handleCancel = () => {
+    if (hasEdits) {
+      Alert.alert("Discard this listing?", "", [
+        { text: "Keep editing", style: "cancel" },
+        { text: "Discard", style: "destructive", onPress: () => router.back() },
+      ]);
+    } else {
+      router.back();
+    }
   };
 
   const handleList = () => {
-    if (!selectedCategory || !selectedName || !selectedSize || !selectedCondition) return;
+    if (!canSubmit) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    const category = selectedCategory ?? "Free Stuff";
+    const emoji = selectedCategory ? CATEGORY_INFO[selectedCategory]?.emoji ?? "\u{1F4E6}" : "\u{1F4E6}";
 
     addToGoItem({
       localId: makeId(),
-      name: selectedName,
-      emoji: selectedEmoji ?? "\u{1F4E6}",
-      category: selectedCategory,
-      ageRange: selectedSize,
-      condition: selectedCondition,
-      wantsBundle,
+      name: itemName.trim(),
+      emoji,
+      category,
+      ageRange: selectedSize ?? "One size",
+      condition: selectedCondition ?? "Good",
+      wantsBundle: selectedCategory ? BUNDLE_CATEGORIES.includes(selectedCategory) : false,
       description: note.trim() || undefined,
-      photoUri: photoUri ?? undefined,
+      photoUri: photos[0] ?? undefined,
       pricingType: pricingMode === "free" ? "free" : pricingMode === "set-price" ? "set-price" : "give-what-you-can",
       pricingAmount: pricingMode === "set-price" && customPrice ? Number(customPrice) : undefined,
     });
 
-    setStep("done");
+    setDone(true);
   };
 
-  const isReady = selectedCategory && selectedName && selectedSize && selectedCondition;
+  const resetForm = () => {
+    setPhotos([]);
+    setItemName("");
+    setSelectedTopCategory(null);
+    setSelectedCategory(null);
+    setSelectedSize(null);
+    setSelectedCondition(null);
+    setNote("");
+    setPricingMode("pay-what-feels-fair");
+    setCustomPrice("");
+    setShowSuggestions(false);
+    setShowCategoryPicker(false);
+    setShowSizePicker(false);
+    setDone(false);
+  };
 
   // ========================
-  // STEP: Done
+  // DONE STATE
   // ========================
-  if (step === "done") {
+  if (done) {
     return (
       <SafeAreaView style={styles.safe} edges={["top"]}>
         <View style={styles.doneContainer}>
           <Text style={styles.doneCheck}>{"\u2713"}</Text>
           <Text style={styles.doneTitle}>We'll find the right match.</Text>
           <View style={styles.doneButtons}>
-            <Button
-              variant="primary"
-              size="md"
-              title="List another"
-              onPress={() => {
-                setStep("camera");
-                setPhotoUri(null);
-                setSelectedTopCategory(null);
-                setSelectedCategory(null);
-                setQuery("");
-                setSelectedName(null);
-                setSelectedEmoji(null);
-                setSelectedSize(null);
-                setSelectedCondition(null);
-                setNote("");
-                setPricingMode("pay-what-feels-fair");
-                setCustomPrice("");
-              }}
-            />
-            <Button
-              variant="secondary"
-              size="md"
-              title="Home"
+            <Pressable style={styles.doneButtonPrimary} onPress={resetForm}>
+              <Text style={styles.doneButtonPrimaryText}>List another</Text>
+            </Pressable>
+            <Pressable
+              style={styles.doneButtonSecondary}
               onPress={() => router.replace("/(tabs)/" as `/${string}`)}
-              style={{ marginLeft: 12 }}
-            />
-          </View>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  // ========================
-  // STEP: Camera
-  // ========================
-  if (step === "camera") {
-    return (
-      <SafeAreaView style={styles.safe} edges={["top"]}>
-        <View style={styles.cameraContainer}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Text style={styles.backText}>{"\u2190"} Back</Text>
-          </Pressable>
-
-          <View style={styles.cameraPlaceholder}>
-            <Text style={styles.cameraIcon}>{"\uD83D\uDCF7"}</Text>
-            <Text style={styles.cameraTitle}>Take a photo of your item</Text>
-            <Text style={styles.cameraSub}>
-              We'll suggest a category and title
-            </Text>
-          </View>
-
-          <View style={styles.cameraActions}>
-            <Pressable style={styles.shutterButton} onPress={takePhoto}>
-              <View style={styles.shutterInner} />
-            </Pressable>
-          </View>
-
-          <View style={styles.cameraSecondary}>
-            <Pressable onPress={pickFromLibrary}>
-              <Text style={styles.cameraSecondaryText}>
-                {"\uD83D\uDDBC\uFE0F"} Photo library
-              </Text>
-            </Pressable>
-            <Pressable onPress={skipPhoto}>
-              <Text style={styles.cameraSecondaryText}>
-                or browse categories
-              </Text>
+            >
+              <Text style={styles.doneButtonSecondaryText}>Done</Text>
             </Pressable>
           </View>
         </View>
@@ -335,567 +286,410 @@ export default function AddItemScreen() {
   }
 
   // ========================
-  // STEP: Details
+  // SINGLE-SCREEN FORM
   // ========================
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Pressable onPress={handleCancel} hitSlop={12}>
+          <Text style={styles.headerCancel}>{"\u2190"} Cancel</Text>
+        </Pressable>
+        <Pressable onPress={handleList} disabled={!canSubmit} hitSlop={12}>
+          <Text style={[styles.headerList, !canSubmit && styles.headerListDisabled]}>
+            List it {"\u2192"}
+          </Text>
+        </Pressable>
+      </View>
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        {/* Back */}
-        <Pressable onPress={() => setStep("camera")} style={styles.backBtn}>
-          <Text style={styles.backText}>{"\u2190"} Back</Text>
-        </Pressable>
-
-        {/* Photo thumbnail */}
-        {photoUri && (
-          <Pressable style={styles.photoThumb} onPress={takePhoto}>
-            <Image source={{ uri: photoUri }} style={styles.photoImage} />
-            <Text style={styles.photoRetake}>Retake</Text>
-          </Pressable>
-        )}
-
-        {/* Category — top level tiles */}
-        {!selectedCategory && !selectedTopCategory && (
-          <>
-            <Text style={styles.sectionLabel}>What is it?</Text>
-            <View style={styles.topCategoryGrid}>
-              {TOP_CATEGORIES.map((top) => (
-                <TouchableOpacity
-                  key={top.key}
-                  style={styles.topCategoryTile}
-                  onPress={() => handleSelectTopCategory(top)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.topCategoryEmoji}>{top.emoji}</Text>
-                  <Text style={styles.topCategoryLabel}>{top.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </>
-        )}
-
-        {/* Category — subcategory selection */}
-        {selectedTopCategory && !selectedCategory && (
-          <>
-            <Pressable
-              style={styles.breadcrumb}
-              onPress={() => setSelectedTopCategory(null)}
-            >
-              <Text style={styles.breadcrumbText}>
-                {"\u2190"} {selectedTopCategory.label}
+        {/* ── Photo Row ── */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.photoRow}
+        >
+          {photos.map((uri, i) => (
+            <Pressable key={uri} onPress={() => removePhoto(i)}>
+              <Image source={{ uri }} style={styles.photoFilled} />
+              <View style={styles.photoRemoveBadge}>
+                <Text style={styles.photoRemoveX}>{"\u2715"}</Text>
+              </View>
+            </Pressable>
+          ))}
+          {photos.length < 5 && (
+            <Pressable style={styles.photoPlaceholder} onPress={addPhoto}>
+              <Text style={styles.photoPlaceholderIcon}>
+                {photos.length === 0 ? "\u{1F4F7}" : "+"}
               </Text>
             </Pressable>
-            <View style={styles.subCategoryGrid}>
-              {selectedTopCategory.children.map((cat) => (
-                <TouchableOpacity
-                  key={cat}
-                  style={styles.subCategoryChip}
-                  onPress={() => handleSelectSubCategory(cat)}
-                  activeOpacity={0.7}
+          )}
+          {photos.length === 0 && (
+            <>
+              <Pressable style={styles.photoPlaceholder} onPress={addPhoto}>
+                <Text style={styles.photoPlaceholderPlus}>+</Text>
+              </Pressable>
+              <Pressable style={styles.photoPlaceholder} onPress={addPhoto}>
+                <Text style={styles.photoPlaceholderPlus}>+</Text>
+              </Pressable>
+            </>
+          )}
+        </ScrollView>
+
+        {/* ── What is it? ── */}
+        <View style={styles.fieldGroup}>
+          <TextInput
+            ref={searchInputRef}
+            style={styles.nameInput}
+            placeholder="What is it?"
+            placeholderTextColor={warm.textMuted}
+            value={itemName}
+            onChangeText={(t) => {
+              setItemName(t);
+              setShowSuggestions(t.length >= 2);
+            }}
+            autoCapitalize="words"
+            returnKeyType="done"
+          />
+          <View style={styles.fieldDivider} />
+
+          {/* Autocomplete suggestions */}
+          {showSuggestions && suggestions.length > 0 && (
+            <View style={styles.suggestionsBox}>
+              {suggestions.map((entry, idx) => (
+                <Pressable
+                  key={`${entry.brand ?? ""}-${entry.name}-${idx}`}
+                  style={styles.suggestionRow}
+                  onPress={() => handleSelectSuggestion(entry)}
                 >
-                  <Text style={styles.subCategoryEmoji}>
-                    {CATEGORY_INFO[cat]?.emoji ?? "\u{1F4E6}"}
-                  </Text>
-                  <Text style={styles.subCategoryLabel}>{cat}</Text>
-                </TouchableOpacity>
+                  <Text style={styles.suggestionEmoji}>{entry.emoji}</Text>
+                  <View style={styles.suggestionInfo}>
+                    <Text style={styles.suggestionName} numberOfLines={1}>
+                      {entry.brand ? `${entry.brand} ` : ""}{entry.name}
+                    </Text>
+                    <Text style={styles.suggestionCategory}>{entry.category}</Text>
+                  </View>
+                </Pressable>
               ))}
             </View>
-          </>
-        )}
+          )}
+        </View>
 
-        {/* Selected category header */}
-        {selectedCategory && (
+        {/* ── Category ── */}
+        <View style={styles.fieldGroup}>
           <Pressable
-            style={styles.selectedCategoryRow}
-            onPress={() => {
-              setSelectedCategory(null);
-              setSelectedTopCategory(null);
-              setQuery("");
-              setSelectedName(null);
-              setSelectedEmoji(null);
-              setSelectedSize(null);
-              setSelectedCondition(null);
-            }}
+            style={styles.fieldRow}
+            onPress={() => { setShowCategoryPicker(!showCategoryPicker); setSelectedTopCategory(null); }}
           >
-            <Text style={styles.selectedCategoryEmoji}>
-              {CATEGORY_INFO[selectedCategory]?.emoji}
-            </Text>
-            <Text style={styles.selectedCategoryLabel}>{selectedCategory}</Text>
-            <Text style={styles.selectedCategoryChange}>Change</Text>
+            <Text style={styles.fieldLabel}>Category</Text>
+            {categoryDisplay ? (
+              <Text style={[styles.fieldValue, styles.fieldValueAutoFilled]}>{categoryDisplay}</Text>
+            ) : (
+              <Text style={styles.fieldValuePlaceholder}>Select</Text>
+            )}
+            <Text style={styles.chevron}>{"\u203A"}</Text>
           </Pressable>
-        )}
+          <View style={styles.fieldDivider} />
 
-        {/* Item name search */}
-        {selectedCategory && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>What is it?</Text>
-            <View style={styles.searchRow}>
-              <Text style={styles.searchIcon}>{"\u{1F50D}"}</Text>
-              <TextInput
-                ref={searchInputRef}
-                style={styles.searchInput}
-                placeholder={`Search ${selectedCategory.toLowerCase()}...`}
-                placeholderTextColor={colors.textLight}
-                value={query}
-                onChangeText={(t) => {
-                  setQuery(t);
-                  setShowSuggestions(t.length >= 2);
-                  if (selectedName && t !== selectedName) {
-                    setSelectedName(null);
-                    setSelectedEmoji(null);
-                  }
-                }}
-                autoCapitalize="words"
-                returnKeyType="search"
-              />
-              {query.length > 0 && (
-                <TouchableOpacity
-                  onPress={() => {
-                    setQuery("");
-                    setShowSuggestions(false);
-                    setSelectedName(null);
-                  }}
+          {/* Category picker inline */}
+          {showCategoryPicker && !selectedTopCategory && (
+            <View style={styles.pickerGrid}>
+              {TOP_CATEGORIES.map((top) => (
+                <Pressable
+                  key={top.key}
+                  style={styles.pickerTile}
+                  onPress={() => handleSelectTopCategory(top)}
                 >
-                  <Text style={styles.clearBtn}>{"\u2715"}</Text>
-                </TouchableOpacity>
-              )}
+                  <Text style={styles.pickerTileEmoji}>{top.emoji}</Text>
+                  <Text style={styles.pickerTileLabel}>{top.label}</Text>
+                </Pressable>
+              ))}
             </View>
+          )}
 
-            {showSuggestions && query.length >= 2 && (
-              <View style={styles.suggestionsBox}>
-                <TouchableOpacity
-                  style={styles.suggestionRow}
-                  onPress={handleUseCustomName}
-                  activeOpacity={0.6}
-                >
-                  <Text style={styles.suggestionEmoji}>{"\u2795"}</Text>
-                  <Text style={styles.suggestionName}>Add "{query}"</Text>
-                </TouchableOpacity>
-                {suggestions.map((entry, idx) => (
-                  <TouchableOpacity
-                    key={`${entry.brand ?? ""}-${entry.name}-${idx}`}
-                    style={styles.suggestionRow}
-                    onPress={() => handleSelectSuggestion(entry)}
-                    activeOpacity={0.6}
+          {/* Subcategory chips */}
+          {showCategoryPicker && selectedTopCategory && (
+            <View style={styles.subCatContainer}>
+              <Pressable onPress={() => setSelectedTopCategory(null)}>
+                <Text style={styles.subCatBack}>{"\u2190"} {selectedTopCategory.label}</Text>
+              </Pressable>
+              <View style={styles.subCatChips}>
+                {selectedTopCategory.children.map((cat) => (
+                  <Pressable
+                    key={cat}
+                    style={styles.subCatChip}
+                    onPress={() => handleSelectSubCategory(cat)}
                   >
-                    <Text style={styles.suggestionEmoji}>{entry.emoji}</Text>
-                    <Text style={styles.suggestionName} numberOfLines={1}>
-                      {entry.brand ? `${entry.brand} ` : ""}
-                      {entry.name}
-                    </Text>
-                  </TouchableOpacity>
+                    <Text style={styles.subCatChipEmoji}>{CATEGORY_INFO[cat]?.emoji ?? "\u{1F4E6}"}</Text>
+                    <Text style={styles.subCatChipLabel}>{cat}</Text>
+                  </Pressable>
                 ))}
               </View>
-            )}
+            </View>
+          )}
+        </View>
 
-            {selectedName && !showSuggestions && (
-              <View style={styles.selectedItem}>
-                <Text style={styles.selectedItemEmoji}>{selectedEmoji}</Text>
-                <Text style={styles.selectedItemName}>{selectedName}</Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    setSelectedName(null);
-                    setSelectedEmoji(null);
-                    setQuery("");
-                    setTimeout(() => searchInputRef.current?.focus(), 100);
-                  }}
-                >
-                  <Text style={styles.changeLink}>Change</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Size */}
-        {selectedName && !showSuggestions && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Size</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.pillRow}
+        {/* ── Size ── */}
+        {showSize && (
+          <View style={styles.fieldGroup}>
+            <Pressable
+              style={styles.fieldRow}
+              onPress={() => setShowSizePicker(!showSizePicker)}
             >
-              {sizeOptions.map((size) => {
-                const isActive = selectedSize === size;
-                return isActive ? (
-                  <Pressable key={size}>
-                    <LinearGradient
-                      colors={gradientColors.button}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.pill}
-                    >
-                      <Text style={styles.pillTextActive}>{size}</Text>
-                    </LinearGradient>
-                  </Pressable>
-                ) : (
+              <Text style={styles.fieldLabel}>Size</Text>
+              {selectedSize ? (
+                <Text style={styles.fieldValue}>{selectedSize}</Text>
+              ) : (
+                <Text style={styles.fieldValuePlaceholder}>Select</Text>
+              )}
+              <Text style={styles.chevron}>{"\u203A"}</Text>
+            </Pressable>
+            <View style={styles.fieldDivider} />
+
+            {showSizePicker && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.sizeRow}
+              >
+                {sizeOptions.map((size) => (
                   <Pressable
                     key={size}
+                    style={[styles.sizePill, selectedSize === size && styles.sizePillActive]}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       setSelectedSize(size);
+                      setShowSizePicker(false);
                     }}
-                    style={[styles.pill, styles.pillInactive]}
                   >
-                    <Text style={styles.pillTextInactive}>{size}</Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Condition */}
-        {selectedSize && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Condition</Text>
-            <View style={styles.conditionRow}>
-              {CONDITION_OPTIONS.map((c) => {
-                const isActive = selectedCondition === c;
-                return (
-                  <TouchableOpacity
-                    key={c}
-                    style={[
-                      styles.conditionChip,
-                      isActive && styles.conditionChipActive,
-                    ]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setSelectedCondition(c);
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <Text
-                      style={[
-                        styles.conditionText,
-                        isActive && styles.conditionTextActive,
-                      ]}
-                    >
-                      {c}
+                    <Text style={[styles.sizePillText, selectedSize === size && styles.sizePillTextActive]}>
+                      {size}
                     </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        )}
-
-        {/* Note */}
-        {selectedCondition && (
-          <View style={styles.section}>
-            <TextInput
-              style={styles.noteInput}
-              placeholder="Add a note"
-              placeholderTextColor={colors.textLight}
-              value={note}
-              onChangeText={setNote}
-              autoCapitalize="sentences"
-              returnKeyType="done"
-            />
-          </View>
-        )}
-
-        {/* Price */}
-        {selectedCondition && (
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Price</Text>
-            <View style={styles.pricingRow}>
-              <Pressable
-                style={[
-                  styles.pricingOption,
-                  pricingMode === "free" && styles.pricingOptionActive,
-                ]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setPricingMode("free");
-                }}
-              >
-                <Text
-                  style={[
-                    styles.pricingOptionText,
-                    pricingMode === "free" && styles.pricingOptionTextActive,
-                  ]}
-                >
-                  Free
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  styles.pricingOption,
-                  pricingMode === "pay-what-feels-fair" &&
-                    styles.pricingOptionActive,
-                ]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setPricingMode("pay-what-feels-fair");
-                }}
-              >
-                <Text
-                  style={[
-                    styles.pricingOptionText,
-                    pricingMode === "pay-what-feels-fair" &&
-                      styles.pricingOptionTextActive,
-                  ]}
-                >
-                  Pay what's fair
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  styles.pricingOption,
-                  pricingMode === "set-price" && styles.pricingOptionActive,
-                ]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setPricingMode("set-price");
-                }}
-              >
-                <Text
-                  style={[
-                    styles.pricingOptionText,
-                    pricingMode === "set-price" &&
-                      styles.pricingOptionTextActive,
-                  ]}
-                >
-                  $___
-                </Text>
-              </Pressable>
-            </View>
-            {pricingMode === "set-price" && (
-              <TextInput
-                style={styles.priceInput}
-                placeholder="Enter price"
-                placeholderTextColor={colors.textLight}
-                value={customPrice}
-                onChangeText={setCustomPrice}
-                keyboardType="numeric"
-                returnKeyType="done"
-              />
+                  </Pressable>
+                ))}
+              </ScrollView>
             )}
           </View>
         )}
 
-        {/* List button */}
-        {isReady && (
-          <Button
-            variant="primary"
-            size="lg"
-            title="List it"
-            onPress={handleList}
-            style={styles.listBtn}
-          />
-        )}
+        {/* ── Condition ── */}
+        <View style={styles.fieldGroup}>
+          <View style={styles.fieldRow}>
+            <Text style={styles.fieldLabel}>Condition</Text>
+            <View style={styles.conditionSegment}>
+              {CONDITION_OPTIONS.map((c) => (
+                <Pressable
+                  key={c}
+                  style={[styles.conditionOption, selectedCondition === c && styles.conditionOptionActive]}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelectedCondition(c);
+                  }}
+                >
+                  <Text style={[styles.conditionOptionText, selectedCondition === c && styles.conditionOptionTextActive]}>
+                    {c}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+          <View style={styles.fieldDivider} />
+        </View>
 
-        <View style={{ height: 40 }} />
+        {/* ── Note ── */}
+        <View style={styles.fieldGroup}>
+          <TextInput
+            style={styles.noteInput}
+            placeholder="Add a note"
+            placeholderTextColor={warm.textMuted}
+            value={note}
+            onChangeText={setNote}
+            autoCapitalize="sentences"
+            returnKeyType="done"
+          />
+          <View style={styles.fieldDivider} />
+        </View>
+
+        {/* ── Price ── */}
+        <View style={styles.fieldGroup}>
+          <Text style={styles.priceLabel}>Price</Text>
+          <View style={styles.priceOptions}>
+            {(["free", "pay-what-feels-fair", "set-price"] as PricingMode[]).map((mode) => {
+              const isActive = pricingMode === mode;
+              const label = mode === "free" ? "Free" : mode === "pay-what-feels-fair" ? "Pay what's fair" : "Set price";
+              return (
+                <Pressable
+                  key={mode}
+                  style={styles.priceRow}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setPricingMode(mode);
+                  }}
+                >
+                  <View style={[styles.radioOuter, isActive && styles.radioOuterActive]}>
+                    {isActive && <View style={styles.radioInner} />}
+                  </View>
+                  <Text style={[styles.priceRowText, isActive && styles.priceRowTextActive]}>{label}</Text>
+                  {mode === "set-price" && isActive && (
+                    <TextInput
+                      style={styles.priceAmountInput}
+                      placeholder="$"
+                      placeholderTextColor={warm.textMuted}
+                      value={customPrice}
+                      onChangeText={setCustomPrice}
+                      keyboardType="numeric"
+                      returnKeyType="done"
+                    />
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={{ height: 60 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// ─── Styles ─────────────────────────────────────────────────────────────────
+// ─── Styles ────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
+  safe: { flex: 1, backgroundColor: warm.screenBg },
   scroll: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 40 },
+  scrollContent: { padding: 20, paddingTop: 8 },
 
-  // Back
-  backBtn: { alignSelf: "flex-start", paddingVertical: 8, marginBottom: 8 },
-  backText: { fontSize: 16, color: colors.violet, fontWeight: "600" },
-
-  // ─── Camera step ────────────────────────────────────────────────────
-  cameraContainer: {
-    flex: 1,
-    padding: 20,
-  },
-  cameraPlaceholder: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-  },
-  cameraIcon: {
-    fontSize: 64,
-  },
-  cameraTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: colors.text,
-    textAlign: "center",
-  },
-  cameraSub: {
-    fontSize: 15,
-    color: colors.textMuted,
-    textAlign: "center",
-  },
-  cameraActions: {
-    alignItems: "center",
-    paddingBottom: 24,
-  },
-  shutterButton: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 4,
-    borderColor: colors.text,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  shutterInner: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: colors.text,
-  },
-  cameraSecondary: {
+  // Header
+  header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingBottom: 32,
-  },
-  cameraSecondaryText: {
-    fontSize: 15,
-    color: colors.violet,
-    fontWeight: "600",
-  },
-
-  // ─── Photo thumbnail ───────────────────────────────────────────────
-  photoThumb: {
-    flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    marginBottom: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: warm.divider,
   },
-  photoImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
+  headerCancel: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: warm.textDark,
   },
-  photoRetake: {
-    fontSize: 14,
-    color: colors.violet,
+  headerList: {
+    fontSize: 16,
     fontWeight: "600",
+    color: warm.accent,
+  },
+  headerListDisabled: {
+    opacity: 0.35,
   },
 
-  // ─── Top category grid (6 tiles) ──────────────────────────────────
-  topCategoryGrid: {
+  // Photo row
+  photoRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12,
-    marginBottom: 20,
+    gap: 8,
+    paddingVertical: 16,
   },
-  topCategoryTile: {
-    width: "30%",
-    aspectRatio: 1,
+  photoPlaceholder: {
+    width: PHOTO_SIZE,
+    height: PHOTO_SIZE,
+    borderRadius: 12,
+    backgroundColor: warm.photoBg,
+    borderWidth: 1.5,
+    borderColor: warm.photoBorder,
+    borderStyle: "dashed",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 16,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 6,
   },
-  topCategoryEmoji: { fontSize: 28 },
-  topCategoryLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.text,
+  photoPlaceholderIcon: {
+    fontSize: 24,
+    color: warm.textMuted,
+  },
+  photoPlaceholderPlus: {
+    fontSize: 20,
+    color: warm.textMuted,
+  },
+  photoFilled: {
+    width: PHOTO_SIZE,
+    height: PHOTO_SIZE,
+    borderRadius: 12,
+  },
+  photoRemoveBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: warm.textDark,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoRemoveX: {
+    fontSize: 10,
+    color: "#FFFFFF",
+    fontWeight: "700",
   },
 
-  // ─── Subcategory chips ─────────────────────────────────────────────
-  breadcrumb: { marginBottom: 12 },
-  breadcrumbText: {
+  // Fields
+  fieldGroup: {
+    marginBottom: 4,
+  },
+  fieldRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+  },
+  fieldLabel: {
     fontSize: 16,
-    color: colors.violet,
-    fontWeight: "600",
+    color: warm.textDark,
+    width: 90,
   },
-  subCategoryGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 20,
-  },
-  subCategoryChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  subCategoryEmoji: { fontSize: 18 },
-  subCategoryLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.text,
-  },
-
-  // ─── Selected category ────────────────────────────────────────────
-  selectedCategoryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: colors.violet + "10",
-    borderWidth: 1,
-    borderColor: colors.violet,
-    marginBottom: 20,
-  },
-  selectedCategoryEmoji: { fontSize: 22 },
-  selectedCategoryLabel: {
+  fieldValue: {
     flex: 1,
     fontSize: 16,
-    fontWeight: "700",
-    color: colors.violet,
+    color: warm.textDark,
+    textAlign: "right",
   },
-  selectedCategoryChange: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.violet,
+  fieldValueAutoFilled: {
+    color: warm.accent,
   },
-
-  // ─── Sections ─────────────────────────────────────────────────────
-  section: { marginBottom: 20 },
-  sectionLabel: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: colors.text,
-    marginBottom: 10,
-  },
-
-  // ─── Search ───────────────────────────────────────────────────────
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 12,
-  },
-  searchIcon: { fontSize: 16, marginRight: 8 },
-  searchInput: {
+  fieldValuePlaceholder: {
     flex: 1,
     fontSize: 16,
-    color: colors.text,
-    paddingVertical: 12,
+    color: warm.textMuted,
+    textAlign: "right",
   },
-  clearBtn: { fontSize: 14, color: colors.textMuted, padding: 4 },
+  chevron: {
+    fontSize: 20,
+    color: warm.textMuted,
+    marginLeft: 8,
+  },
+  fieldDivider: {
+    height: 1,
+    backgroundColor: warm.divider,
+  },
+
+  // Name input
+  nameInput: {
+    fontSize: 16,
+    color: warm.textDark,
+    paddingVertical: 14,
+  },
+
+  // Suggestions
   suggestionsBox: {
-    marginTop: 4,
+    backgroundColor: warm.cardBg,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
+    borderColor: warm.divider,
     overflow: "hidden",
+    marginBottom: 8,
   },
   suggestionRow: {
     flexDirection: "row",
@@ -903,101 +697,156 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 10,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: warm.divider,
   },
   suggestionEmoji: { fontSize: 18 },
-  suggestionName: { flex: 1, fontSize: 15, fontWeight: "500", color: colors.text },
-  selectedItem: {
+  suggestionInfo: { flex: 1 },
+  suggestionName: { fontSize: 15, fontWeight: "500", color: warm.textDark },
+  suggestionCategory: { fontSize: 12, color: warm.textMuted, marginTop: 1 },
+
+  // Category picker
+  pickerGrid: {
     flexDirection: "row",
-    alignItems: "center",
+    flexWrap: "wrap",
     gap: 10,
-    marginTop: 8,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: colors.eucalyptus + "15",
-    borderWidth: 1,
-    borderColor: colors.eucalyptus + "40",
-  },
-  selectedItemEmoji: { fontSize: 22 },
-  selectedItemName: { flex: 1, fontSize: 16, fontWeight: "600", color: colors.text },
-  changeLink: { fontSize: 14, fontWeight: "600", color: colors.violet },
-
-  // ─── Pills ────────────────────────────────────────────────────────
-  pillRow: { gap: 8 },
-  pill: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 20 },
-  pillInactive: { backgroundColor: colors.surface },
-  pillTextActive: { fontSize: 14, fontWeight: "600", color: "#FFFFFF" },
-  pillTextInactive: { fontSize: 14, fontWeight: "600", color: colors.textMuted },
-
-  // ─── Condition ────────────────────────────────────────────────────
-  conditionRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
-  conditionChip: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: colors.surface,
-  },
-  conditionChipActive: {
-    backgroundColor: colors.violet + "20",
-    borderWidth: 1,
-    borderColor: colors.violet,
-  },
-  conditionText: { fontSize: 14, fontWeight: "600", color: colors.textMuted },
-  conditionTextActive: { color: colors.violet },
-
-  // ─── Note ─────────────────────────────────────────────────────────
-  noteInput: {
-    fontSize: 15,
-    color: colors.text,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-  },
-
-  // ─── Pricing ──────────────────────────────────────────────────────
-  pricingRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  pricingOption: {
-    flex: 1,
     paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
+  },
+  pickerTile: {
+    width: "30%",
+    aspectRatio: 1.2,
     alignItems: "center",
-  },
-  pricingOptionActive: {
-    backgroundColor: colors.eucalyptus + "20",
+    justifyContent: "center",
+    borderRadius: 12,
+    backgroundColor: warm.cardBg,
     borderWidth: 1,
-    borderColor: colors.eucalyptus,
+    borderColor: warm.divider,
+    gap: 4,
   },
-  pricingOptionText: {
+  pickerTileEmoji: { fontSize: 24 },
+  pickerTileLabel: { fontSize: 13, fontWeight: "600", color: warm.textDark },
+
+  // Subcategory
+  subCatContainer: { paddingVertical: 12, gap: 10 },
+  subCatBack: { fontSize: 15, fontWeight: "600", color: warm.accent },
+  subCatChips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  subCatChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    backgroundColor: warm.cardBg,
+    borderWidth: 1,
+    borderColor: warm.divider,
+  },
+  subCatChipEmoji: { fontSize: 16 },
+  subCatChipLabel: { fontSize: 14, fontWeight: "500", color: warm.textDark },
+
+  // Size pills
+  sizeRow: { gap: 8, paddingVertical: 12 },
+  sizePill: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    backgroundColor: warm.photoBg,
+  },
+  sizePillActive: {
+    backgroundColor: warm.accent,
+  },
+  sizePillText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: warm.textMuted,
+  },
+  sizePillTextActive: {
+    color: "#FFFFFF",
+  },
+
+  // Condition
+  conditionSegment: {
+    flex: 1,
+    flexDirection: "row",
+    gap: 6,
+    justifyContent: "flex-end",
+  },
+  conditionOption: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: warm.photoBg,
+  },
+  conditionOptionActive: {
+    backgroundColor: warm.accent + "20",
+    borderWidth: 1,
+    borderColor: warm.accent,
+  },
+  conditionOptionText: {
     fontSize: 13,
     fontWeight: "600",
-    color: colors.textMuted,
+    color: warm.textMuted,
   },
-  pricingOptionTextActive: {
-    color: colors.eucalyptus,
+  conditionOptionTextActive: {
+    color: warm.accent,
   },
-  priceInput: {
-    marginTop: 10,
+
+  // Note
+  noteInput: {
     fontSize: 16,
-    color: colors.text,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
+    color: warm.textDark,
+    paddingVertical: 14,
   },
 
-  // ─── List button ──────────────────────────────────────────────────
-  listBtn: { width: "100%", marginTop: 8 },
+  // Price
+  priceLabel: {
+    fontSize: 16,
+    color: warm.textDark,
+    paddingTop: 14,
+    marginBottom: 8,
+  },
+  priceOptions: { gap: 4 },
+  priceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    gap: 12,
+  },
+  radioOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: warm.divider,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  radioOuterActive: {
+    borderColor: warm.accent,
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: warm.accent,
+  },
+  priceRowText: {
+    fontSize: 16,
+    color: warm.textDark,
+  },
+  priceRowTextActive: {
+    fontWeight: "600",
+  },
+  priceAmountInput: {
+    fontSize: 16,
+    color: warm.textDark,
+    borderBottomWidth: 1,
+    borderBottomColor: warm.divider,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    minWidth: 60,
+  },
 
-  // ─── Done step ────────────────────────────────────────────────────
+  // Done
   doneContainer: {
     flex: 1,
     alignItems: "center",
@@ -1013,11 +862,36 @@ const styles = StyleSheet.create({
   doneTitle: {
     fontSize: 20,
     fontWeight: "600",
-    color: colors.text,
+    color: warm.textDark,
     textAlign: "center",
   },
   doneButtons: {
     flexDirection: "row",
     marginTop: 20,
+    gap: 12,
+  },
+  doneButtonPrimary: {
+    backgroundColor: warm.accent,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  doneButtonPrimaryText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  doneButtonSecondary: {
+    backgroundColor: warm.screenBg,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderWidth: 1.5,
+    borderColor: warm.accent,
+  },
+  doneButtonSecondaryText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: warm.accent,
   },
 });
