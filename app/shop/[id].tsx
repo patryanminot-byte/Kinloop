@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import {
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Slider from "@react-native-community/slider";
 import * as Haptics from "expo-haptics";
 import { colors } from "../../lib/colors";
 import type { Item } from "../../lib/types";
@@ -77,6 +76,74 @@ function getMaxPrice(item: Item): number {
   if (cat === "Furniture" || cat === "Gear") return 100;
   if (cat === "Electronics") return 150;
   return 40;
+}
+
+// ─── Pure JS Slider (replaces native @react-native-community/slider) ────────
+
+function Slider({
+  minimumValue = 0,
+  maximumValue = 100,
+  step = 1,
+  value = 0,
+  onValueChange,
+  minimumTrackTintColor = "#007AFF",
+  maximumTrackTintColor = "#E0E0E0",
+  thumbTintColor = "#007AFF",
+  style,
+}: {
+  minimumValue?: number;
+  maximumValue?: number;
+  step?: number;
+  value?: number;
+  onValueChange: (v: number) => void;
+  minimumTrackTintColor?: string;
+  maximumTrackTintColor?: string;
+  thumbTintColor?: string;
+  style?: any;
+}) {
+  const trackWidth = useRef(0);
+  const range = maximumValue - minimumValue;
+  const pct = range > 0 ? ((value - minimumValue) / range) * 100 : 0;
+
+  const computeValue = (locationX: number) => {
+    if (trackWidth.current <= 0) return;
+    const ratio = Math.max(0, Math.min(1, locationX / trackWidth.current));
+    let raw = minimumValue + ratio * range;
+    if (step > 0) raw = Math.round(raw / step) * step;
+    onValueChange(Math.max(minimumValue, Math.min(maximumValue, raw)));
+  };
+
+  return (
+    <View
+      style={[{ height: 40, justifyContent: "center" }, style]}
+      onLayout={(e) => { trackWidth.current = e.nativeEvent.layout.width; }}
+      onStartShouldSetResponder={() => true}
+      onMoveShouldSetResponder={() => true}
+      onResponderGrant={(e) => computeValue(e.nativeEvent.locationX)}
+      onResponderMove={(e) => computeValue(e.nativeEvent.locationX)}
+    >
+      <View style={{ height: 6, borderRadius: 3, backgroundColor: maximumTrackTintColor }}>
+        <View style={{ height: 6, borderRadius: 3, backgroundColor: minimumTrackTintColor, width: `${pct}%` }} />
+      </View>
+      <View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          left: `${pct}%`,
+          marginLeft: -13,
+          width: 26,
+          height: 26,
+          borderRadius: 13,
+          backgroundColor: thumbTintColor,
+          shadowColor: "#000",
+          shadowOpacity: 0.15,
+          shadowRadius: 3,
+          shadowOffset: { width: 0, height: 2 },
+          elevation: 3,
+        }}
+      />
+    </View>
+  );
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────

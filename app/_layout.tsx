@@ -163,6 +163,7 @@ export default function RootLayout() {
         <Stack.Screen name="item/[id]" />
         <Stack.Screen name="shop/[id]" />
         <Stack.Screen name="add-item" />
+        <Stack.Screen name="settings" />
         <Stack.Screen name="to-go" />
         <Stack.Screen name="friends/nearby" />
         <Stack.Screen name="legal/privacy" />
