@@ -1,10 +1,5 @@
 import React from "react";
 import { Pressable, View, StyleSheet, ViewStyle, StyleProp } from "react-native";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-} from "react-native-reanimated";
 import { colors } from "../../lib/colors";
 
 interface CardProps {
@@ -13,42 +8,26 @@ interface CardProps {
   style?: StyleProp<ViewStyle>;
 }
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
-const springConfig = { damping: 15, stiffness: 150 };
-
 export default function Card({ children, onPress, style }: CardProps) {
-  const translateY = useSharedValue(0);
-  const shadowOpacity = useSharedValue(0.04);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
-    shadowOpacity: shadowOpacity.value,
-  }));
-
   if (!onPress) {
     return <View style={[styles.card, style]}>{children}</View>;
   }
 
-  const handlePressIn = () => {
-    translateY.value = withSpring(-2, springConfig);
-    shadowOpacity.value = withSpring(0.12, springConfig);
-  };
-
-  const handlePressOut = () => {
-    translateY.value = withSpring(0, springConfig);
-    shadowOpacity.value = withSpring(0.04, springConfig);
-  };
-
   return (
-    <AnimatedPressable
+    <Pressable
       onPress={onPress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      style={[styles.card, styles.shadow, animatedStyle, style]}
+      style={({ pressed }) => [
+        styles.card,
+        styles.shadow,
+        pressed && {
+          transform: [{ translateY: -2 }],
+          shadowOpacity: 0.12,
+        },
+        style as ViewStyle,
+      ]}
     >
       {children}
-    </AnimatedPressable>
+    </Pressable>
   );
 }
 
@@ -63,6 +42,7 @@ const styles = StyleSheet.create({
   shadow: {
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
     shadowRadius: 12,
     elevation: 4,
   },

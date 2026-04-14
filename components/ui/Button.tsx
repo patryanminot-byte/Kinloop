@@ -9,11 +9,6 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-} from "react-native-reanimated";
 import { colors, gradientColors } from "../../lib/colors";
 
 type ButtonVariant = "primary" | "secondary" | "ghost";
@@ -27,8 +22,6 @@ interface ButtonProps {
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 }
-
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const sizeStyles: Record<ButtonSize, { container: ViewStyle; text: TextStyle }> =
   {
@@ -54,24 +47,6 @@ export default function Button({
   disabled = false,
   style,
 }: ButtonProps) {
-  const scale = useSharedValue(1);
-  const opacity = useSharedValue(1);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: opacity.value,
-  }));
-
-  const handlePressIn = () => {
-    scale.value = withTiming(0.97, { duration: 100 });
-    opacity.value = withTiming(0.9, { duration: 100 });
-  };
-
-  const handlePressOut = () => {
-    scale.value = withTiming(1, { duration: 150 });
-    opacity.value = withTiming(1, { duration: 150 });
-  };
-
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onPress?.();
@@ -96,12 +71,13 @@ export default function Button({
 
   if (variant === "primary") {
     return (
-      <AnimatedPressable
+      <Pressable
         onPress={handlePress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
         disabled={disabled}
-        style={[animatedStyle, style]}
+        style={({ pressed }) => [
+          pressed && { opacity: 0.9, transform: [{ scale: 0.97 }] },
+          style,
+        ]}
       >
         <LinearGradient
           colors={gradientColors.button}
@@ -115,27 +91,25 @@ export default function Button({
         >
           {content}
         </LinearGradient>
-      </AnimatedPressable>
+      </Pressable>
     );
   }
 
   return (
-    <AnimatedPressable
+    <Pressable
       onPress={handlePress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
       disabled={disabled}
-      style={[
-        animatedStyle,
+      style={({ pressed }) => [
         sizeConfig.container,
         styles.center,
         variant === "secondary" && styles.secondary,
         disabled && styles.disabledContainer,
-        style,
+        pressed && { opacity: 0.9, transform: [{ scale: 0.97 }] },
+        style as ViewStyle,
       ]}
     >
       {content}
-    </AnimatedPressable>
+    </Pressable>
   );
 }
 
