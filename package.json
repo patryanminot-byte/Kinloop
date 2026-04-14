@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
+    "@react-native-community/datetimepicker": "^8.4.4",
     "@react-native-masked-view/masked-view": "0.3.2",
+    "@stripe/stripe-react-native": "0.50.3",
     "@supabase/supabase-js": "^2.102.1",
     "expo": "~54.0.33",
     "expo-apple-authentication": "~8.0.8",
