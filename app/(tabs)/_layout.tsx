@@ -2,35 +2,21 @@ import { Tabs } from "expo-router";
 import { Text, View, StyleSheet } from "react-native";
 import { BlurView } from "expo-blur";
 import { colors } from "../../lib/colors";
-import { useMatches } from "../../hooks/useMatches";
-import { useFriends } from "../../hooks/useFriends";
-import { useAuth } from "../../hooks/useAuth";
 
 function TabIcon({
   icon,
   label,
   focused,
-  badge,
 }: {
   icon: string;
   label: string;
   focused: boolean;
-  badge?: number;
 }) {
   return (
     <View style={styles.tabItem}>
-      <View>
-        <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>
-          {icon}
-        </Text>
-        {badge != null && badge > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>
-              {badge > 9 ? "9+" : badge}
-            </Text>
-          </View>
-        )}
-      </View>
+      <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>
+        {icon}
+      </Text>
       <Text
         style={[styles.tabLabel, focused && styles.tabLabelActive]}
         numberOfLines={1}
@@ -42,17 +28,6 @@ function TabIcon({
 }
 
 export default function TabLayout() {
-  const { session } = useAuth();
-  const userId = session?.user?.id;
-  const { incomingOffers } = useMatches(userId);
-  const { friends } = useFriends(userId);
-
-  // Badge count for Friends tab: pending friend requests + new incoming offers
-  const pendingFriendRequests = friends.filter(
-    (f) => f.status === "invited"
-  ).length;
-  const friendBadge = pendingFriendRequests > 0 ? pendingFriendRequests : undefined;
-
   return (
     <Tabs
       screenOptions={{
@@ -84,7 +59,7 @@ export default function TabLayout() {
         name="friends"
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon icon={"\u2661"} label="Friends" focused={focused} badge={friendBadge} />
+            <TabIcon icon={"\u2661"} label="Friends" focused={focused} />
           ),
         }}
       />
@@ -133,22 +108,5 @@ const styles = StyleSheet.create({
   tabLabelActive: {
     color: colors.violet,
     fontWeight: "700",
-  },
-  badge: {
-    position: "absolute",
-    top: -4,
-    right: -10,
-    backgroundColor: colors.coral,
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 4,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#FFFFFF",
   },
 });

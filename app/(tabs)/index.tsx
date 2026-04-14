@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   ScrollView,
   Pressable,
   ActivityIndicator,
-  Animated,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -56,7 +55,7 @@ const SEASONAL_COPY: Record<string, { emoji: string; line1: string; line2: strin
   winter: { emoji: "\uD83C\uDF81", line1: "End of year clearout", line2: "Toys, books, gear?" },
 };
 
-// ─── Pressable button with scale animation ──────────────────────────────────
+// ─── Pressable button with opacity feedback ─────────────────────────────────
 
 function WarmButton({
   title,
@@ -67,44 +66,25 @@ function WarmButton({
   onPress: () => void;
   variant?: "filled" | "outlined";
 }) {
-  const scale = useRef(new Animated.Value(1)).current;
-
-  const onPressIn = () => {
-    Animated.timing(scale, {
-      toValue: 0.97,
-      duration: 150,
-      useNativeDriver: true,
-    }).start();
-  };
-
-  const onPressOut = () => {
-    Animated.timing(scale, {
-      toValue: 1,
-      duration: 150,
-      useNativeDriver: true,
-    }).start();
-  };
-
   const isFilled = variant === "filled";
 
   return (
-    <Pressable onPress={onPress} onPressIn={onPressIn} onPressOut={onPressOut}>
-      <Animated.View
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.warmButton,
+        isFilled ? styles.warmButtonFilled : styles.warmButtonOutlined,
+        pressed && { opacity: 0.85, transform: [{ scale: 0.97 }] },
+      ]}
+    >
+      <Text
         style={[
-          styles.warmButton,
-          isFilled ? styles.warmButtonFilled : styles.warmButtonOutlined,
-          { transform: [{ scale }] },
+          styles.warmButtonText,
+          isFilled ? styles.warmButtonTextFilled : styles.warmButtonTextOutlined,
         ]}
       >
-        <Text
-          style={[
-            styles.warmButtonText,
-            isFilled ? styles.warmButtonTextFilled : styles.warmButtonTextOutlined,
-          ]}
-        >
-          {title}
-        </Text>
-      </Animated.View>
+        {title}
+      </Text>
     </Pressable>
   );
 }

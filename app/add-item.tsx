@@ -9,7 +9,7 @@ import {
   Pressable,
   Image,
   Alert,
-  Dimensions,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -40,8 +40,7 @@ const warm = {
   accent: colors.violet,
 };
 
-const SCREEN_WIDTH = Dimensions.get("window").width;
-const PHOTO_SIZE = Math.floor((SCREEN_WIDTH - 48 - 16) / 3); // 24px margins, 8px gaps
+// PHOTO_SIZE computed inside component via useWindowDimensions (avoids top-level native call)
 
 // ─── Top-level category tiles ──────────────────────────────────────────────
 
@@ -91,6 +90,8 @@ export default function AddItemScreen() {
   const router = useRouter();
   const addToGoItem = useAppStore((s) => s.addToGoItem);
   const { searchSmart } = useItemCatalog();
+  const { width: screenWidth } = useWindowDimensions();
+  const PHOTO_SIZE = Math.floor((screenWidth - 48 - 16) / 3);
 
   // State
   const [photos, setPhotos] = useState<string[]>([]);
@@ -316,14 +317,14 @@ export default function AddItemScreen() {
         >
           {photos.map((uri, i) => (
             <Pressable key={uri} onPress={() => removePhoto(i)}>
-              <Image source={{ uri }} style={styles.photoFilled} />
+              <Image source={{ uri }} style={[styles.photoFilled, { width: PHOTO_SIZE, height: PHOTO_SIZE }]} />
               <View style={styles.photoRemoveBadge}>
                 <Text style={styles.photoRemoveX}>{"\u2715"}</Text>
               </View>
             </Pressable>
           ))}
           {photos.length < 5 && (
-            <Pressable style={styles.photoPlaceholder} onPress={addPhoto}>
+            <Pressable style={[styles.photoPlaceholder, { width: PHOTO_SIZE, height: PHOTO_SIZE }]} onPress={addPhoto}>
               <Text style={styles.photoPlaceholderIcon}>
                 {photos.length === 0 ? "\u{1F4F7}" : "+"}
               </Text>
@@ -331,10 +332,10 @@ export default function AddItemScreen() {
           )}
           {photos.length === 0 && (
             <>
-              <Pressable style={styles.photoPlaceholder} onPress={addPhoto}>
+              <Pressable style={[styles.photoPlaceholder, { width: PHOTO_SIZE, height: PHOTO_SIZE }]} onPress={addPhoto}>
                 <Text style={styles.photoPlaceholderPlus}>+</Text>
               </Pressable>
-              <Pressable style={styles.photoPlaceholder} onPress={addPhoto}>
+              <Pressable style={[styles.photoPlaceholder, { width: PHOTO_SIZE, height: PHOTO_SIZE }]} onPress={addPhoto}>
                 <Text style={styles.photoPlaceholderPlus}>+</Text>
               </Pressable>
             </>
@@ -596,8 +597,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   photoPlaceholder: {
-    width: PHOTO_SIZE,
-    height: PHOTO_SIZE,
     borderRadius: 12,
     backgroundColor: warm.photoBg,
     borderWidth: 1.5,
@@ -615,8 +614,6 @@ const styles = StyleSheet.create({
     color: warm.textMuted,
   },
   photoFilled: {
-    width: PHOTO_SIZE,
-    height: PHOTO_SIZE,
     borderRadius: 12,
   },
   photoRemoveBadge: {
