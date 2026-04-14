@@ -5,18 +5,13 @@ import {
   TextInput,
   StyleSheet,
   ScrollView,
-  Platform,
   Pressable,
   Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-// Lazy-loaded to avoid native module crash at startup (expo-router imports all routes)
-const DateTimePicker = React.lazy(() =>
-  import("@react-native-community/datetimepicker").then((m) => ({ default: m.default }))
-);
-type DateTimePickerEvent = { type: string; nativeEvent: { timestamp: number } };
+import DatePicker from "../../components/ui/DatePicker";
 import Button from "../../components/ui/Button";
 import EmojiPicker from "../../components/ui/EmojiPicker";
 import { useAppStore } from "../../stores/appStore";
@@ -46,14 +41,9 @@ export default function AddChildScreen() {
   const [emoji, setEmoji] = useState("");
   const [showDatePicker, setShowDatePicker] = useState(false);
 
-  const handleDateChange = (_event: DateTimePickerEvent, date?: Date) => {
-    if (Platform.OS === "android") {
-      setShowDatePicker(false);
-    }
-    if (date) {
-      setDob(date);
-      setDobSelected(true);
-    }
+  const handleDateChange = (date: Date) => {
+    setDob(date);
+    setDobSelected(true);
   };
 
   const canProceed = name.trim().length > 0 && dobSelected && emoji.length > 0;
@@ -182,23 +172,11 @@ export default function AddChildScreen() {
           style={styles.dateButton}
         />
         {showDatePicker && (
-          <React.Suspense fallback={<View />}>
-            <DateTimePicker
-              value={dob}
-              mode="date"
-              display={Platform.OS === "ios" ? "spinner" : "default"}
-              maximumDate={new Date()}
-              minimumDate={new Date(new Date().getFullYear() - 6, new Date().getMonth(), new Date().getDate())}
-              onChange={handleDateChange}
-            />
-          </React.Suspense>
-        )}
-        {Platform.OS === "ios" && showDatePicker && (
-          <Button
-            variant="ghost"
-            size="sm"
-            title="Done"
-            onPress={() => setShowDatePicker(false)}
+          <DatePicker
+            value={dob}
+            maximumDate={new Date()}
+            minimumDate={new Date(new Date().getFullYear() - 6, new Date().getMonth(), new Date().getDate())}
+            onChange={handleDateChange}
           />
         )}
 

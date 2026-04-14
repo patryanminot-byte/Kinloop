@@ -8,14 +8,9 @@ import {
   TextInput,
   Alert,
   Image,
-  Platform,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-// Lazy-loaded to avoid native module crash at startup (expo-router imports all routes)
-const DateTimePicker = React.lazy(() =>
-  import("@react-native-community/datetimepicker").then((m) => ({ default: m.default }))
-);
-type DateTimePickerEvent = { type: string; nativeEvent: { timestamp: number } };
+import DatePicker from "../../components/ui/DatePicker";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { colors } from "../../lib/colors";
@@ -200,9 +195,8 @@ export default function ProfileScreen() {
     ? new Date(kidDobDraft + "T00:00:00")
     : new Date(new Date().getFullYear() - 1, new Date().getMonth(), new Date().getDate());
 
-  const handleKidDateChange = (_event: DateTimePickerEvent, date?: Date) => {
-    if (Platform.OS === "android") setShowKidDatePicker(false);
-    if (date) setKidDobDraft(date.toISOString().split("T")[0]);
+  const handleKidDateChange = (date: Date) => {
+    setKidDobDraft(date.toISOString().split("T")[0]);
   };
 
   const formatKidDobLabel = (dob: string) => {
@@ -305,20 +299,12 @@ export default function ProfileScreen() {
                     </Text>
                   </Pressable>
                   {showKidDatePicker && (
-                    <>
-                      <React.Suspense fallback={<View />}>
-                        <DateTimePicker
-                          value={kidDobDate} mode="date" display={Platform.OS === "ios" ? "spinner" : "default"}
-                          maximumDate={new Date()} minimumDate={new Date(new Date().getFullYear() - 18, 0, 1)}
-                          onChange={handleKidDateChange}
-                        />
-                      </React.Suspense>
-                      {Platform.OS === "ios" && (
-                        <Pressable onPress={() => setShowKidDatePicker(false)} style={styles.kidDateDoneBtn}>
-                          <Text style={styles.kidDateDoneText}>Done</Text>
-                        </Pressable>
-                      )}
-                    </>
+                    <DatePicker
+                      value={kidDobDate}
+                      maximumDate={new Date()}
+                      minimumDate={new Date(new Date().getFullYear() - 18, 0, 1)}
+                      onChange={handleKidDateChange}
+                    />
                   )}
                 </View>
                 <Pressable onPress={handleSaveKid} style={styles.kidSaveBtn}>
