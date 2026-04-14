@@ -174,22 +174,6 @@ export default function RootLayout() {
     </>
   );
 
-  if (isExpoGo) {
-    return content;
-  }
-
-  const { STRIPE_PUBLISHABLE_KEY } = require("../lib/stripe");
-
-  // Skip StripeProvider if key isn't configured yet — avoids crash
-  if (!STRIPE_PUBLISHABLE_KEY) {
-    return content;
-  }
-
-  const { StripeProvider } = require("@stripe/stripe-react-native");
-
-  return (
-    <StripeProvider publishableKey={STRIPE_PUBLISHABLE_KEY}>
-      {content}
-    </StripeProvider>
-  );
+  // Stripe payments deferred to App Store launch — not included in TestFlight builds
+  return content;
 }

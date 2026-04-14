@@ -33,7 +33,8 @@ export default function PaymentSheet({
   onSuccess,
   onCancel,
 }: PaymentSheetProps) {
-  const stripe = isExpoGo ? null : require("@stripe/stripe-react-native").useStripe();
+  // Stripe deferred to App Store launch
+  const stripe: any = null;
   const [loading, setLoading] = useState(false);
 
   const { itemPrice: price, fee, total } = calculateTotal(itemPrice);

@@ -7,7 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -69,14 +69,7 @@
         }
       ],
       "expo-web-browser",
-      "expo-apple-authentication",
-      [
-        "@stripe/stripe-react-native",
-        {
-          "merchantIdentifier": "merchant.com.patrickminot.watasu",
-          "enableGooglePay": false
-        }
-      ]
+      "expo-apple-authentication"
     ],
     "extra": {
       "router": {},
