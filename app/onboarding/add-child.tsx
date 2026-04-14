@@ -12,9 +12,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import DateTimePicker, {
-  DateTimePickerEvent,
-} from "@react-native-community/datetimepicker";
+// Lazy-loaded to avoid native module crash at startup (expo-router imports all routes)
+const DateTimePicker = React.lazy(() =>
+  import("@react-native-community/datetimepicker").then((m) => ({ default: m.default }))
+);
+type DateTimePickerEvent = { type: string; nativeEvent: { timestamp: number } };
 import Button from "../../components/ui/Button";
 import EmojiPicker from "../../components/ui/EmojiPicker";
 import { useAppStore } from "../../stores/appStore";
@@ -180,14 +182,16 @@ export default function AddChildScreen() {
           style={styles.dateButton}
         />
         {showDatePicker && (
-          <DateTimePicker
-            value={dob}
-            mode="date"
-            display={Platform.OS === "ios" ? "spinner" : "default"}
-            maximumDate={new Date()}
-            minimumDate={new Date(new Date().getFullYear() - 6, new Date().getMonth(), new Date().getDate())}
-            onChange={handleDateChange}
-          />
+          <React.Suspense fallback={<View />}>
+            <DateTimePicker
+              value={dob}
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              maximumDate={new Date()}
+              minimumDate={new Date(new Date().getFullYear() - 6, new Date().getMonth(), new Date().getDate())}
+              onChange={handleDateChange}
+            />
+          </React.Suspense>
         )}
         {Platform.OS === "ios" && showDatePicker && (
           <Button

@@ -11,9 +11,11 @@ import {
   Platform,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import DateTimePicker, {
-  DateTimePickerEvent,
-} from "@react-native-community/datetimepicker";
+// Lazy-loaded to avoid native module crash at startup (expo-router imports all routes)
+const DateTimePicker = React.lazy(() =>
+  import("@react-native-community/datetimepicker").then((m) => ({ default: m.default }))
+);
+type DateTimePickerEvent = { type: string; nativeEvent: { timestamp: number } };
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { colors } from "../../lib/colors";
@@ -304,11 +306,13 @@ export default function ProfileScreen() {
                   </Pressable>
                   {showKidDatePicker && (
                     <>
-                      <DateTimePicker
-                        value={kidDobDate} mode="date" display={Platform.OS === "ios" ? "spinner" : "default"}
-                        maximumDate={new Date()} minimumDate={new Date(new Date().getFullYear() - 18, 0, 1)}
-                        onChange={handleKidDateChange}
-                      />
+                      <React.Suspense fallback={<View />}>
+                        <DateTimePicker
+                          value={kidDobDate} mode="date" display={Platform.OS === "ios" ? "spinner" : "default"}
+                          maximumDate={new Date()} minimumDate={new Date(new Date().getFullYear() - 18, 0, 1)}
+                          onChange={handleKidDateChange}
+                        />
+                      </React.Suspense>
                       {Platform.OS === "ios" && (
                         <Pressable onPress={() => setShowKidDatePicker(false)} style={styles.kidDateDoneBtn}>
                           <Text style={styles.kidDateDoneText}>Done</Text>
